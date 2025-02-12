@@ -12,20 +12,12 @@ import { Slider } from './components/ui/slider';
 import { Play, Pause, SkipBack, Save, Copy, Trash2, Plus, Film } from 'lucide-react';
 import { Alert, AlertDescription } from './components/ui/alert';
 import { Canvg } from 'canvg';
+import TopToolbar from './components/TopToolbar';
+import KeyframePanel from './components/KeyframePanel';
+import LineStyleSelector, { LineStyle } from './components/LineStyleSelector';
 
 type Tool = 'select' | 'player' | 'opponent' | 'ball' | 'cone' | 'line';
 type PitchType = 'full' | 'offensive' | 'defensive';
-
-type LineStyle = 
-  | 'solidCurved'
-  | 'dashedCurved'
-  | 'solidStraight'
-  | 'dashedStraight'
-  | 'curvedArrow'
-  | 'straightArrow'
-  | 'endMark'
-  | 'plusEnd'
-  | 'xEnd';
 
 interface BaseElement {
   id: string;
@@ -107,6 +99,11 @@ const FootballAnimator = () => {
   const [isDrawing, setIsDrawing] = useState(false);
   const [startPoint, setStartPoint] = useState<{x: number; y: number} | null>(null);
   const recordedSVGRef = useRef<SVGSVGElement>(null);
+  const [isRecording, setIsRecording] = useState(false);
+  const recordingRef = useRef(isRecording);
+  const progressRef = useRef(progress);
+  const currentFrameRef = useRef(currentFrame);
+  const isPlayingRef = useRef(isPlaying);
 
   const lineStyleOptions: { value: LineStyle, label: string, preview: React.ReactElement }[] = [
     {
@@ -374,7 +371,6 @@ const FootballAnimator = () => {
     const transform = element.type === 'line' ? '' : `translate(${element.x ?? 0}, ${element.y ?? 0})`;
     
     const elementProps = {
-      key: element.id,
       style: highlightStyle,
       onClick: (e: React.MouseEvent) => handleElementClick(e, element),
       onMouseDown: (e: React.MouseEvent) => {
@@ -386,7 +382,7 @@ const FootballAnimator = () => {
     switch(element.type) {
       case 'player':
         return (
-          <g {...elementProps}>
+          <g key={element.id} {...elementProps}>
             <circle cx="0" cy="0" r="15" fill="white" stroke="black" strokeWidth="2"/>
             <text x="0" y="5" textAnchor="middle" fontFamily="Arial" fontSize="16" fontWeight="bold">
               {element.number}
@@ -395,7 +391,7 @@ const FootballAnimator = () => {
         );
       case 'opponent':
         return (
-          <g {...elementProps}>
+          <g key={element.id} {...elementProps}>
             <circle cx="0" cy="0" r="15" fill="black" stroke="black" strokeWidth="2"/>
             <text x="0" y="5" textAnchor="middle" fontFamily="Arial" fontSize="16" fontWeight="bold" fill="white">
               {element.number}
@@ -404,20 +400,21 @@ const FootballAnimator = () => {
         );
       case 'ball':
         return (
-          <g {...elementProps}>
+          <g key={element.id} {...elementProps}>
             <circle cx="0" cy="0" r="8" fill="white" stroke="black" strokeWidth="1.5"/>
             <path d="M 0,-3.5 L 3,-1.75 L 3,1.75 L 0,3.5 L -3,1.75 L -3,-1.75 Z" fill="black"/>
           </g>
         );
       case 'cone':
         return (
-          <g {...elementProps}>
+          <g key={element.id} {...elementProps}>
             <path d="M -5,8 L 5,8 L 2,-8 L -2,-8 Z" fill="orange" stroke="black" strokeWidth="1"/>
           </g>
         );
       case 'line':
         return (
           <path
+            key={element.id}
             {...elementProps}
             d={element.path}
             fill="none"
@@ -737,7 +734,6 @@ const FootballAnimator = () => {
 
   const handlePlayPause = () => {
     if (!isPlaying) {
-      // Hvis vi er på siste frame, start fra begynnelsen
       if (currentFrame === frames.length - 1) {
         setCurrentFrame(0);
         setProgress(0);
@@ -777,72 +773,77 @@ const FootballAnimator = () => {
   };
 
   // Funksjon for å laste ned animasjonen som film (video .webm)
-  const handleDownloadFilm = async () => {
+  const handleDownloadFilm = () => {
+    if (recordingRef.current) {
+      console.log("Opptak allerede i gang, ignorerer ny forespørsel.");
+      return;
+    }
+    
+    // Reset til start før opptak
+    setCurrentFrame(0);
+    setProgress(0);
+    
+    recordingRef.current = true;
+    setIsRecording(true);
+    
     if (recordedSVGRef.current) {
-      // Fallback: bruk canvas og canvg for å ta opp SVG som video med kontinuerlig oppdatering
-      console.log('captureStream() ikke tilgjengelig på SVG, benytter canvas som fallback.');
-      const svg = recordedSVGRef.current;
-      const serializer = new XMLSerializer();
-      // Bruk getBoundingClientRect for å hente riktige dimensjoner
-      const { width, height } = svg.getBoundingClientRect();
-      const canvas = document.createElement('canvas');
-      canvas.width = width;
-      canvas.height = height;
-      const ctx = canvas.getContext('2d');
-      if (!ctx) return;
-      // Sett en hvit bakgrunn for canvasen
-      ctx.fillStyle = "white";
-      ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-      // Endret: Initialiserer animFrame med 0
-      let animFrame: number = 0;
-      const startTime = performance.now();
-
-      const updateCanvas = async () => {
-        // Tøm canvas og fyll med hvit bakgrunn for et rent utgangspunkt
-        ctx.clearRect(0, 0, canvas.width, canvas.height);
-        ctx.fillStyle = "white";
-        ctx.fillRect(0, 0, canvas.width, canvas.height);
+      let stream;
+      let canvasFallback: HTMLCanvasElement | null = null;
+      let recording = true;
+      let updateCanvasRafId = 0;
+      
+      if ((recordedSVGRef.current as any).captureStream) {
+        console.log("SVG støtter captureStream, bruker den direkte.");
+        stream = (recordedSVGRef.current as any).captureStream(60);
+      } else {
+        console.log("captureStream() ikke tilgjengelig på SVG, benytter canvas som fallback.");
+        const svg = recordedSVGRef.current;
+        const serializer = new XMLSerializer();
+        const { width, height } = svg.getBoundingClientRect();
+        canvasFallback = document.createElement('canvas');
+        canvasFallback.width = width || 680;
+        canvasFallback.height = height || 1050;
+        const ctx = canvasFallback.getContext('2d');
+        if (!ctx) return;
         
-        // Klon SVG-en og inline alle beregnede stiler for å fange animerte posisjoner
-        const inlinedSvg = inlineAllStyles(svg);
-        const svgString = serializer.serializeToString(inlinedSvg);
+        canvasFallback.style.position = "fixed";
+        canvasFallback.style.top = "0";
+        canvasFallback.style.left = "0";
+        canvasFallback.style.opacity = "0";
+        document.body.appendChild(canvasFallback);
+        stream = canvasFallback.captureStream(60);
         
-        // Bruk canvg for å rendere SVG på canvas med bakgrunnen beholdt
-        const v = await Canvg.from(ctx, svgString, {
-          ignoreDimensions: true,
-          ignoreClear: true,
-        });
-        v.resize(canvas.width, canvas.height);
-        await v.render();
-        
-        console.log("UpdateCanvas: " + (performance.now() - startTime).toFixed(0) + " ms");
+        const updateCanvas = async () => {
+          if (!recording) return;
+          ctx.fillStyle = "white";
+          ctx.fillRect(0, 0, canvasFallback!.width, canvasFallback!.height);
+          const inlinedSvg = inlineAllStyles(svg);
+          const updatedSvgString = serializer.serializeToString(inlinedSvg);
+          try {
+            const instance = await Canvg.fromString(ctx, updatedSvgString, {
+              ignoreDimensions: true,
+              ignoreClear: false,
+            });
+            instance.resize(canvasFallback!.width, canvasFallback!.height);
+            await instance.render();
+          } catch (err) {
+            console.error("updateCanvas-feil:", err);
+          }
+          updateCanvasRafId = requestAnimationFrame(updateCanvas);
+        };
+        updateCanvas();
+      }
 
-        // Bruk setTimeout for ca. 30 fps (33 ms intervall)
-        if (performance.now() - startTime < 5000) {
-          // Endret: Lagre returverdien fra window.setTimeout i animFrame
-          animFrame = window.setTimeout(updateCanvas, 33);
-        }
-      };
-      updateCanvas();
-
-      // Dersom du vil se canvas for debugging, kan du kommentere ut neste linje
-      // document.body.appendChild(canvas);
-      // Eller flytt canvasen utenfor synsfeltet:
-      canvas.style.position = "fixed";
-      canvas.style.top = "-9999px";
-      document.body.appendChild(canvas);
-      const stream = canvas.captureStream(60);
       const recorder = new MediaRecorder(stream, { mimeType: 'video/webm' });
       const chunks: Blob[] = [];
+      
       recorder.ondataavailable = (event) => {
         if (event.data.size > 0) {
           chunks.push(event.data);
         }
       };
+      
       recorder.onstop = () => {
-        // Endret: Bruk clearTimeout for å avbryte setTimeout-løkken
-        clearTimeout(animFrame);
         const blobVideo = new Blob(chunks, { type: 'video/webm' });
         const url = URL.createObjectURL(blobVideo);
         const anchor = document.createElement('a');
@@ -852,17 +853,31 @@ const FootballAnimator = () => {
         anchor.click();
         document.body.removeChild(anchor);
         URL.revokeObjectURL(url);
-        // Fjern debugging-canvasen etter opptak
-        if (document.body.contains(canvas)) {
-          document.body.removeChild(canvas);
+        
+        if (canvasFallback && document.body.contains(canvasFallback)) {
+          document.body.removeChild(canvasFallback);
         }
+        
+        recording = false;
+        if (updateCanvasRafId) cancelAnimationFrame(updateCanvasRafId);
+        recordingRef.current = false;
+        setIsRecording(false);
+        setIsPlaying(false);
       };
-
+      
       recorder.start();
-      // Stopper opptak etter 5000 ms
+      console.log("Opptak startet");
+      
+      // Start avspilling etter at opptaket har startet
+      setIsPlaying(true);
+      
+      // Beregn total varighet basert på antall frames og hastighet
+      const recordDuration = frames.length > 1 ? (frames.length * 1000) / playbackSpeed : 5000;
+      
       setTimeout(() => {
+        console.log("Stopper opptak");
         recorder.stop();
-      }, 5000);
+      }, recordDuration);
     } else {
       console.error('Ingen SVG for opptak.');
     }
@@ -876,39 +891,39 @@ const FootballAnimator = () => {
     const deltaTime = currentTime - lastTimeRef.current;
     lastTimeRef.current = currentTime;
   
-    setProgress(prevProgress => {
-      const newProgress = prevProgress + (deltaTime * playbackSpeed) / 1000;
-      if (newProgress >= 1) {
-        setCurrentFrame(prevFrame => {
-          if (prevFrame < frames.length - 1) {
-            return prevFrame + 1;
-          } else {
-            setIsPlaying(false);
-            return prevFrame;
-          }
-        });
-        return 0;
+    let newProgress = progressRef.current + (deltaTime * playbackSpeed) / 1000;
+    if (newProgress >= 1) {
+      if (currentFrameRef.current < frames.length - 1) {
+        newProgress = 0;
+        currentFrameRef.current = currentFrameRef.current + 1;
+        setCurrentFrame(currentFrameRef.current);
+      } else {
+        newProgress = 1;
+        setProgress(1);
+        progressRef.current = 1;
+        setIsPlaying(false);
+        return;
       }
-      return newProgress;
-    });
+    }
+    progressRef.current = newProgress;
+    setProgress(newProgress);
   
-    if (isPlaying) {
+    if (isPlayingRef.current) {
       animationRef.current = requestAnimationFrame(animateFrames);
     }
   };
 
   // Oppdater useEffect for interpolering
   useEffect(() => {
-    if (!isPlaying || !frames[currentFrame]) return;
-
+    if (!frames[currentFrame]) return;
     const currentElements = frames[currentFrame].elements;
-    const nextElements = frames[currentFrame + 1]?.elements || [];
+    const nextElements = frames[currentFrame + 1]?.elements || currentElements;
 
     // Interpoler elementer mellom current og next frame
     const interpolated = currentElements.map(currentEl => {
       const nextEl = nextElements.find(next => next.id === currentEl.id);
       
-      if (!nextEl) return currentEl;
+      if (!nextEl || nextEl === currentEl) return currentEl;
 
       // Bare interpoler hvis vi har x- og y-koordinater
       if (
@@ -940,7 +955,7 @@ const FootballAnimator = () => {
     });
 
     setInterpolatedElements(interpolated);
-  }, [currentFrame, progress, frames, isPlaying]);
+  }, [currentFrame, progress, frames]);
 
   // Nye useEffect-hook for å starte/stoppe animasjonen
   useEffect(() => {
@@ -959,12 +974,12 @@ const FootballAnimator = () => {
     };
   }, [isPlaying, playbackSpeed, frames.length]);
 
-  // Hjelpefunksjon for å tegne et spor (trace) for spillere og ball,
-  // basert på posisjonene fra gjeldende frame til neste frame.
+  // Endrer renderTrace-funksjonen
   const renderTrace = () => {
-    if (!(frames[currentFrame] && frames[currentFrame + 1])) return null;
+    if (frames.length < 2) return null;
+    const nextIndex = currentFrame < frames.length - 1 ? currentFrame + 1 : (currentFrame - 1 >= 0 ? currentFrame - 1 : currentFrame);
     const currentEl = frames[currentFrame].elements;
-    const nextEl = frames[currentFrame + 1].elements;
+    const nextEl = frames[nextIndex].elements;
     return currentEl.map(el => {
       const matchingNext = nextEl.find(n => n.id === el.id);
       if (
@@ -979,7 +994,7 @@ const FootballAnimator = () => {
           const path = createLinePath({ x: el.x, y: el.y }, { x: matchingNext.x, y: matchingNext.y }, true, offset);
           return (
             <path
-              key={'trace-' + el.id}
+              key={`trace-${el.id}`}
               d={path}
               fill="none"
               stroke={el.type === 'ball' ? "red" : "blue"}
@@ -1023,163 +1038,49 @@ const FootballAnimator = () => {
     });
   };
 
+  useEffect(() => {
+    progressRef.current = progress;
+  }, [progress]);
+
+  useEffect(() => {
+    currentFrameRef.current = currentFrame;
+  }, [currentFrame]);
+
+  useEffect(() => {
+    isPlayingRef.current = isPlaying;
+  }, [isPlaying]);
+
   return (
     <Card className="w-full max-w-4xl">
       <CardHeader>
         <CardTitle>Football Animation Designer</CardTitle>
       </CardHeader>
-      {/* Sticky verktøylinje øverst */}
-      <div className="sticky top-0 z-50 bg-white p-4 shadow-md">
-        <div className="flex justify-between items-center">
-          <div className="flex items-center gap-4">
-            <div className="flex items-center gap-1">
-              <span className="text-sm font-semibold">Banevisning:</span>
-              <Select 
-                value={pitch} 
-                onValueChange={(value) => setPitch(value as PitchType)}
-              >
-                <SelectTrigger className="w-40">
-                  <SelectValue placeholder="Velg bane" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="full">Full Bane</SelectItem>
-                  <SelectItem value="offensive">Offensiv Halv</SelectItem>
-                  <SelectItem value="defensive">Defensiv Halv</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="flex items-center gap-1">
-              <span className="text-sm font-semibold">Verktøy:</span>
-              <div className="flex gap-2">
-                <Button 
-                  variant={tool === 'select' ? "default" : "outline"} 
-                  size="sm"
-                  onClick={() => setTool('select')}
-                >
-                  Select
-                </Button>
-                <Button 
-                  variant={tool === 'player' ? "default" : "outline"} 
-                  size="sm"
-                  onClick={() => setTool('player')}
-                >
-                  Player
-                </Button>
-                <Button 
-                  variant={tool === 'opponent' ? "default" : "outline"} 
-                  size="sm"
-                  onClick={() => setTool('opponent')}
-                >
-                  Opponent
-                </Button>
-                <Button 
-                  variant={tool === 'ball' ? "default" : "outline"} 
-                  size="sm"
-                  onClick={() => setTool('ball')}
-                >
-                  Ball
-                </Button>
-                <Button 
-                  variant={tool === 'cone' ? "default" : "outline"} 
-                  size="sm"
-                  onClick={() => setTool('cone')}
-                >
-                  Cone
-                </Button>
-                <Button 
-                  variant={tool === 'line' ? "default" : "outline"} 
-                  size="sm"
-                  onClick={() => setTool('line')}
-                >
-                  Line
-                </Button>
-              </div>
-            </div>
-          </div>
-          <div className="flex items-center gap-4">
-            <Button 
-              onClick={handlePlayPause}
-              variant="outline"
-              className="w-24"
-            >
-              {isPlaying ? <Pause className="w-4 h-4" /> : <Play className="w-4 h-4" />}
-              {isPlaying ? 'Pause' : 'Spill'}
-            </Button>
-            <Button 
-              onClick={() => setCurrentFrame(0)}
-              variant="outline"
-            >
-              <SkipBack className="w-4 h-4" />
-              Nullstill
-            </Button>
-            <div className="flex items-center gap-2">
-              <span className="text-sm font-semibold">Hastighet:</span>
-              <Slider
-                value={[playbackSpeed]}
-                onValueChange={([value]) => setPlaybackSpeed(value)}
-                min={0.5}
-                max={3}
-                step={0.5}
-                className="w-32"
-              />
-              <span className="text-sm">{playbackSpeed}x</span>
-            </div>
-          </div>
-        </div>
-      </div>
+      <TopToolbar
+        pitch={pitch}
+        setPitch={setPitch}
+        tool={tool}
+        setTool={setTool}
+        isPlaying={isPlaying}
+        handlePlayPause={handlePlayPause}
+        onReset={() => setCurrentFrame(0)}
+        playbackSpeed={playbackSpeed}
+        setPlaybackSpeed={setPlaybackSpeed}
+      />
       <CardContent>
-        <div className="flex justify-between items-center gap-4 mb-4">
-          <div className="flex items-center gap-2">
-            <Button onClick={handleDuplicateFrame} variant="outline">
-              <Copy className="w-4 h-4 mr-1" />
-              Dupliser Ramme
-            </Button>
-            <Button onClick={handleDeleteFrame} variant="outline" disabled={frames.length <= 1}>
-              <Trash2 className="w-4 h-4 mr-1" />
-              Slett Ramme
-            </Button>
-            {selectedElement && (
-              <Button onClick={handleDeleteElement} variant="outline">
-                <Trash2 className="w-4 h-4 mr-1" />
-                Slett Element
-              </Button>
-            )}
-            <Button onClick={handleResetNumbers} variant="outline">
-              <Plus className="w-4 h-4 mr-1" />
-              Nullstill Nummer
-            </Button>
-            <Button onClick={handleClearElements} variant="outline">
-              <Trash2 className="w-4 h-4 mr-1" />
-              Tøm Ramme
-            </Button>
-            <Button onClick={handleDownloadAnimation} variant="outline">
-              <Save className="w-4 h-4 mr-1" />
-              Last ned animasjon
-            </Button>
-            <Button onClick={handleDownloadFilm} variant="outline">
-              <Film className="w-4 h-4 mr-1" />
-              Last ned film
-            </Button>
-          </div>
-          {/* Keyframe-navigation */}
-          <div className="flex gap-2 mb-2">
-            {frames.map((frame, index) => (
-              <Button
-                key={frame.id}
-                variant={currentFrame === index ? "default" : "outline"}
-                size="sm"
-                onClick={() => setCurrentFrame(index)}
-              >
-                {index + 1}
-              </Button>
-            ))}
-            <Button onClick={handleAddKeyframe} variant="outline" size="sm">
-              Legg til keyframe
-            </Button>
-          </div>
-        </div>
-
-        {/* Redigeringspanel for gjeldende keyframe */}
+        <KeyframePanel
+          frames={frames}
+          currentFrame={currentFrame}
+          setCurrentFrame={setCurrentFrame}
+          selectedElement={selectedElement}
+          handleDuplicateFrame={handleDuplicateFrame}
+          handleDeleteFrame={handleDeleteFrame}
+          handleDeleteElement={handleDeleteElement}
+          handleResetNumbers={handleResetNumbers}
+          handleClearElements={handleClearElements}
+          handleDownloadAnimation={handleDownloadAnimation}
+          handleDownloadFilm={handleDownloadFilm}
+          handleAddKeyframe={handleAddKeyframe}
+        />
         <div className="p-4 border rounded bg-white mb-4">
           <h3 className="text-sm font-semibold mb-2">Rediger Keyframe {currentFrame + 1}</h3>
           {(frames[currentFrame]?.elements ?? []).length > 0 ? (
@@ -1215,7 +1116,6 @@ const FootballAnimator = () => {
             <p>Ingen elementer i keyframe {currentFrame + 1}</p>
           )}
         </div>
-        {/* Verktøylinje – vis knappene under Rediger Keyframe */}
         <div className="flex flex-wrap gap-2 justify-center bg-white p-2 mb-4">
           <Button variant={tool === 'select' ? "default" : "outline"} size="sm" onClick={() => setTool('select')}>
             Select
@@ -1238,38 +1138,14 @@ const FootballAnimator = () => {
         </div>
 
         {tool === 'line' && (
-          <div className="mb-4 p-2 border rounded bg-white">
-            <h3 className="text-sm font-semibold mb-2">Velg linjestil:</h3>
-            <div className="grid grid-cols-3 gap-4">
-              {lineStyleOptions.map(option => (
-                <div
-                  key={option.value}
-                  className={`cursor-pointer border p-2 ${selectedLineStyle === option.value ? 'border-blue-500' : 'border-gray-300'}`}
-                  onClick={() => {
-                    console.log("Setter linjestil:", option.value);
-                    setSelectedLineStyle(option.value);
-                  }}
-                >
-                  {option.preview}
-                  <div className="text-xs text-center mt-1">{option.label}</div>
-                </div>
-              ))}
-            </div>
-            {getLineProperties(selectedLineStyle).curved && (
-              <div className="mt-4">
-                <h4 className="text-sm font-semibold">Juster bue:</h4>
-                <Slider
-                  value={[curveOffset]}
-                  onValueChange={([value]) => setCurveOffset(value)}
-                  min={-50}
-                  max={50}
-                  step={1}
-                  className="w-32"
-                />
-                <p className="text-xs text-gray-500">Curvature: {curveOffset}px</p>
-              </div>
-            )}
-          </div>
+          <LineStyleSelector
+            lineStyleOptions={lineStyleOptions}
+            selectedLineStyle={selectedLineStyle}
+            setSelectedLineStyle={setSelectedLineStyle}
+            curveOffset={curveOffset}
+            setCurveOffset={setCurveOffset}
+            getLineProperties={getLineProperties}
+          />
         )}
 
         <div className="relative border rounded flex justify-center items-center" style={{ height: "calc(100vh - 200px)" }}>
@@ -1306,13 +1182,14 @@ const FootballAnimator = () => {
                 <path d="M 2,2 L 6,6 M 2,6 L 6,2" stroke="black" strokeWidth="1" />
               </marker>
             </defs>
+            <rect x="0" y="0" width="680" height="1050" fill="white" />
             {getPitchTemplate()}
             {frames[currentFrame] && frames[currentFrame + 1] && renderTrace()}
-            {isPlaying && currentFrame < frames.length - 1
+            {(isRecording || (isPlaying && currentFrame < frames.length - 1) || (!isPlaying && progress === 1))
               ? interpolatedElements.map(renderElement)
               : (frames[currentFrame]?.elements ?? [])
-                  .filter(el => el.visible !== false)
-                  .map(renderElement)}
+                .filter(el => el.visible !== false)
+                .map(renderElement)}
           </svg>
         </div>
       </CardContent>

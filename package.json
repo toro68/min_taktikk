@@ -1,4 +1,8 @@
 {
+  "name": "min_taktikk",
+  "version": "0.1.0",
+  "private": true,
+  "homepage": "https://toro68.github.io/min_taktikk",
   "dependencies": {
     "@types/react": "^19.0.8",
     "canvg": "^4.0.2",
@@ -12,11 +16,17 @@
     "@shadcn/ui": "^0.0.4",
     "@types/react-dom": "^19.0.3",
     "autoprefixer": "^10.4.20",
+    "gh-pages": "^6.3.0",
     "postcss": "^8.4.31",
     "tailwindcss": "^3.3.0"
   },
   "scripts": {
-    "start": "NODE_OPTIONS='--openssl-legacy-provider' react-scripts start"
+    "start": "react-scripts start",
+    "build": "react-scripts build",
+    "predeploy": "npm run build",
+    "deploy": "gh-pages -d build",
+    "test": "react-scripts test",
+    "eject": "react-scripts eject"
   },
   "browserslist": {
     "production": [
