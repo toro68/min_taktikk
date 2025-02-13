@@ -794,44 +794,68 @@ const FootballAnimator = () => {
       let recording = true;
       let updateCanvasRafId = 0;
       
-      // På GitHub Pages må vi alltid bruke canvas fallback
       const svg = recordedSVGRef.current;
       const serializer = new XMLSerializer();
-      const { width, height } = svg.getBoundingClientRect();
+      
+      // Beregn riktig størrelse basert på SVG viewBox
+      const viewBox = svg.getAttribute('viewBox')?.split(' ').map(Number) || [0, 0, 680, pitch === 'full' ? 1050 : 525];
+      const viewBoxWidth = viewBox[2];
+      const viewBoxHeight = viewBox[3];
+      
+      // Opprett canvas med riktig størrelse
       canvasFallback = document.createElement('canvas');
-      canvasFallback.width = width || 680;
-      canvasFallback.height = height || (pitch === 'full' ? 1050 : 525);
+      canvasFallback.width = viewBoxWidth;
+      canvasFallback.height = viewBoxHeight;
+      
       const ctx = canvasFallback.getContext('2d');
       if (!ctx) return;
       
+      // Skjul canvas men behold den i DOM
       canvasFallback.style.position = "fixed";
       canvasFallback.style.top = "0";
       canvasFallback.style.left = "0";
       canvasFallback.style.opacity = "0";
+      canvasFallback.style.pointerEvents = "none";
       document.body.appendChild(canvasFallback);
+      
+      // Start streaming med høy framerate
       stream = canvasFallback.captureStream(60);
       
       const updateCanvas = async () => {
         if (!recording) return;
+        
+        // Tegn hvit bakgrunn
         ctx.fillStyle = "white";
         ctx.fillRect(0, 0, canvasFallback!.width, canvasFallback!.height);
+        
+        // Konverter SVG til string med inline styles
         const inlinedSvg = inlineAllStyles(svg);
-        const updatedSvgString = serializer.serializeToString(inlinedSvg);
+        const svgString = serializer.serializeToString(inlinedSvg);
+        
         try {
-          const instance = await Canvg.fromString(ctx, updatedSvgString, {
+          const instance = await Canvg.fromString(ctx, svgString, {
             ignoreDimensions: true,
-            ignoreClear: false,
+            ignoreClear: true,
+            scaleWidth: viewBoxWidth,
+            scaleHeight: viewBoxHeight
           });
-          instance.resize(canvasFallback!.width, canvasFallback!.height, 'xMidYMid meet');
+          
           await instance.render();
+          updateCanvasRafId = requestAnimationFrame(updateCanvas);
         } catch (err) {
-          console.error("updateCanvas-feil:", err);
+          console.error("Feil ved canvas-oppdatering:", err);
         }
-        updateCanvasRafId = requestAnimationFrame(updateCanvas);
       };
+      
+      // Start canvas-oppdatering
       updateCanvas();
 
-      const recorder = new MediaRecorder(stream, { mimeType: 'video/webm' });
+      // Konfigurer MediaRecorder med høy kvalitet
+      const recorder = new MediaRecorder(stream, { 
+        mimeType: 'video/webm',
+        videoBitsPerSecond: 8000000 // 8 Mbps for høy kvalitet
+      });
+      
       const chunks: Blob[] = [];
       
       recorder.ondataavailable = (event) => {
@@ -841,6 +865,11 @@ const FootballAnimator = () => {
       };
       
       recorder.onstop = () => {
+        // Stopp oppdatering og fjern canvas
+        recording = false;
+        if (updateCanvasRafId) cancelAnimationFrame(updateCanvasRafId);
+        
+        // Lag video-blob og last ned
         const blobVideo = new Blob(chunks, { type: 'video/webm' });
         const url = URL.createObjectURL(blobVideo);
         const anchor = document.createElement('a');
@@ -851,30 +880,31 @@ const FootballAnimator = () => {
         document.body.removeChild(anchor);
         URL.revokeObjectURL(url);
         
+        // Rydd opp
         if (canvasFallback && document.body.contains(canvasFallback)) {
           document.body.removeChild(canvasFallback);
         }
         
-        recording = false;
-        if (updateCanvasRafId) cancelAnimationFrame(updateCanvasRafId);
         recordingRef.current = false;
         setIsRecording(false);
         setIsPlaying(false);
       };
       
+      // Start opptak
       recorder.start();
       console.log("Opptak startet");
       
-      // Start avspilling etter at opptaket har startet
+      // Start avspilling
       setIsPlaying(true);
       
-      // Beregn total varighet basert på antall frames og hastighet
-      const recordDuration = frames.length > 1 ? (frames.length * 1000) / playbackSpeed : 5000;
+      // Beregn varighet og stopp etter fullført animasjon
+      const frameDuration = 1000 / playbackSpeed;
+      const recordDuration = frames.length > 1 ? frames.length * frameDuration : 5000;
       
       setTimeout(() => {
         console.log("Stopper opptak");
         recorder.stop();
-      }, recordDuration);
+      }, recordDuration + 500); // Legg til litt buffer-tid
     } else {
       console.error('Ingen SVG for opptak.');
     }
