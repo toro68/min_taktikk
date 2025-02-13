@@ -439,15 +439,17 @@ const FootballAnimator = () => {
       return { x: 0, y: 0 };
     }
 
-    // Hent bounding rect for SVG-elementet
     const rect = svg.getBoundingClientRect();
-    // Vi bruker viewBox-verdiene for å omregne; her er viewBox: "0 0 680 1050"
     const viewBoxWidth = 680;
-    const viewBoxHeight = 1050;
-
-    // Beregn museklikk-posisjon relativt til SVG-en
-    const x = ((event.clientX - rect.left) / rect.width) * viewBoxWidth;
-    const y = ((event.clientY - rect.top) / rect.height) * viewBoxHeight;
+    const viewBoxHeight = pitch === 'full' ? 1050 : 525;
+    
+    // Beregn skalering basert på SVG-elementets faktiske størrelse og viewBox
+    const scaleX = viewBoxWidth / rect.width;
+    const scaleY = viewBoxHeight / rect.height;
+    
+    // Beregn museklikk-posisjon relativt til SVG-en og skaler den
+    const x = (event.clientX - rect.left) * scaleX;
+    const y = (event.clientY - rect.top) * scaleY;
 
     return { x, y };
   };
@@ -936,17 +938,18 @@ const FootballAnimator = () => {
           // Bruk spillerens eget traceOffset, slik at den følger det samme sporet som vises
           const offset = currentEl.traceOffset ?? 0;
           const newPos = getCubicBezierPoint(
-            progress,
+            Math.min(progress, 1),
             { x: currentEl.x, y: currentEl.y },
             { x: nextEl.x, y: nextEl.y },
             offset
           );
           return { ...currentEl, x: newPos.x, y: newPos.y };
         } else {
+          const t = Math.min(progress, 1);
           return {
             ...currentEl,
-            x: currentEl.x + (nextEl.x - currentEl.x) * progress,
-            y: currentEl.y + (nextEl.y - currentEl.y) * progress,
+            x: currentEl.x + (nextEl.x - currentEl.x) * t,
+            y: currentEl.y + (nextEl.y - currentEl.y) * t,
           };
         }
       }
