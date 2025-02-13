@@ -794,47 +794,42 @@ const FootballAnimator = () => {
       let recording = true;
       let updateCanvasRafId = 0;
       
-      if ((recordedSVGRef.current as any).captureStream) {
-        console.log("SVG støtter captureStream, bruker den direkte.");
-        stream = (recordedSVGRef.current as any).captureStream(60);
-      } else {
-        console.log("captureStream() ikke tilgjengelig på SVG, benytter canvas som fallback.");
-        const svg = recordedSVGRef.current;
-        const serializer = new XMLSerializer();
-        const { width, height } = svg.getBoundingClientRect();
-        canvasFallback = document.createElement('canvas');
-        canvasFallback.width = width || 680;
-        canvasFallback.height = height || 1050;
-        const ctx = canvasFallback.getContext('2d');
-        if (!ctx) return;
-        
-        canvasFallback.style.position = "fixed";
-        canvasFallback.style.top = "0";
-        canvasFallback.style.left = "0";
-        canvasFallback.style.opacity = "0";
-        document.body.appendChild(canvasFallback);
-        stream = canvasFallback.captureStream(60);
-        
-        const updateCanvas = async () => {
-          if (!recording) return;
-          ctx.fillStyle = "white";
-          ctx.fillRect(0, 0, canvasFallback!.width, canvasFallback!.height);
-          const inlinedSvg = inlineAllStyles(svg);
-          const updatedSvgString = serializer.serializeToString(inlinedSvg);
-          try {
-            const instance = await Canvg.fromString(ctx, updatedSvgString, {
-              ignoreDimensions: true,
-              ignoreClear: false,
-            });
-            instance.resize(canvasFallback!.width, canvasFallback!.height);
-            await instance.render();
-          } catch (err) {
-            console.error("updateCanvas-feil:", err);
-          }
-          updateCanvasRafId = requestAnimationFrame(updateCanvas);
-        };
-        updateCanvas();
-      }
+      // På GitHub Pages må vi alltid bruke canvas fallback
+      const svg = recordedSVGRef.current;
+      const serializer = new XMLSerializer();
+      const { width, height } = svg.getBoundingClientRect();
+      canvasFallback = document.createElement('canvas');
+      canvasFallback.width = width || 680;
+      canvasFallback.height = height || (pitch === 'full' ? 1050 : 525);
+      const ctx = canvasFallback.getContext('2d');
+      if (!ctx) return;
+      
+      canvasFallback.style.position = "fixed";
+      canvasFallback.style.top = "0";
+      canvasFallback.style.left = "0";
+      canvasFallback.style.opacity = "0";
+      document.body.appendChild(canvasFallback);
+      stream = canvasFallback.captureStream(60);
+      
+      const updateCanvas = async () => {
+        if (!recording) return;
+        ctx.fillStyle = "white";
+        ctx.fillRect(0, 0, canvasFallback!.width, canvasFallback!.height);
+        const inlinedSvg = inlineAllStyles(svg);
+        const updatedSvgString = serializer.serializeToString(inlinedSvg);
+        try {
+          const instance = await Canvg.fromString(ctx, updatedSvgString, {
+            ignoreDimensions: true,
+            ignoreClear: false,
+          });
+          instance.resize(canvasFallback!.width, canvasFallback!.height, 'xMidYMid meet');
+          await instance.render();
+        } catch (err) {
+          console.error("updateCanvas-feil:", err);
+        }
+        updateCanvasRafId = requestAnimationFrame(updateCanvas);
+      };
+      updateCanvas();
 
       const recorder = new MediaRecorder(stream, { mimeType: 'video/webm' });
       const chunks: Blob[] = [];
