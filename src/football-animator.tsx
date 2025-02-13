@@ -810,19 +810,20 @@ const FootballAnimator = () => {
       const ctx = canvasFallback.getContext('2d');
       if (!ctx) return;
       
-      // Skjul canvas men behold den i DOM
+      // Legg til canvas i DOM for bedre kompatibilitet
+      document.body.appendChild(canvasFallback);
       canvasFallback.style.position = "fixed";
       canvasFallback.style.top = "0";
       canvasFallback.style.left = "0";
       canvasFallback.style.opacity = "0";
       canvasFallback.style.pointerEvents = "none";
-      document.body.appendChild(canvasFallback);
+      canvasFallback.style.zIndex = "-1";
       
       // Start streaming med høy framerate
       stream = canvasFallback.captureStream(60);
       
       const updateCanvas = async () => {
-        if (!recording) return;
+        if (!recording || !ctx) return;
         
         // Tegn hvit bakgrunn
         ctx.fillStyle = "white";
@@ -831,20 +832,17 @@ const FootballAnimator = () => {
         // Konverter SVG til string med inline styles
         const inlinedSvg = inlineAllStyles(svg);
         const svgString = serializer.serializeToString(inlinedSvg);
+        const blob = new Blob([svgString], { type: 'image/svg+xml' });
+        const url = URL.createObjectURL(blob);
         
-        try {
-          const instance = await Canvg.fromString(ctx, svgString, {
-            ignoreDimensions: true,
-            ignoreClear: true,
-            scaleWidth: viewBoxWidth,
-            scaleHeight: viewBoxHeight
-          });
-          
-          await instance.render();
+        // Last inn SVG som bilde
+        const img = new Image();
+        img.onload = () => {
+          ctx.drawImage(img, 0, 0, canvasFallback!.width, canvasFallback!.height);
+          URL.revokeObjectURL(url);
           updateCanvasRafId = requestAnimationFrame(updateCanvas);
-        } catch (err) {
-          console.error("Feil ved canvas-oppdatering:", err);
-        }
+        };
+        img.src = url;
       };
       
       // Start canvas-oppdatering
@@ -890,8 +888,8 @@ const FootballAnimator = () => {
         setIsPlaying(false);
       };
       
-      // Start opptak
-      recorder.start();
+      // Start opptak med datainnsamling hvert 100ms
+      recorder.start(100);
       console.log("Opptak startet");
       
       // Start avspilling
@@ -904,7 +902,7 @@ const FootballAnimator = () => {
       setTimeout(() => {
         console.log("Stopper opptak");
         recorder.stop();
-      }, recordDuration + 500); // Legg til litt buffer-tid
+      }, recordDuration + 1000); // Legg til 1 sekund buffer-tid
     } else {
       console.error('Ingen SVG for opptak.');
     }
