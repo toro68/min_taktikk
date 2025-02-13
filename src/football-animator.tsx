@@ -1148,12 +1148,17 @@ const FootballAnimator = () => {
           />
         )}
 
-        <div className="relative border rounded flex justify-center items-center" style={{ height: "calc(100vh - 200px)" }}>
+        <div className="relative border rounded flex justify-center items-center overflow-hidden" style={{ 
+          height: "calc(100vh - 220px)",
+          width: "100%",
+          maxWidth: pitch === 'full' ? "calc((100vh - 220px) * 0.647)" : "calc((100vh - 220px) * 1.295)",
+          margin: "0 auto"
+        }}>
           <svg
             ref={recordedSVGRef}
             className="w-full h-full"
-            viewBox="0 0 680 1050"
-            preserveAspectRatio="xMidYMid meet"
+            viewBox={`0 0 680 ${pitch === 'full' ? 1050 : 525}`}
+            preserveAspectRatio="xMidYMid fit"
             xmlns="http://www.w3.org/2000/svg"
             onMouseDown={handleMouseDown}
             onMouseMove={handleMouseMove}

@@ -54,29 +54,6 @@ const TopToolbar: React.FC<TopToolbarProps> = ({
               </SelectContent>
             </Select>
           </div>
-          <div className="flex items-center gap-1">
-            <span className="text-sm font-semibold">Verktøy:</span>
-            <div className="flex gap-2">
-              <Button variant={tool === 'select' ? "default" : "outline"} size="sm" onClick={() => setTool('select')}>
-                Select
-              </Button>
-              <Button variant={tool === 'player' ? "default" : "outline"} size="sm" onClick={() => setTool('player')}>
-                Player
-              </Button>
-              <Button variant={tool === 'opponent' ? "default" : "outline"} size="sm" onClick={() => setTool('opponent')}>
-                Opponent
-              </Button>
-              <Button variant={tool === 'ball' ? "default" : "outline"} size="sm" onClick={() => setTool('ball')}>
-                Ball
-              </Button>
-              <Button variant={tool === 'cone' ? "default" : "outline"} size="sm" onClick={() => setTool('cone')}>
-                Cone
-              </Button>
-              <Button variant={tool === 'line' ? "default" : "outline"} size="sm" onClick={() => setTool('line')}>
-                Line
-              </Button>
-            </div>
-          </div>
         </div>
         <div className="flex items-center gap-4">
           <Button onClick={handlePlayPause} variant="outline" className="w-24">
