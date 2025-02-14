@@ -10,22 +10,18 @@ export type LineStyle =
   | 'straightArrow'
   | 'endMark'
   | 'plusEnd'
-  | 'xEnd';
-
-interface LineStyleOption {
-  value: LineStyle;
-  label: string;
-  preview: React.ReactElement;
-}
+  | 'xEnd'
+  | 'dashedCurvedArrow';
 
 interface LineStyleSelectorProps {
-  lineStyleOptions: LineStyleOption[];
+  lineStyleOptions: { value: LineStyle; label: string; preview: React.ReactElement; }[];
   selectedLineStyle: LineStyle;
-  setSelectedLineStyle: (value: LineStyle) => void;
+  setSelectedLineStyle: (style: LineStyle) => void;
   curveOffset: number;
-  setCurveOffset: (value: number) => void;
+  setCurveOffset: (offset: number) => void;
   // Funksjonen for å hente linjeegenskaper (for eksempel om den er kurvet)
   getLineProperties: (style: LineStyle) => { curved: boolean; dashed: boolean; marker: 'arrow' | 'endline' | 'plus' | 'xmark' | null };
+  tool: string;
 }
 
 const LineStyleSelector: React.FC<LineStyleSelectorProps> = ({
@@ -35,38 +31,41 @@ const LineStyleSelector: React.FC<LineStyleSelectorProps> = ({
   curveOffset,
   setCurveOffset,
   getLineProperties,
+  tool
 }) => {
-  const properties = getLineProperties(selectedLineStyle);
+  const { curved } = getLineProperties(selectedLineStyle);
+
   return (
-    <div className="mb-4 p-2 border rounded bg-white">
-      <h3 className="text-sm font-semibold mb-2">Velg linjestil:</h3>
-      <div className="grid grid-cols-3 gap-4">
+    <div className="p-4 border rounded bg-white mb-4">
+      <h3 className="text-sm font-semibold mb-2">Linjestil</h3>
+      <div className="grid grid-cols-3 gap-2 mb-4">
         {lineStyleOptions.map(option => (
-          <div
+          <button
             key={option.value}
-            className={`cursor-pointer border p-2 ${selectedLineStyle === option.value ? 'border-blue-500' : 'border-gray-300'}`}
-            onClick={() => {
-              console.log("Setter linjestil:", option.value);
-              setSelectedLineStyle(option.value);
-            }}
+            onClick={() => setSelectedLineStyle(option.value)}
+            className={`flex flex-col items-center p-2 border rounded hover:bg-gray-50 ${
+              selectedLineStyle === option.value ? 'border-blue-500 bg-blue-50' : 'border-gray-200'
+            }`}
           >
-            {option.preview}
-            <div className="text-xs text-center mt-1">{option.label}</div>
-          </div>
+            <div className="w-full flex justify-center mb-1">
+              {option.preview}
+            </div>
+            <span className="text-xs">{option.label}</span>
+          </button>
         ))}
       </div>
-      {properties.curved && (
-        <div className="mt-4">
-          <h4 className="text-sm font-semibold">Juster bue:</h4>
+      {(curved || tool === 'select') && (
+        <div className="flex items-center gap-2">
+          <span className="text-sm">Kurvatur:</span>
           <Slider
             value={[curveOffset]}
-            onValueChange={([value]) => setCurveOffset(value)}
-            min={-50}
-            max={50}
+            onValueChange={([val]) => setCurveOffset(val)}
+            min={-100}
+            max={100}
             step={1}
             className="w-32"
           />
-          <p className="text-xs text-gray-500">Curvature: {curveOffset}px</p>
+          <span className="text-xs">{curveOffset}px</span>
         </div>
       )}
     </div>

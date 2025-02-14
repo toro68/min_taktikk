@@ -87,7 +87,7 @@ const FootballAnimator = () => {
   const [selectedElement, setSelectedElement] = useState<Element | null>(null);
   const [pitch, setPitch] = useState<PitchType>('offensive');
   const [tool, setTool] = useState<Tool>('select');
-  const [selectedLineStyle, setSelectedLineStyle] = useState<LineStyle>('solidStraight');
+  const [selectedLineStyle, setSelectedLineStyle] = useState<LineStyle>('solidCurved');
   const [curveOffset, setCurveOffset] = useState<number>(0);
   const [traceCurveOffset, setTraceCurveOffset] = useState<number>(0);
   const [isDragging, setIsDragging] = useState(false);
@@ -105,206 +105,99 @@ const FootballAnimator = () => {
   const currentFrameRef = useRef(currentFrame);
   const isPlayingRef = useRef(isPlaying);
   const lastTimeRef = useRef<number>(performance.now());
+  const [previewLine, setPreviewLine] = useState<LineElement | null>(null);
+  const [selectedLineCurveOffset, setSelectedLineCurveOffset] = useState<number>(0);
+  const [selectedLinePoints, setSelectedLinePoints] = useState<{ start: { x: number, y: number }, end: { x: number, y: number } } | null>(null);
 
   const lineStyleOptions: { value: LineStyle, label: string, preview: React.ReactElement }[] = [
     {
       value: 'solidCurved',
-      label: 'Solid Curved',
+      label: 'Solid',
       preview: (
-        <svg viewBox="0 0 160 40" className="w-32 h-8">
-          <defs>
-            <marker id="arrow" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
-              <polygon points="0 0, 10 3.5, 0 7" fill="black"/>
-            </marker>
-            <marker id="plus" markerWidth="8" markerHeight="8" refX="4" refY="4" orient="auto">
-              <path d="M 2,4 L 6,4 M 4,2 L 4,6" stroke="black" strokeWidth="1"/>
-            </marker>
-            <marker id="endline" markerWidth="8" markerHeight="8" refX="0" refY="4" orient="auto">
-              <line x1="0" y1="0" x2="0" y2="8" stroke="black" strokeWidth="1"/>
-            </marker>
-            <marker id="xmark" markerWidth="8" markerHeight="8" refX="4" refY="4" orient="auto">
-              <path d="M 2,2 L 6,6 M 2,6 L 6,2" stroke="black" strokeWidth="1"/>
-            </marker>
-          </defs>
-          <path d="M 0,20 C 50,0 110,0 160,20" fill="none" stroke="black" strokeWidth="2" />
+        <svg viewBox="0 0 80 20" className="w-16 h-5">
+          <path d="M 5,10 C 25,2 55,2 75,10" fill="none" stroke="black" strokeWidth="2" />
         </svg>
       )
     },
     {
       value: 'dashedCurved',
-      label: 'Dashed Curved',
+      label: 'Stiplet',
       preview: (
-        <svg viewBox="0 0 160 40" className="w-32 h-8">
-          <defs>
-            <marker id="arrow" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
-              <polygon points="0 0, 10 3.5, 0 7" fill="black"/>
-            </marker>
-            <marker id="plus" markerWidth="8" markerHeight="8" refX="4" refY="4" orient="auto">
-              <path d="M 2,4 L 6,4 M 4,2 L 4,6" stroke="black" strokeWidth="1"/>
-            </marker>
-            <marker id="endline" markerWidth="8" markerHeight="8" refX="0" refY="4" orient="auto">
-              <line x1="0" y1="0" x2="0" y2="8" stroke="black" strokeWidth="1"/>
-            </marker>
-            <marker id="xmark" markerWidth="8" markerHeight="8" refX="4" refY="4" orient="auto">
-              <path d="M 2,2 L 6,6 M 2,6 L 6,2" stroke="black" strokeWidth="1"/>
-            </marker>
-          </defs>
-          <path d="M 0,20 C 50,0 110,0 160,20" fill="none" stroke="black" strokeWidth="2" strokeDasharray="5,5" />
-        </svg>
-      )
-    },
-    {
-      value: 'solidStraight',
-      label: 'Solid Straight',
-      preview: (
-        <svg viewBox="0 0 160 40" className="w-32 h-8">
-          <defs>
-            <marker id="arrow" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
-              <polygon points="0 0, 10 3.5, 0 7" fill="black"/>
-            </marker>
-            <marker id="plus" markerWidth="8" markerHeight="8" refX="4" refY="4" orient="auto">
-              <path d="M 2,4 L 6,4 M 4,2 L 4,6" stroke="black" strokeWidth="1"/>
-            </marker>
-            <marker id="endline" markerWidth="8" markerHeight="8" refX="0" refY="4" orient="auto">
-              <line x1="0" y1="0" x2="0" y2="8" stroke="black" strokeWidth="1"/>
-            </marker>
-            <marker id="xmark" markerWidth="8" markerHeight="8" refX="4" refY="4" orient="auto">
-              <path d="M 2,2 L 6,6 M 2,6 L 6,2" stroke="black" strokeWidth="1"/>
-            </marker>
-          </defs>
-          <line x1="0" y1="20" x2="160" y2="20" stroke="black" strokeWidth="2" />
-        </svg>
-      )
-    },
-    {
-      value: 'dashedStraight',
-      label: 'Dashed Straight',
-      preview: (
-        <svg viewBox="0 0 160 40" className="w-32 h-8">
-          <defs>
-            <marker id="arrow" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
-              <polygon points="0 0, 10 3.5, 0 7" fill="black"/>
-            </marker>
-            <marker id="plus" markerWidth="8" markerHeight="8" refX="4" refY="4" orient="auto">
-              <path d="M 2,4 L 6,4 M 4,2 L 4,6" stroke="black" strokeWidth="1"/>
-            </marker>
-            <marker id="endline" markerWidth="8" markerHeight="8" refX="0" refY="4" orient="auto">
-              <line x1="0" y1="0" x2="0" y2="8" stroke="black" strokeWidth="1"/>
-            </marker>
-            <marker id="xmark" markerWidth="8" markerHeight="8" refX="4" refY="4" orient="auto">
-              <path d="M 2,2 L 6,6 M 2,6 L 6,2" stroke="black" strokeWidth="1"/>
-            </marker>
-          </defs>
-          <line x1="0" y1="20" x2="160" y2="20" stroke="black" strokeWidth="2" strokeDasharray="5,5"/>
+        <svg viewBox="0 0 80 20" className="w-16 h-5">
+          <path d="M 5,10 C 25,2 55,2 75,10" fill="none" stroke="black" strokeWidth="2" strokeDasharray="4,4" />
         </svg>
       )
     },
     {
       value: 'curvedArrow',
-      label: 'Curved Arrow',
+      label: 'Pil',
       preview: (
-        <svg viewBox="-10 0 180 40" className="w-32 h-8">
+        <svg viewBox="0 0 80 20" className="w-16 h-5">
           <defs>
-            <marker id="arrow" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
-              <polygon points="0 0, 10 3.5, 0 7" fill="black"/>
-            </marker>
-            <marker id="plus" markerWidth="8" markerHeight="8" refX="4" refY="4" orient="auto">
-              <path d="M 2,4 L 6,4 M 4,2 L 4,6" stroke="black" strokeWidth="1"/>
-            </marker>
-            <marker id="endline" markerWidth="8" markerHeight="8" refX="0" refY="4" orient="auto">
-              <line x1="0" y1="0" x2="0" y2="8" stroke="black" strokeWidth="1"/>
-            </marker>
-            <marker id="xmark" markerWidth="8" markerHeight="8" refX="4" refY="4" orient="auto">
-              <path d="M 2,2 L 6,6 M 2,6 L 6,2" stroke="black" strokeWidth="1"/>
+            <marker id="previewArrow" markerWidth="6" markerHeight="6" refX="6" refY="3" orient="auto">
+              <path d="M 0 0 L 6 3 L 0 6 z" fill="black"/>
             </marker>
           </defs>
-          <path d="M 0,20 C 50,0 110,0 160,20" fill="none" stroke="black" strokeWidth="2" markerEnd="url(#arrow)"/>
+          <path d="M 5,10 C 25,2 55,2 75,10" fill="none" stroke="black" strokeWidth="2" markerEnd="url(#previewArrow)"/>
         </svg>
       )
     },
     {
-      value: 'straightArrow',
-      label: 'Straight Arrow',
+      value: 'dashedCurvedArrow',
+      label: 'Stiplet pil',
       preview: (
-        <svg viewBox="-10 0 180 40" className="w-32 h-8">
+        <svg viewBox="0 0 80 20" className="w-16 h-5">
           <defs>
-            <marker id="arrow" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
-              <polygon points="0 0, 10 3.5, 0 7" fill="black"/>
-            </marker>
-            <marker id="plus" markerWidth="8" markerHeight="8" refX="4" refY="4" orient="auto">
-              <path d="M 2,4 L 6,4 M 4,2 L 4,6" stroke="black" strokeWidth="1"/>
-            </marker>
-            <marker id="endline" markerWidth="8" markerHeight="8" refX="0" refY="4" orient="auto">
-              <line x1="0" y1="0" x2="0" y2="8" stroke="black" strokeWidth="1"/>
-            </marker>
-            <marker id="xmark" markerWidth="8" markerHeight="8" refX="4" refY="4" orient="auto">
-              <path d="M 2,2 L 6,6 M 2,6 L 6,2" stroke="black" strokeWidth="1"/>
+            <marker id="previewArrow2" markerWidth="6" markerHeight="6" refX="6" refY="3" orient="auto">
+              <path d="M 0 0 L 6 3 L 0 6 z" fill="black"/>
             </marker>
           </defs>
-          <line x1="0" y1="20" x2="160" y2="20" stroke="black" strokeWidth="2" markerEnd="url(#arrow)"/>
+          <path d="M 5,10 C 25,2 55,2 75,10" fill="none" stroke="black" strokeWidth="2" strokeDasharray="4,4" markerEnd="url(#previewArrow2)"/>
         </svg>
       )
     },
     {
       value: 'endMark',
-      label: 'End Mark',
+      label: 'Endestrek',
       preview: (
-        <svg viewBox="-10 0 180 40" className="w-32 h-8">
+        <svg viewBox="0 0 80 20" className="w-16 h-5">
           <defs>
-            <marker id="endline" markerWidth="8" markerHeight="8" refX="0" refY="4" orient="auto">
+            <marker id="previewEndline" markerWidth="4" markerHeight="8" refX="0" refY="4" orient="auto">
               <line x1="0" y1="0" x2="0" y2="8" stroke="black" strokeWidth="1"/>
             </marker>
-            <marker id="plus" markerWidth="8" markerHeight="8" refX="4" refY="4" orient="auto">
-              <path d="M 2,4 L 6,4 M 4,2 L 4,6" stroke="black" strokeWidth="1"/>
-            </marker>
-            <marker id="xmark" markerWidth="8" markerHeight="8" refX="4" refY="4" orient="auto">
-              <path d="M 2,2 L 6,6 M 2,6 L 6,2" stroke="black" strokeWidth="1"/>
-            </marker>
           </defs>
-          <path d="M 0,20 L 160,20" fill="none" stroke="black" strokeWidth="2" markerEnd="url(#endline)"/>
+          <line x1="5" y1="10" x2="75" y2="10" stroke="black" strokeWidth="2" markerEnd="url(#previewEndline)"/>
         </svg>
       )
     },
     {
       value: 'plusEnd',
-      label: 'Plus End',
+      label: 'Pluss',
       preview: (
-        <svg viewBox="-10 0 180 40" className="w-32 h-8">
+        <svg viewBox="0 0 80 20" className="w-16 h-5">
           <defs>
-            <marker id="plus" markerWidth="8" markerHeight="8" refX="4" refY="4" orient="auto">
+            <marker id="previewPlus" markerWidth="8" markerHeight="8" refX="4" refY="4" orient="auto">
               <path d="M 2,4 L 6,4 M 4,2 L 4,6" stroke="black" strokeWidth="1"/>
             </marker>
-            <marker id="endline" markerWidth="8" markerHeight="8" refX="0" refY="4" orient="auto">
-              <line x1="0" y1="0" x2="0" y2="8" stroke="black" strokeWidth="1"/>
-            </marker>
-            <marker id="xmark" markerWidth="8" markerHeight="8" refX="4" refY="4" orient="auto">
-              <path d="M 2,2 L 6,6 M 2,6 L 6,2" stroke="black" strokeWidth="1"/>
-            </marker>
           </defs>
-          <path d="M 0,20 L 160,20" fill="none" stroke="black" strokeWidth="2" markerEnd="url(#plus)"/>
+          <line x1="5" y1="10" x2="75" y2="10" stroke="black" strokeWidth="2" markerEnd="url(#previewPlus)"/>
         </svg>
       )
     },
     {
       value: 'xEnd',
-      label: 'X End',
+      label: 'Kryss',
       preview: (
-        <svg viewBox="-10 0 180 40" className="w-32 h-8">
+        <svg viewBox="0 0 80 20" className="w-16 h-5">
           <defs>
-            <marker id="xmark" markerWidth="8" markerHeight="8" refX="4" refY="4" orient="auto">
+            <marker id="previewXmark" markerWidth="8" markerHeight="8" refX="4" refY="4" orient="auto">
               <path d="M 2,2 L 6,6 M 2,6 L 6,2" stroke="black" strokeWidth="1"/>
             </marker>
-            <marker id="endline" markerWidth="8" markerHeight="8" refX="0" refY="4" orient="auto">
-              <line x1="0" y1="0" x2="0" y2="8" stroke="black" strokeWidth="1"/>
-            </marker>
-            <marker id="plus" markerWidth="8" markerHeight="8" refX="4" refY="4" orient="auto">
-              <path d="M 2,4 L 6,4 M 4,2 L 4,6" stroke="black" strokeWidth="1"/>
-            </marker>
           </defs>
-          <path d="M 0,20 L 160,20" fill="none" stroke="black" strokeWidth="2" markerEnd="url(#xmark)"/>
+          <line x1="5" y1="10" x2="75" y2="10" stroke="black" strokeWidth="2" markerEnd="url(#previewXmark)"/>
         </svg>
       )
-    },
+    }
   ];
 
   const getPitchTemplate = () => {
@@ -352,14 +245,14 @@ const FootballAnimator = () => {
   const handleElementClick = (event: React.MouseEvent, element: Element) => {
     if (tool === 'select') {
       event.stopPropagation();
-      setSelectedElement(element);
+      handleElementSelect(element);
     }
   };
 
   const handleElementDragStart = (event: React.MouseEvent, element: Element) => {
     if (tool !== 'select') return;
     event.stopPropagation();
-    setSelectedElement(element);
+    handleElementSelect(element);
     setIsDragging(true);
     const coords = getSVGCoordinates(event as React.MouseEvent<SVGSVGElement>);
     setStartPoint(coords);
@@ -524,30 +417,93 @@ const FootballAnimator = () => {
     });
   };
 
+  const isPointNearPath = (point: { x: number; y: number }, path: string): boolean => {
+    const threshold = 10; // Piksel-avstand for å registrere klikk
+    
+    // Sjekk om det er en kurvet linje (C) eller rett linje (L)
+    const curvedMatch = path.match(/M ([0-9.-]+),([0-9.-]+) C ([0-9.-]+),([0-9.-]+) ([0-9.-]+),([0-9.-]+) ([0-9.-]+),([0-9.-]+)/);
+    const straightMatch = path.match(/M ([0-9.-]+),([0-9.-]+) L ([0-9.-]+),([0-9.-]+)/);
+    
+    if (curvedMatch) {
+      // For kurvede linjer, sjekk avstand til flere punkter langs kurven
+      const [, startX, startY, cp1x, cp1y, cp2x, cp2y, endX, endY] = curvedMatch;
+      const start = { x: Number(startX), y: Number(startY) };
+      const end = { x: Number(endX), y: Number(endY) };
+      
+      // Sjekk flere punkter langs kurven
+      for (let t = 0; t <= 1; t += 0.1) {
+        const pos = getCubicBezierPoint(
+          t,
+          start,
+          end,
+          0 // Vi bruker 0 som offset siden vi bare vil sjekke selve linjen
+        );
+        
+        const dx = point.x - pos.x;
+        const dy = point.y - pos.y;
+        const distance = Math.sqrt(dx * dx + dy * dy);
+        
+        if (distance < threshold) {
+          return true;
+        }
+      }
+    } else if (straightMatch) {
+      const [, startX, startY, endX, endY] = straightMatch;
+      const start = { x: Number(startX), y: Number(startY) };
+      const end = { x: Number(endX), y: Number(endY) };
+      
+      // Beregn distanse fra punkt til linje-segment
+      const a = point.x - start.x;
+      const b = point.y - start.y;
+      const c = end.x - start.x;
+      const d = end.y - start.y;
+      
+      const dot = a * c + b * d;
+      const len_sq = c * c + d * d;
+      
+      let param = -1;
+      if (len_sq !== 0) {
+        param = dot / len_sq;
+      }
+      
+      let xx, yy;
+      
+      if (param < 0) {
+        xx = start.x;
+        yy = start.y;
+      } else if (param > 1) {
+        xx = end.x;
+        yy = end.y;
+      } else {
+        xx = start.x + param * c;
+        yy = start.y + param * d;
+      }
+      
+      const dx = point.x - xx;
+      const dy = point.y - yy;
+      
+      return Math.sqrt(dx * dx + dy * dy) < threshold;
+    }
+    return false;
+  };
+
   // Hjelpefunksjon for å hente linjeegenskaper basert på valgt linjestil
   const getLineProperties = (style: LineStyle) => {
     const lowerStyle = style.toLowerCase();
-    // Kun kurvede dersom "curved" er en del av strengen
     const curved = lowerStyle.includes("curved");
     const dashed = lowerStyle.includes("dashed");
     let marker: 'arrow' | 'endline' | 'plus' | 'xmark' | null = null;
-    switch(lowerStyle) {
-      case 'curvedarrow':
-      case 'straightarrow':
-        marker = 'arrow';
-        break;
-      case 'endmark':
-        marker = 'endline';
-        break;
-      case 'plusend':
-        marker = 'plus';
-        break;
-      case 'xend':
-        marker = 'xmark';
-        break;
-      default:
-        marker = null;
+    
+    if (lowerStyle.includes("arrow")) {
+      marker = 'arrow';
+    } else if (lowerStyle === 'endmark') {
+      marker = 'endline';
+    } else if (lowerStyle === 'plusend') {
+      marker = 'plus';
+    } else if (lowerStyle === 'xend') {
+      marker = 'xmark';
     }
+    
     return { curved, dashed, marker };
   };
 
@@ -559,6 +515,22 @@ const FootballAnimator = () => {
       setIsDragging(true);
       setIsDrawing(true);
       setStartPoint(coords);
+    } else if (tool === 'select') {
+      const clickedElement = frames[currentFrame].elements.find(el => {
+        if (el.type === 'line') {
+          // Sjekk om klikket er nær linjen
+          return isPointNearPath(coords, el.path);
+        }
+        return false;
+      });
+
+      if (clickedElement) {
+        handleElementSelect(clickedElement);
+        setIsDragging(true);
+        setStartPoint(coords);
+      } else {
+        setSelectedElement(null);
+      }
     }
   };
 
@@ -572,10 +544,8 @@ const FootballAnimator = () => {
       newFrames[currentFrame].elements = newFrames[currentFrame].elements.map(el => {
         if (el.id === selectedElement.id) {
           if (el.type === 'line') {
-            // Bruk translatePath for linjer
             return { ...el, path: translatePath(el.path, dx, dy) };
           } else {
-            // For andre elementer bruker vi x og y offset
             return { ...el, x: (el.x ?? 0) + dx, y: (el.y ?? 0) + dy };
           }
         }
@@ -587,27 +557,16 @@ const FootballAnimator = () => {
 
     if (tool === 'line' && isDragging && lineStart) {
       const coords = getSVGCoordinates(event);
-      const newFrames = [...frames];
-      const currentElements = newFrames[currentFrame].elements;
-      const previewLine = currentElements.find(el => el.type === 'line' && el.id === 'preview-line') as LineElement | undefined;
-      
       const { curved, dashed, marker } = getLineProperties(selectedLineStyle);
       const path = createLinePath(lineStart, coords, curved, curveOffset);
       
-      if (previewLine) {
-        previewLine.path = path;
-        previewLine.dashed = dashed;
-        previewLine.marker = marker;
-      } else {
-        currentElements.push({
-          id: 'preview-line',
-          type: 'line',
-          path,
-          dashed,
-          marker,
-        });
-      }
-      setFrames(newFrames);
+      setPreviewLine({
+        id: 'preview-line',
+        type: 'line',
+        path,
+        dashed,
+        marker,
+      });
     }
   };
 
@@ -616,39 +575,26 @@ const FootballAnimator = () => {
     if (tool === 'line' && isDragging && lineStart) {
       const { curved, dashed, marker } = getLineProperties(selectedLineStyle);
       const finalizedPath = createLinePath(lineStart, coords, curved, curveOffset);
+      
       const newFrames = [...frames];
-      const currentElements = newFrames[currentFrame].elements;
-      const previewIndex = currentElements.findIndex(
-        el => el.type === 'line' && el.id === 'preview-line'
-      );
-      if (previewIndex >= 0) {
-        // Finaliserer preview-linjen til en permanent linje ved å generere et unikt id
-        currentElements[previewIndex] = {
-          ...(currentElements[previewIndex] as LineElement),
-          id: 'line-' + Date.now(),
-          path: finalizedPath,
-          dashed,
-          marker,
-        };
-      } else {
-        // Hvis preview ikke finnes, legg til en ny linje
-        currentElements.push({
-          id: 'line-' + Date.now(),
-          type: 'line',
-          path: finalizedPath,
-          dashed,
-          marker,
-        });
-      }
+      newFrames[currentFrame].elements.push({
+        id: 'line-' + Date.now(),
+        type: 'line',
+        path: finalizedPath,
+        dashed,
+        marker,
+      });
+      
       setFrames(newFrames);
       setIsDragging(false);
       setLineStart(null);
       setIsDrawing(false);
       setStartPoint(null);
+      setPreviewLine(null);
     } else if (tool === 'select' && isDragging && selectedElement) {
       updateFrameElement(currentFrame, selectedElement.id, { x: coords.x, y: coords.y });
       setIsDragging(false);
-      setSelectedElement(null);
+      setStartPoint(null);
     }
   };
 
@@ -1099,6 +1045,91 @@ const FootballAnimator = () => {
     isPlayingRef.current = isPlaying;
   }, [isPlaying]);
 
+  const handleElementSelect = (element: Element) => {
+    setSelectedElement(element);
+    if (element.type === 'line') {
+      // Sett riktig linjestil basert på elementets egenskaper
+      const style = element.dashed
+        ? element.marker === 'arrow'
+          ? 'dashedCurvedArrow'
+          : 'dashedCurved'
+        : element.marker === 'arrow'
+          ? 'curvedArrow'
+          : 'solidCurved';
+      setSelectedLineStyle(style as LineStyle);
+
+      const path = element.path;
+
+      // Beregn initial kurvatur basert på kontrollpunkt (cp1) med oppdaterte regexer
+      const cpMatch = path.match(/C ([0-9.-]+) ([0-9.-]+) ([0-9.-]+) ([0-9.-]+)/);
+      if (cpMatch) {
+        const [, cp1x, cp1y] = cpMatch;
+        const startMatch = path.match(/M ([0-9.-]+) ([0-9.-]+)/);
+        if (startMatch) {
+          const [, startX, startY] = startMatch;
+          const dx = Number(cp1x) - Number(startX);
+          const dy = Number(cp1y) - Number(startY);
+          const len = Math.sqrt(dx * dx + dy * dy);
+          if (len > 0) {
+            const perpX = -dy / len;
+            const perpY = dx / len;
+            const offset = Math.round(perpX * len);
+            setSelectedLineCurveOffset(offset);
+            setCurveOffset(offset);
+          }
+        }
+      }
+      
+      // Ekstraher og lagre de originale start- og sluttpunktene fra path med oppdaterte regexer
+      const startMatchEndpoints = path.match(/M ([0-9.-]+) ([0-9.-]+)/);
+      const endMatch = path.match(/([0-9.-]+) ([0-9.-]+)$/);
+      if (startMatchEndpoints && endMatch) {
+        const startPoint = { x: Number(startMatchEndpoints[1]), y: Number(startMatchEndpoints[2]) };
+        const endPoint = { x: Number(endMatch[1]), y: Number(endMatch[2]) };
+        setSelectedLinePoints({ start: startPoint, end: endPoint });
+      }
+    }
+  };
+
+  // Oppdatert useEffect for curveOffset med kast til LineElement
+  useEffect(() => {
+    if (selectedElement?.type === 'line' && selectedLinePoints) {
+      const start = selectedLinePoints.start;
+      const end = selectedLinePoints.end;
+      const dx = end.x - start.x;
+      const dy = end.y - start.y;
+      const len = Math.sqrt(dx * dx + dy * dy);
+
+      let perpX = 0, perpY = 0;
+      if (len !== 0) {
+        perpX = -dy / len;
+        perpY = dx / len;
+      }
+
+      const cp1x = start.x + dx / 3 + curveOffset * perpX;
+      const cp1y = start.y + dy / 3 + curveOffset * perpY;
+      const cp2x = start.x + 2 * dx / 3 + curveOffset * perpX;
+      const cp2y = start.y + 2 * dy / 3 + curveOffset * perpY;
+
+      const newPath = `M ${start.x} ${start.y} C ${cp1x} ${cp1y} ${cp2x} ${cp2y} ${end.x} ${end.y}`;
+
+      const newFrames = [...frames];
+      newFrames[currentFrame].elements = newFrames[currentFrame].elements.map(el => {
+        if (el.id === selectedElement.id) {
+          const lineEl = el as LineElement;
+          return { 
+            ...lineEl, 
+            path: newPath,
+            dashed: lineEl.dashed,
+            marker: lineEl.marker 
+          };
+        }
+        return el;
+      });
+      setFrames(newFrames);
+    }
+  }, [curveOffset, selectedElement, selectedLinePoints, frames, currentFrame]);
+
   return (
     <Card className="w-full max-w-4xl">
       <CardHeader>
@@ -1159,6 +1190,20 @@ const FootballAnimator = () => {
                     <span className="text-xs">{el.traceOffset ?? 0}px</span>
                   </div>
                 )}
+                {el.type === 'line' && selectedElement?.id === el.id && (
+                  <div className="flex items-center gap-2 mt-1">
+                    <span className="text-sm">Kurvatur:</span>
+                    <Slider
+                      value={[curveOffset]}
+                      onValueChange={([val]) => setCurveOffset(val)}
+                      min={-100}
+                      max={100}
+                      step={1}
+                      className="w-32"
+                    />
+                    <span className="text-xs">{curveOffset}px</span>
+                  </div>
+                )}
               </div>
             ))
           ) : (
@@ -1194,6 +1239,7 @@ const FootballAnimator = () => {
             curveOffset={curveOffset}
             setCurveOffset={setCurveOffset}
             getLineProperties={getLineProperties}
+            tool={tool}
           />
         )}
 
@@ -1250,6 +1296,7 @@ const FootballAnimator = () => {
                 .filter(el => el.visible !== false)
                 .map(renderElement);
             })()}
+            {previewLine && renderElement(previewLine)}
           </svg>
         </div>
       </CardContent>
