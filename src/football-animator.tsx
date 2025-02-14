@@ -58,6 +58,7 @@ type Element = PlayerElement | OpponentElement | BallElement | ConeElement | Lin
 interface Frame {
   id: number;
   elements: Element[];
+  duration: number; // varighet i sekunder
 }
 
 // Hjelpefunksjon som kloner SVG-en og inliner alle beregnede stiler.
@@ -80,7 +81,7 @@ const inlineAllStyles = (svg: SVGSVGElement): SVGSVGElement => {
 const FootballAnimator = () => {
   const [isPlaying, setIsPlaying] = useState(false);
   const [playbackSpeed, setPlaybackSpeed] = useState(1);
-  const [frames, setFrames] = useState<Frame[]>([{ id: 0, elements: [] }]);
+  const [frames, setFrames] = useState<Frame[]>([{ id: 0, elements: [], duration: 1 }]);
   const [currentFrame, setCurrentFrame] = useState(0);
   const [interpolatedElements, setInterpolatedElements] = useState<Element[]>([]);
   const [progress, setProgress] = useState(0);
@@ -662,7 +663,8 @@ const FootballAnimator = () => {
   const handleDuplicateFrame = () => {
     const newFrame = {
       id: Date.now(),
-      elements: JSON.parse(JSON.stringify(frames[currentFrame].elements))
+      elements: JSON.parse(JSON.stringify(frames[currentFrame].elements)),
+      duration: frames[currentFrame].duration // Kopier varigheten fra den aktive framen
     };
     const updatedFrames = [
       ...frames.slice(0, currentFrame + 1),
@@ -737,8 +739,9 @@ const FootballAnimator = () => {
     
     const deltaTime = currentTime - lastTimeRef.current;
     lastTimeRef.current = currentTime;
-  
-    let newProgress = progressRef.current + (deltaTime * playbackSpeed) / 1000;
+    
+    const currentFrameDuration = frames[currentFrameRef.current].duration;
+    let newProgress = progressRef.current + (deltaTime * playbackSpeed) / (currentFrameDuration * 1000);
     
     // Hvis vi er på siste frame
     if (currentFrameRef.current === frames.length - 1) {
@@ -749,7 +752,6 @@ const FootballAnimator = () => {
         setProgress(1);
         isPlayingRef.current = false;
         setIsPlaying(false);
-        // Viktig: Ikke return her, la den rendere siste frame først
       }
     } else if (newProgress >= 1) {
       newProgress = 0;
@@ -820,6 +822,9 @@ const FootballAnimator = () => {
       const updateCanvas = () => {
         if (!recording || !ctx) return;
         
+        // Start tidtaking
+        const startTime = performance.now();
+        
         // Tegn hvit bakgrunn
         ctx.fillStyle = "white";
         ctx.fillRect(0, 0, canvasFallback!.width, canvasFallback!.height);
@@ -828,20 +833,32 @@ const FootballAnimator = () => {
         const inlinedSvg = inlineAllStyles(svg);
         const svgString = serializer.serializeToString(inlinedSvg);
         
-        // Bruk en data URL i stedet for Blob
-        const svgUrl = 'data:image/svg+xml;base64,' + btoa(unescape(encodeURIComponent(svgString)));
-        
-        // Last inn SVG som bilde
-        const img = new Image();
-        img.onload = () => {
-          ctx.drawImage(img, 0, 0, canvasFallback!.width, canvasFallback!.height);
-          updateCanvasRafId = requestAnimationFrame(updateCanvas);
-        };
-        img.onerror = (err) => {
-          console.error('Feil ved lasting av SVG:', err);
-          updateCanvasRafId = requestAnimationFrame(updateCanvas);
-        };
-        img.src = svgUrl;
+        // Bruk Canvg for å tegne SVG på canvas
+        Canvg.from(ctx, svgString, {
+          ignoreDimensions: true,
+          ignoreClear: true,
+        }).then(instance => {
+          instance.resize(canvasFallback!.width, canvasFallback!.height);
+          instance.render();
+          
+          console.log("UpdateCanvas: " + (performance.now() - startTime).toFixed(0) + " ms");
+          
+          if (performance.now() - startTime >= 5000) {
+            recording = false;
+            if (updateCanvasRafId) cancelAnimationFrame(updateCanvasRafId);
+            return;
+          }
+          
+          // Fortsett animasjonsløkken
+          if (recording) {
+            updateCanvasRafId = requestAnimationFrame(updateCanvas);
+          }
+        }).catch(err => {
+          console.error('Feil ved rendering av SVG:', err);
+          if (recording) {
+            updateCanvasRafId = requestAnimationFrame(updateCanvas);
+          }
+        });
       };
       
       // Start canvas-oppdatering
@@ -1020,16 +1037,20 @@ const FootballAnimator = () => {
   // Legg til en funksjon for å legge til en ny keyframe (dupliserer gjeldende keyframe)
   const handleAddKeyframe = () => {
     setFrames(prevFrames => {
-      // Opprett en ny, tom keyframe uten å klone den gjeldende
-      const newFrame = { id: Date.now(), elements: [] };
-   
-      const updated = [
-        ...prevFrames,
-        newFrame,
-      ];
-      // Sett currentFrame til den nye keyframen (som er den bakerste)
-      setCurrentFrame(prevFrames.length);
-      return updated;
+      const newFrame = { id: Date.now(), elements: [], duration: 1 };
+      return [...prevFrames, newFrame];
+    });
+  };
+
+  // Legg til en ny funksjon for å oppdatere varighet
+  const handleFrameDurationChange = (frameIndex: number, newDuration: number) => {
+    setFrames(prevFrames => {
+      const updatedFrames = [...prevFrames];
+      updatedFrames[frameIndex] = {
+        ...updatedFrames[frameIndex],
+        duration: newDuration
+      };
+      return updatedFrames;
     });
   };
 
@@ -1160,6 +1181,7 @@ const FootballAnimator = () => {
           handleDownloadAnimation={handleDownloadAnimation}
           handleDownloadFilm={handleDownloadFilm}
           handleAddKeyframe={handleAddKeyframe}
+          handleFrameDurationChange={handleFrameDurationChange}
         />
         <div className="p-4 border rounded bg-white mb-4">
           <h3 className="text-sm font-semibold mb-2">Rediger Keyframe {currentFrame + 1}</h3>

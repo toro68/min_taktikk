@@ -1,12 +1,13 @@
 import React from 'react';
 import { Button } from './ui/button';
 import { Copy, Trash2, Plus, Save, Film } from 'lucide-react';
+import { Slider } from './ui/slider';
 
 interface KeyframePanelProps {
-  frames: { id: number; elements: any[] }[]; // Ideelt sett bør du bruke typen Frame
+  frames: { id: number; elements: any[]; duration: number }[];
   currentFrame: number;
   setCurrentFrame: (frame: number) => void;
-  selectedElement: any; // Bruk gjerne din Element-type her
+  selectedElement: any;
   handleDuplicateFrame: () => void;
   handleDeleteFrame: () => void;
   handleDeleteElement: () => void;
@@ -15,6 +16,7 @@ interface KeyframePanelProps {
   handleDownloadAnimation: () => void;
   handleDownloadFilm: () => void;
   handleAddKeyframe: () => void;
+  handleFrameDurationChange: (frameIndex: number, duration: number) => void;
 }
 
 const KeyframePanel: React.FC<KeyframePanelProps> = ({
@@ -30,6 +32,7 @@ const KeyframePanel: React.FC<KeyframePanelProps> = ({
   handleDownloadAnimation,
   handleDownloadFilm,
   handleAddKeyframe,
+  handleFrameDurationChange,
 }) => {
   return (
     <div className="flex flex-col mb-4">
@@ -66,20 +69,38 @@ const KeyframePanel: React.FC<KeyframePanelProps> = ({
             Last ned film
           </Button>
         </div>
-        <div className="flex gap-2 mb-2">
-          {frames.map((frame, index) => (
-            <Button
-              key={frame.id}
-              variant={currentFrame === index ? "default" : "outline"}
-              size="sm"
-              onClick={() => setCurrentFrame(index)}
-            >
-              {index + 1}
+      </div>
+      
+      <div className="flex flex-col gap-4">
+        <div className="flex gap-2 items-center">
+          <div className="flex gap-2 flex-wrap">
+            {frames.map((frame, index) => (
+              <div key={frame.id} className="flex flex-col items-center gap-1">
+                <Button
+                  variant={currentFrame === index ? "default" : "outline"}
+                  size="sm"
+                  onClick={() => setCurrentFrame(index)}
+                >
+                  {index + 1}
+                </Button>
+                <div className="flex items-center gap-2">
+                  <span className="text-sm">Varighet:</span>
+                  <Slider
+                    value={[frame.duration]}
+                    onValueChange={([val]) => handleFrameDurationChange(index, val)}
+                    min={0.1}
+                    max={5}
+                    step={0.1}
+                    className="w-24"
+                  />
+                  <span className="text-xs w-12">{frame.duration}s</span>
+                </div>
+              </div>
+            ))}
+            <Button onClick={handleAddKeyframe} variant="outline" size="sm">
+              Legg til keyframe
             </Button>
-          ))}
-          <Button onClick={handleAddKeyframe} variant="outline" size="sm">
-            Legg til keyframe
-          </Button>
+          </div>
         </div>
       </div>
     </div>
