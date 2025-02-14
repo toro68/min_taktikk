@@ -1102,7 +1102,7 @@ const FootballAnimator = () => {
   return (
     <Card className="w-full max-w-4xl">
       <CardHeader>
-        <CardTitle>Football Animation Designer</CardTitle>
+        <CardTitle>Min taktikktavle</CardTitle>
       </CardHeader>
       <TopToolbar
         pitch={pitch}
