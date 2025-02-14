@@ -104,6 +104,7 @@ const FootballAnimator = () => {
   const progressRef = useRef(progress);
   const currentFrameRef = useRef(currentFrame);
   const isPlayingRef = useRef(isPlaying);
+  const lastTimeRef = useRef<number>(performance.now());
 
   const lineStyleOptions: { value: LineStyle, label: string, preview: React.ReactElement }[] = [
     {
@@ -736,13 +737,23 @@ const FootballAnimator = () => {
 
   const handlePlayPause = () => {
     if (!isPlaying) {
-      if (currentFrame === frames.length - 1) {
+      // Start fra begynnelsen hvis vi er på slutten
+      if (currentFrame === frames.length - 1 && progress >= 1) {
         setCurrentFrame(0);
         setProgress(0);
+        currentFrameRef.current = 0;
+        progressRef.current = 0;
       }
       setIsPlaying(true);
+      isPlayingRef.current = true;
+      lastTimeRef.current = performance.now();
     } else {
       setIsPlaying(false);
+      isPlayingRef.current = false;
+      if (animationRef.current) {
+        cancelAnimationFrame(animationRef.current);
+        animationRef.current = null;
+      }
     }
   };
 
@@ -774,6 +785,42 @@ const FootballAnimator = () => {
     URL.revokeObjectURL(url);
   };
 
+  // Ny implementasjon av animasjonsløkken via requestAnimationFrame
+  const animateFrames = (currentTime: number) => {
+    if (!isPlayingRef.current) return;
+    
+    const deltaTime = currentTime - lastTimeRef.current;
+    lastTimeRef.current = currentTime;
+  
+    let newProgress = progressRef.current + (deltaTime * playbackSpeed) / 1000;
+    
+    // Hvis vi er på siste frame
+    if (currentFrameRef.current === frames.length - 1) {
+      if (newProgress >= 1) {
+        // Stopp animasjonen og behold siste frame
+        newProgress = 1;
+        progressRef.current = 1;
+        setProgress(1);
+        isPlayingRef.current = false;
+        setIsPlaying(false);
+        // Viktig: Ikke return her, la den rendere siste frame først
+      }
+    } else if (newProgress >= 1) {
+      newProgress = 0;
+      const nextFrame = currentFrameRef.current + 1;
+      currentFrameRef.current = nextFrame;
+      setCurrentFrame(nextFrame);
+    }
+    
+    progressRef.current = newProgress;
+    setProgress(newProgress);
+    
+    // Fortsett animasjonen hvis vi fortsatt spiller
+    if (isPlayingRef.current) {
+      animationRef.current = requestAnimationFrame(animateFrames);
+    }
+  };
+
   // Funksjon for å laste ned animasjonen som film (video .webm)
   const handleDownloadFilm = () => {
     if (recordingRef.current) {
@@ -784,6 +831,8 @@ const FootballAnimator = () => {
     // Reset til start før opptak
     setCurrentFrame(0);
     setProgress(0);
+    currentFrameRef.current = 0;
+    progressRef.current = 0;
     
     recordingRef.current = true;
     setIsRecording(true);
@@ -807,7 +856,7 @@ const FootballAnimator = () => {
       canvasFallback.width = viewBoxWidth;
       canvasFallback.height = viewBoxHeight;
       
-      const ctx = canvasFallback.getContext('2d');
+      const ctx = canvasFallback.getContext('2d', { alpha: false });
       if (!ctx) return;
       
       // Legg til canvas i DOM for bedre kompatibilitet
@@ -820,9 +869,9 @@ const FootballAnimator = () => {
       canvasFallback.style.zIndex = "-1";
       
       // Start streaming med høy framerate
-      stream = canvasFallback.captureStream(60);
+      stream = canvasFallback.captureStream(30);
       
-      const updateCanvas = async () => {
+      const updateCanvas = () => {
         if (!recording || !ctx) return;
         
         // Tegn hvit bakgrunn
@@ -832,26 +881,30 @@ const FootballAnimator = () => {
         // Konverter SVG til string med inline styles
         const inlinedSvg = inlineAllStyles(svg);
         const svgString = serializer.serializeToString(inlinedSvg);
-        const blob = new Blob([svgString], { type: 'image/svg+xml' });
-        const url = URL.createObjectURL(blob);
+        
+        // Bruk en data URL i stedet for Blob
+        const svgUrl = 'data:image/svg+xml;base64,' + btoa(unescape(encodeURIComponent(svgString)));
         
         // Last inn SVG som bilde
         const img = new Image();
         img.onload = () => {
           ctx.drawImage(img, 0, 0, canvasFallback!.width, canvasFallback!.height);
-          URL.revokeObjectURL(url);
           updateCanvasRafId = requestAnimationFrame(updateCanvas);
         };
-        img.src = url;
+        img.onerror = (err) => {
+          console.error('Feil ved lasting av SVG:', err);
+          updateCanvasRafId = requestAnimationFrame(updateCanvas);
+        };
+        img.src = svgUrl;
       };
       
       // Start canvas-oppdatering
       updateCanvas();
 
-      // Konfigurer MediaRecorder med høy kvalitet
+      // Konfigurer MediaRecorder med høy kvalitet og kompatible innstillinger
       const recorder = new MediaRecorder(stream, { 
-        mimeType: 'video/webm',
-        videoBitsPerSecond: 8000000 // 8 Mbps for høy kvalitet
+        mimeType: 'video/webm;codecs=vp8',
+        videoBitsPerSecond: 5000000 // 5 Mbps for bedre kompatibilitet
       });
       
       const chunks: Blob[] = [];
@@ -886,6 +939,7 @@ const FootballAnimator = () => {
         recordingRef.current = false;
         setIsRecording(false);
         setIsPlaying(false);
+        isPlayingRef.current = false;
       };
       
       // Start opptak med datainnsamling hvert 100ms
@@ -894,6 +948,7 @@ const FootballAnimator = () => {
       
       // Start avspilling
       setIsPlaying(true);
+      isPlayingRef.current = true;
       
       // Beregn varighet og stopp etter fullført animasjon
       const frameDuration = 1000 / playbackSpeed;
@@ -902,77 +957,47 @@ const FootballAnimator = () => {
       setTimeout(() => {
         console.log("Stopper opptak");
         recorder.stop();
-      }, recordDuration + 1000); // Legg til 1 sekund buffer-tid
+      }, recordDuration + 2000); // Legg til 2 sekunder buffer-tid
     } else {
       console.error('Ingen SVG for opptak.');
-    }
-  };
-
-  // Opprett en referanse for forrige tidspunkt
-  const lastTimeRef = useRef<number>(performance.now());
-  
-  // Ny implementasjon av animasjonsløkken via requestAnimationFrame
-  const animateFrames = (currentTime: number) => {
-    const deltaTime = currentTime - lastTimeRef.current;
-    lastTimeRef.current = currentTime;
-  
-    let newProgress = progressRef.current + (deltaTime * playbackSpeed) / 1000;
-    if (newProgress >= 1) {
-      if (currentFrameRef.current < frames.length - 1) {
-        newProgress = 0;
-        currentFrameRef.current = currentFrameRef.current + 1;
-        setCurrentFrame(currentFrameRef.current);
-      } else {
-        newProgress = 1;
-        setProgress(1);
-        progressRef.current = 1;
-        setIsPlaying(false);
-        return;
-      }
-    }
-    progressRef.current = newProgress;
-    setProgress(newProgress);
-  
-    if (isPlayingRef.current) {
-      animationRef.current = requestAnimationFrame(animateFrames);
     }
   };
 
   // Oppdater useEffect for interpolering
   useEffect(() => {
     if (!frames[currentFrame]) return;
+    
     const currentElements = frames[currentFrame].elements;
     const nextElements = frames[currentFrame + 1]?.elements || currentElements;
 
-    // Interpoler elementer mellom current og next frame
+    // Interpoler elementer
     const interpolated = currentElements.map(currentEl => {
       const nextEl = nextElements.find(next => next.id === currentEl.id);
       
       if (!nextEl || nextEl === currentEl) return currentEl;
 
-      // Bare interpoler hvis vi har x- og y-koordinater
       if (
         typeof currentEl.x === 'number' &&
         typeof currentEl.y === 'number' &&
         typeof nextEl.x === 'number' &&
         typeof nextEl.y === 'number'
       ) {
+        const safeProgress = Math.min(progress, 1);
+        
         if (currentEl.type === 'player' || currentEl.type === 'ball') {
-          // Bruk spillerens eget traceOffset, slik at den følger det samme sporet som vises
           const offset = currentEl.traceOffset ?? 0;
           const newPos = getCubicBezierPoint(
-            Math.min(progress, 1),
+            safeProgress,
             { x: currentEl.x, y: currentEl.y },
             { x: nextEl.x, y: nextEl.y },
             offset
           );
           return { ...currentEl, x: newPos.x, y: newPos.y };
         } else {
-          const t = Math.min(progress, 1);
           return {
             ...currentEl,
-            x: currentEl.x + (nextEl.x - currentEl.x) * t,
-            y: currentEl.y + (nextEl.y - currentEl.y) * t,
+            x: currentEl.x + (nextEl.x - currentEl.x) * safeProgress,
+            y: currentEl.y + (nextEl.y - currentEl.y) * safeProgress,
           };
         }
       }
@@ -983,22 +1008,20 @@ const FootballAnimator = () => {
     setInterpolatedElements(interpolated);
   }, [currentFrame, progress, frames]);
 
-  // Nye useEffect-hook for å starte/stoppe animasjonen
+  // Oppdater useEffect for animasjonskontroll
   useEffect(() => {
     if (isPlaying) {
       lastTimeRef.current = performance.now();
       animationRef.current = requestAnimationFrame(animateFrames);
-    } else if (animationRef.current) {
-      cancelAnimationFrame(animationRef.current);
-      animationRef.current = null;
     }
 
     return () => {
       if (animationRef.current) {
         cancelAnimationFrame(animationRef.current);
+        animationRef.current = null;
       }
     };
-  }, [isPlaying, playbackSpeed, frames.length]);
+  }, [isPlaying]);
 
   // Endrer renderTrace-funksjonen
   const renderTrace = () => {
@@ -1213,14 +1236,20 @@ const FootballAnimator = () => {
                 <path d="M 2,2 L 6,6 M 2,6 L 6,2" stroke="black" strokeWidth="1" />
               </marker>
             </defs>
-            <rect x="0" y="0" width="680" height="1050" fill="white" />
+            <rect x="0" y="0" width="680" height={pitch === 'full' ? 1050 : 525} fill="white" />
             {getPitchTemplate()}
             {frames[currentFrame] && frames[currentFrame + 1] && renderTrace()}
-            {(isRecording || (isPlaying && currentFrame < frames.length - 1) || (!isPlaying && progress === 1))
-              ? interpolatedElements.map(renderElement)
-              : (frames[currentFrame]?.elements ?? [])
+            {(() => {
+              // Bestem hvilke elementer som skal vises
+              const elementsToRender = isPlaying || isRecording
+                ? interpolatedElements
+                : frames[currentFrame]?.elements ?? [];
+              
+              // Filtrer og render elementene
+              return elementsToRender
                 .filter(el => el.visible !== false)
-                .map(renderElement)}
+                .map(renderElement);
+            })()}
           </svg>
         </div>
       </CardContent>
