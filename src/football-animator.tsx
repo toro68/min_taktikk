@@ -9,12 +9,13 @@ import {
   SelectValue,
 } from "./components/ui/select";
 import { Slider } from './components/ui/slider';
-import { Play, Pause, SkipBack, Save, Copy, Trash2, Plus, Film } from 'lucide-react';
+import { Play, Pause, SkipBack, Save, Copy, Trash2, Plus, Film, MousePointer, User, Users, Volleyball, Circle, Cone, PenTool, SquareSplitHorizontal } from 'lucide-react';
 import { Alert, AlertDescription } from './components/ui/alert';
 import { Canvg } from 'canvg';
-import TopToolbar from './components/TopToolbar';
 import KeyframePanel from './components/KeyframePanel';
 import LineStyleSelector, { LineStyle } from './components/LineStyleSelector';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from './components/ui/tooltip';
+import TopToolbar from './components/TopToolbar';
 
 type Tool = 'select' | 'player' | 'opponent' | 'ball' | 'cone' | 'line';
 type PitchType = 'full' | 'offensive' | 'defensive';
@@ -61,24 +62,27 @@ interface Frame {
   duration: number; // varighet i sekunder
 }
 
-// Hjelpefunksjon som kloner SVG-en og inliner alle beregnede stiler.
-const inlineAllStyles = (svg: SVGSVGElement): SVGSVGElement => {
-  const clone = svg.cloneNode(true) as SVGSVGElement;
-  const elements = clone.querySelectorAll("*");
-  for (const el of Array.from(elements)) {
-    const computedStyle = window.getComputedStyle(el);
-    let styleDeclaration = "";
-    for (let i = 0; i < computedStyle.length; i++) {
-      const property = computedStyle[i];
-      const value = computedStyle.getPropertyValue(property);
-      styleDeclaration += `${property}:${value};`;
-    }
-    el.setAttribute("style", styleDeclaration);
-  }
-  return clone;
-};
+const PLAYER_RADIUS = 10;
+const BALL_RADIUS = 5;
 
 const FootballAnimator = () => {
+  // Hjelpefunksjon som kloner SVG-en og inliner alle beregnede stiler.
+  const inlineAllStyles = (svg: SVGSVGElement): SVGSVGElement => {
+    const clone = svg.cloneNode(true) as SVGSVGElement;
+    const elements = clone.querySelectorAll("*");
+    for (const el of Array.from(elements)) {
+      const computedStyle = window.getComputedStyle(el);
+      let styleDeclaration = "";
+      for (let i = 0; i < computedStyle.length; i++) {
+        const property = computedStyle[i];
+        const value = computedStyle.getPropertyValue(property);
+        styleDeclaration += `${property}:${value};`;
+      }
+      el.setAttribute("style", styleDeclaration);
+    }
+    return clone;
+  };
+
   const [isPlaying, setIsPlaying] = useState(false);
   const [playbackSpeed, setPlaybackSpeed] = useState(1);
   const [frames, setFrames] = useState<Frame[]>([{ id: 0, elements: [], duration: 1 }]);
@@ -109,6 +113,22 @@ const FootballAnimator = () => {
   const [previewLine, setPreviewLine] = useState<LineElement | null>(null);
   const [selectedLineCurveOffset, setSelectedLineCurveOffset] = useState<number>(0);
   const [selectedLinePoints, setSelectedLinePoints] = useState<{ start: { x: number, y: number }, end: { x: number, y: number } } | null>(null);
+
+  const handleTogglePitch = () => {
+    if (pitch === 'full') {
+      setPitch('offensive');
+    } else if (pitch === 'offensive') {
+      setPitch('defensive');
+    } else {
+      setPitch('full');
+    }
+  };
+
+  const SquareDashedBottomIcon = () => (
+    <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+      <rect x="3" y="3" width="18" height="18" strokeDasharray="4 2" />
+    </svg>
+  );
 
   const lineStyleOptions: { value: LineStyle, label: string, preview: React.ReactElement }[] = [
     {
@@ -296,8 +316,9 @@ const FootballAnimator = () => {
       case 'ball':
         return (
           <g key={element.id} {...elementProps}>
-            <circle cx="0" cy="0" r="8" fill="white" stroke="black" strokeWidth="1.5"/>
-            <path d="M 0,-3.5 L 3,-1.75 L 3,1.75 L 0,3.5 L -3,1.75 L -3,-1.75 Z" fill="black"/>
+            <g transform="translate(-12, -12)">
+              <Volleyball className="w-6 h-6" />
+            </g>
           </g>
         );
       case 'cone':
@@ -1154,18 +1175,18 @@ const FootballAnimator = () => {
   return (
     <Card className="w-full max-w-4xl">
       <CardHeader>
-        <CardTitle>Min taktikktavle</CardTitle>
+        <div className="px-6 py-4 border-b">
+          <h1 className="text-2xl font-semibold tracking-tight text-center">
+            Min taktikktavle
+          </h1>
+        </div>
       </CardHeader>
       <TopToolbar
-        pitch={pitch}
-        setPitch={setPitch}
-        tool={tool}
-        setTool={setTool}
-        isPlaying={isPlaying}
-        handlePlayPause={handlePlayPause}
-        onReset={() => setCurrentFrame(0)}
         playbackSpeed={playbackSpeed}
         setPlaybackSpeed={setPlaybackSpeed}
+        onDuplicate={handleDuplicateFrame}
+        onDelete={handleDeleteFrame}
+        onAddKeyframe={handleAddKeyframe}
       />
       <CardContent>
         <KeyframePanel
@@ -1178,79 +1199,263 @@ const FootballAnimator = () => {
           handleDeleteElement={handleDeleteElement}
           handleResetNumbers={handleResetNumbers}
           handleClearElements={handleClearElements}
-          handleDownloadAnimation={handleDownloadAnimation}
-          handleDownloadFilm={handleDownloadFilm}
           handleAddKeyframe={handleAddKeyframe}
           handleFrameDurationChange={handleFrameDurationChange}
         />
-        <div className="p-4 border rounded bg-white mb-4">
-          <h3 className="text-sm font-semibold mb-2">Rediger Keyframe {currentFrame + 1}</h3>
-          {(frames[currentFrame]?.elements ?? []).length > 0 ? (
-            (frames[currentFrame]?.elements ?? []).map(el => (
-              <div key={el.id} className="flex flex-col border-b py-1">
-                <div className="flex items-center justify-between">
-                  <span>{el.id} [{el.type}]</span>
-                  <input
-                    type="checkbox"
-                    checked={el.visible !== false}
-                    onChange={() =>
-                      updateFrameElement(currentFrame, el.id, { visible: !(el.visible ?? true) })
-                    }
-                  />
+        <TooltipProvider delayDuration={0}>
+          <div className="p-4 border rounded bg-white mb-4">
+            <h3 className="text-sm font-semibold mb-2">Rediger Keyframe {currentFrame + 1}</h3>
+            {(frames[currentFrame]?.elements ?? []).length > 0 ? (
+              (frames[currentFrame]?.elements ?? []).map(el => (
+                <div key={el.id} className="flex flex-col border-b py-1">
+                  <div className="flex items-center justify-between">
+                    <span>{el.id} [{el.type}]</span>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <input
+                          type="checkbox"
+                          checked={el.visible !== false}
+                          onChange={() =>
+                            updateFrameElement(currentFrame, el.id, { visible: !(el.visible ?? true) })
+                          }
+                        />
+                      </TooltipTrigger>
+                      <TooltipContent side="top" sideOffset={2} className="py-0.5 px-1.5 bg-black/90 text-white border-0">
+                        <div className="flex flex-col">
+                          <p className="text-[10px] font-medium">Vis/skjul element</p>
+                          <p className="text-[9px] text-gray-300">Snarvei: H</p>
+                        </div>
+                      </TooltipContent>
+                    </Tooltip>
+                  </div>
+                  {(el.type === 'player' || el.type === 'ball') && (
+                    <div className="flex items-center gap-2 mt-1">
+                      <span className="text-sm">Trace offset:</span>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <div className="flex-1">
+                            <Slider
+                              value={[el.traceOffset ?? 0]}
+                              onValueChange={([val]) => updateFrameElement(currentFrame, el.id, { traceOffset: val })}
+                              min={-50}
+                              max={50}
+                              step={1}
+                              className="w-32"
+                            />
+                          </div>
+                        </TooltipTrigger>
+                        <TooltipContent side="top" sideOffset={2} className="py-0.5 px-1.5 bg-black/90 text-white border-0">
+                          <div className="flex flex-col">
+                            <p className="text-[10px] font-medium">Juster bevegelseskurve: {el.traceOffset ?? 0}px</p>
+                            <p className="text-[9px] text-gray-300">Dra for å endre (-50 til 50)</p>
+                          </div>
+                        </TooltipContent>
+                      </Tooltip>
+                      <span className="text-xs tabular-nums w-8">{el.traceOffset ?? 0}px</span>
+                    </div>
+                  )}
+                  {el.type === 'line' && selectedElement?.id === el.id && (
+                    <div className="flex items-center gap-2 mt-1">
+                      <span className="text-sm">Kurvatur:</span>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <div className="flex-1">
+                            <Slider
+                              value={[curveOffset]}
+                              onValueChange={([val]) => setCurveOffset(val)}
+                              min={-100}
+                              max={100}
+                              step={1}
+                              className="w-32"
+                            />
+                          </div>
+                        </TooltipTrigger>
+                        <TooltipContent side="top" sideOffset={2} className="py-0.5 px-1.5 bg-black/90 text-white border-0">
+                          <div className="flex flex-col">
+                            <p className="text-[10px] font-medium">Juster kurvatur: {curveOffset}px</p>
+                            <p className="text-[9px] text-gray-300">Dra for å endre (-100 til 100)</p>
+                          </div>
+                        </TooltipContent>
+                      </Tooltip>
+                      <span className="text-xs tabular-nums w-8">{curveOffset}px</span>
+                    </div>
+                  )}
                 </div>
-                {(el.type === 'player' || el.type === 'ball') && (
-                  <div className="flex items-center gap-2 mt-1">
-                    <span className="text-sm">Trace offset:</span>
-                    <Slider
-                      value={[el.traceOffset ?? 0]}
-                      onValueChange={([val]) => updateFrameElement(currentFrame, el.id, { traceOffset: val })}
-                      min={-50}
-                      max={50}
-                      step={1}
-                      className="w-32"
-                    />
-                    <span className="text-xs">{el.traceOffset ?? 0}px</span>
-                  </div>
-                )}
-                {el.type === 'line' && selectedElement?.id === el.id && (
-                  <div className="flex items-center gap-2 mt-1">
-                    <span className="text-sm">Kurvatur:</span>
-                    <Slider
-                      value={[curveOffset]}
-                      onValueChange={([val]) => setCurveOffset(val)}
-                      min={-100}
-                      max={100}
-                      step={1}
-                      className="w-32"
-                    />
-                    <span className="text-xs">{curveOffset}px</span>
-                  </div>
-                )}
-              </div>
-            ))
-          ) : (
-            <p>Ingen elementer i keyframe {currentFrame + 1}</p>
-          )}
-        </div>
+              ))
+            ) : (
+              <p>Ingen elementer i keyframe {currentFrame + 1}</p>
+            )}
+          </div>
+        </TooltipProvider>
         <div className="flex flex-wrap gap-2 justify-center bg-white p-2 mb-4">
-          <Button variant={tool === 'select' ? "default" : "outline"} size="sm" onClick={() => setTool('select')}>
-            Select
-          </Button>
-          <Button variant={tool === 'player' ? "default" : "outline"} size="sm" onClick={() => setTool('player')}>
-            Player
-          </Button>
-          <Button variant={tool === 'opponent' ? "default" : "outline"} size="sm" onClick={() => setTool('opponent')}>
-            Opponent
-          </Button>
-          <Button variant={tool === 'ball' ? "default" : "outline"} size="sm" onClick={() => setTool('ball')}>
-            Ball
-          </Button>
-          <Button variant={tool === 'cone' ? "default" : "outline"} size="sm" onClick={() => setTool('cone')}>
-            Cone
-          </Button>
-          <Button variant={tool === 'line' ? "default" : "outline"} size="sm" onClick={() => setTool('line')}>
-            Line
-          </Button>
+          <TooltipProvider delayDuration={0}>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button variant={tool === 'select' ? "default" : "outline"} size="sm" onClick={() => setTool('select')} className="flex gap-1 items-center">
+                  <MousePointer className="w-4 h-4" />
+                  Velg
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent side="top" sideOffset={2} className="py-0.5 px-1.5 bg-black/90 text-white border-0">
+                <div className="flex flex-col">
+                  <p className="text-[10px] font-medium">Velg og flytt elementer</p>
+                  <p className="text-[9px] text-gray-300">Snarvei: V</p>
+                </div>
+              </TooltipContent>
+            </Tooltip>
+
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button variant={tool === 'player' ? "default" : "outline"} size="sm" onClick={() => setTool('player')} className="flex gap-1 items-center">
+                  <User className="w-4 h-4" />
+                  Spiller
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent side="top" sideOffset={2} className="py-0.5 px-1.5 bg-black/90 text-white border-0">
+                <div className="flex flex-col">
+                  <p className="text-[10px] font-medium">Legg til spiller</p>
+                  <p className="text-[9px] text-gray-300">Snarvei: P</p>
+                </div>
+              </TooltipContent>
+            </Tooltip>
+
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button variant={tool === 'opponent' ? "default" : "outline"} size="sm" onClick={() => setTool('opponent')} className="flex gap-1 items-center">
+                  <Users className="w-4 h-4" />
+                  Motspiller
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent side="top" sideOffset={2} className="py-0.5 px-1.5 bg-black/90 text-white border-0">
+                <div className="flex flex-col">
+                  <p className="text-[10px] font-medium">Legg til motstander</p>
+                  <p className="text-[9px] text-gray-300">Snarvei: O</p>
+                </div>
+              </TooltipContent>
+            </Tooltip>
+
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button variant={tool === 'ball' ? "default" : "outline"} size="sm" onClick={() => setTool('ball')} className="flex gap-1 items-center">
+                  <Volleyball className="w-4 h-4" />
+                  Ball
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent side="top" sideOffset={2} className="py-0.5 px-1.5 bg-black/90 text-white border-0">
+                <div className="flex flex-col">
+                  <p className="text-[10px] font-medium">Legg til ball</p>
+                  <p className="text-[9px] text-gray-300">Snarvei: B</p>
+                </div>
+              </TooltipContent>
+            </Tooltip>
+
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button 
+                  onClick={handleTogglePitch} 
+                  variant={pitch !== 'full' ? "default" : "outline"}
+                  size="sm"
+                  className="flex gap-1 items-center"
+                >
+                  <SquareSplitHorizontal className="w-4 h-4" />
+                  Bane
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent side="top" sideOffset={2} className="py-0.5 px-1.5 bg-black/90 text-white border-0">
+                <div className="flex flex-col">
+                  <p className="text-[10px] font-medium">Bytt banevisning</p>
+                  <p className="text-[9px] text-gray-300">Snarvei: T</p>
+                </div>
+              </TooltipContent>
+            </Tooltip>
+
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button variant={tool === 'cone' ? "default" : "outline"} size="sm" onClick={() => setTool('cone')} className="flex gap-1 items-center">
+                  <Cone className="w-4 h-4" />
+                  Kjegle
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent side="top" sideOffset={2} className="py-0.5 px-1.5 bg-black/90 text-white border-0">
+                <div className="flex flex-col">
+                  <p className="text-[10px] font-medium">Legg til kjegle</p>
+                  <p className="text-[9px] text-gray-300">Snarvei: C</p>
+                </div>
+              </TooltipContent>
+            </Tooltip>
+
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button variant={tool === 'line' ? "default" : "outline"} size="sm" onClick={() => setTool('line')} className="flex gap-1 items-center">
+                  <PenTool className="w-4 h-4" />
+                  Linje
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent side="top" sideOffset={2} className="py-0.5 px-1.5 bg-black/90 text-white border-0">
+                <div className="flex flex-col">
+                  <p className="text-[10px] font-medium">Tegn linje eller pil</p>
+                  <p className="text-[9px] text-gray-300">Snarvei: L</p>
+                </div>
+              </TooltipContent>
+            </Tooltip>
+
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button variant="outline" size="sm" onClick={handleDeleteElement} className="flex gap-1 items-center">
+                  <Trash2 className="w-4 h-4" />
+                  Slett
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent side="top" sideOffset={2} className="py-0.5 px-1.5 bg-black/90 text-white border-0">
+                <div className="flex flex-col">
+                  <p className="text-[10px] font-medium">Slett element</p>
+                  <p className="text-[9px] text-gray-300">Fjern valgt element</p>
+                </div>
+              </TooltipContent>
+            </Tooltip>
+
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button variant="ghost" size="sm" onClick={handlePlayPause} className="flex gap-1 items-center">
+                  {isPlaying ? <Pause className="w-3 h-3" /> : <Play className="w-3 h-3" />}
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent side="top" sideOffset={2} className="py-0.5 px-1.5 bg-black/90 text-white border-0">
+                <div className="flex flex-col">
+                  <p className="text-[10px] font-medium">Start/Pause</p>
+                  <p className="text-[9px] text-gray-300">Snarvei: Mellomrom</p>
+                </div>
+              </TooltipContent>
+            </Tooltip>
+
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button variant="ghost" size="sm" onClick={() => setCurrentFrame(0)} className="flex gap-1 items-center">
+                  <SkipBack className="w-3 h-3" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent side="top" sideOffset={2} className="py-0.5 px-1.5 bg-black/90 text-white border-0">
+                <div className="flex flex-col">
+                  <p className="text-[10px] font-medium">Spol tilbake</p>
+                  <p className="text-[9px] text-gray-300">Snarvei: R</p>
+                </div>
+              </TooltipContent>
+            </Tooltip>
+
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button variant="ghost" size="sm" onClick={handleDownloadFilm} className="flex gap-1 items-center">
+                  <Film className="w-3 h-3" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent side="top" sideOffset={2} className="py-0.5 px-1.5 bg-black/90 text-white border-0">
+                <div className="flex flex-col">
+                  <p className="text-[10px] font-medium">Last ned film</p>
+                  <p className="text-[9px] text-gray-300">Eksporter som MP4</p>
+                </div>
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
         </div>
 
         {tool === 'line' && (

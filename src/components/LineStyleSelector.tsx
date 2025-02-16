@@ -1,5 +1,11 @@
 import React from 'react';
 import { Slider } from './ui/slider';
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "./ui/tooltip";
 
 export type LineStyle = 
   | 'solidCurved'
@@ -36,39 +42,62 @@ const LineStyleSelector: React.FC<LineStyleSelectorProps> = ({
   const { curved } = getLineProperties(selectedLineStyle);
 
   return (
-    <div className="p-4 border rounded bg-white mb-4">
-      <h3 className="text-sm font-semibold mb-2">Linjestil</h3>
-      <div className="grid grid-cols-3 gap-2 mb-4">
-        {lineStyleOptions.map(option => (
-          <button
-            key={option.value}
-            onClick={() => setSelectedLineStyle(option.value)}
-            className={`flex flex-col items-center p-2 border rounded hover:bg-gray-50 ${
-              selectedLineStyle === option.value ? 'border-blue-500 bg-blue-50' : 'border-gray-200'
-            }`}
-          >
-            <div className="w-full flex justify-center mb-1">
-              {option.preview}
-            </div>
-            <span className="text-xs">{option.label}</span>
-          </button>
-        ))}
-      </div>
-      {(curved || tool === 'select') && (
-        <div className="flex items-center gap-2">
-          <span className="text-sm">Kurvatur:</span>
-          <Slider
-            value={[curveOffset]}
-            onValueChange={([val]) => setCurveOffset(val)}
-            min={-100}
-            max={100}
-            step={1}
-            className="w-32"
-          />
-          <span className="text-xs">{curveOffset}px</span>
+    <TooltipProvider delayDuration={0}>
+      <div className="p-4 border rounded bg-white mb-4">
+        <h3 className="text-sm font-semibold mb-2">Linjestil</h3>
+        <div className="grid grid-cols-3 gap-2 mb-4">
+          {lineStyleOptions.map(option => (
+            <Tooltip key={option.value}>
+              <TooltipTrigger asChild>
+                <button
+                  onClick={() => setSelectedLineStyle(option.value)}
+                  className={`flex flex-col items-center p-2 border rounded hover:bg-gray-50 ${
+                    selectedLineStyle === option.value ? 'border-blue-500 bg-blue-50' : 'border-gray-200'
+                  }`}
+                >
+                  <div className="w-full flex justify-center mb-1">
+                    {option.preview}
+                  </div>
+                  <span className="text-xs">{option.label}</span>
+                </button>
+              </TooltipTrigger>
+              <TooltipContent side="top" sideOffset={2} className="py-0.5 px-1.5 bg-black/90 text-white border-0">
+                <div className="flex flex-col">
+                  <p className="text-[10px] font-medium">{option.label}</p>
+                  <p className="text-[9px] text-gray-300">Klikk for å velge stil</p>
+                </div>
+              </TooltipContent>
+            </Tooltip>
+          ))}
         </div>
-      )}
-    </div>
+        {(curved || tool === 'select') && (
+          <div className="flex items-center gap-2">
+            <span className="text-sm">Kurvatur:</span>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <div className="flex-1">
+                  <Slider
+                    value={[curveOffset]}
+                    onValueChange={([val]) => setCurveOffset(val)}
+                    min={-100}
+                    max={100}
+                    step={1}
+                    className="w-32"
+                  />
+                </div>
+              </TooltipTrigger>
+              <TooltipContent side="top" sideOffset={2} className="py-0.5 px-1.5 bg-black/90 text-white border-0">
+                <div className="flex flex-col">
+                  <p className="text-[10px] font-medium">Juster kurvatur: {curveOffset}px</p>
+                  <p className="text-[9px] text-gray-300">Dra for å endre (-100 til 100)</p>
+                </div>
+              </TooltipContent>
+            </Tooltip>
+            <span className="text-xs tabular-nums w-8">{curveOffset}px</span>
+          </div>
+        )}
+      </div>
+    </TooltipProvider>
   );
 };
 

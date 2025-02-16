@@ -1,0 +1,89 @@
+{
+  "version": "1.0",
+  "settings": {
+    "toolbar": {
+      "position": "above",
+      "layout": "single-line",
+      "buttons": [
+        {
+          "key": "select",
+          "icon": "MousePointer",
+          "label": "Velg",
+          "tooltip": "Velg og flytt elementer"
+        },
+        {
+          "key": "player",
+          "icon": "User",
+          "label": "Spiller",
+          "tooltip": "Legg til spiller"
+        },
+        {
+          "key": "opponent",
+          "icon": "Users",
+          "label": "Motspiller",
+          "tooltip": "Legg til motstander"
+        },
+        {
+          "key": "ball",
+          "icon": "Volleyball",
+          "label": "Ball",
+          "tooltip": "Legg til ball"
+        },
+        {
+          "key": "togglePitch",
+          "icon": "SquareDashedBottom",
+          "label": "Bytt bane",
+          "tooltip": "Bytt banevisning"
+        },
+        {
+          "key": "cone",
+          "icon": "Cone",
+          "label": "Kjegle",
+          "tooltip": "Legg til kjegle"
+        },
+        {
+          "key": "line",
+          "icon": "PenTool",
+          "label": "Linje",
+          "tooltip": "Tegn linje eller pil"
+        },
+        {
+          "key": "delete",
+          "icon": "Trash2",
+          "label": "Slett",
+          "tooltip": "Fjern valgt element"
+        },
+        {
+          "key": "playPause",
+          "icon": "Play/Pause",
+          "label": "Start/Pause",
+          "tooltip": "Start eller pause animasjonen"
+        },
+        {
+          "key": "rewind",
+          "icon": "SkipBack",
+          "label": "Spol tilbake",
+          "tooltip": "Spol tilbake til start"
+        },
+        {
+          "key": "copy",
+          "icon": "Copy",
+          "label": "Kopier",
+          "tooltip": "Kopier"
+        },
+        {
+          "key": "addKeyframe",
+          "icon": "Plus",
+          "label": "Tom keyframe",
+          "tooltip": "Legg til tom keyframe"
+        },
+        {
+          "key": "downloadFilm",
+          "icon": "Film",
+          "label": "Last ned film",
+          "tooltip": "Eksporter animasjonen som MP4"
+        }
+      ]
+    }
+  }
+} 
