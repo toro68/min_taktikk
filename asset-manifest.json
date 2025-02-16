@@ -1,10 +1,10 @@
 {
   "files": {
-    "main.js": "/min_taktikk/static/js/main.9774541e.js",
+    "main.js": "/min_taktikk/static/js/main.8b55c4c0.js",
     "index.html": "/min_taktikk/index.html",
-    "main.9774541e.js.map": "/min_taktikk/static/js/main.9774541e.js.map"
+    "main.8b55c4c0.js.map": "/min_taktikk/static/js/main.8b55c4c0.js.map"
   },
   "entrypoints": [
-    "static/js/main.9774541e.js"
+    "static/js/main.8b55c4c0.js"
   ]
 }
