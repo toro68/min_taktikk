@@ -9,7 +9,7 @@ import {
   SelectValue,
 } from "./components/ui/select";
 import { Slider } from './components/ui/slider';
-import { Play, Pause, SkipBack, Save, Copy, Trash2, Plus, Film, MousePointer, User, Users, Volleyball, Circle, Cone, PenTool, SquareSplitHorizontal } from 'lucide-react';
+import { Play, Pause, SkipBack, Save, Copy, Trash2, Plus, Film, MousePointer, User, Users, Volleyball, Circle, Cone, PenTool, SquareSplitHorizontal, ChevronUp, ChevronDown, Type } from 'lucide-react';
 import { Alert, AlertDescription } from './components/ui/alert';
 import { Canvg } from 'canvg';
 import KeyframePanel from './components/KeyframePanel';
@@ -17,8 +17,8 @@ import LineStyleSelector, { LineStyle } from './components/LineStyleSelector';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from './components/ui/tooltip';
 import TopToolbar from './components/TopToolbar';
 
-type Tool = 'select' | 'player' | 'opponent' | 'ball' | 'cone' | 'line';
-type PitchType = 'full' | 'offensive' | 'defensive';
+type Tool = 'select' | 'player' | 'opponent' | 'ball' | 'cone' | 'line' | 'text';
+type PitchType = 'full' | 'offensive' | 'defensive' | 'handball' | 'fullLandscape';
 
 interface BaseElement {
   id: string;
@@ -54,18 +54,25 @@ interface LineElement extends BaseElement {
   marker?: 'arrow' | 'endline' | 'plus' | 'xmark' | null;
 }
 
-type Element = PlayerElement | OpponentElement | BallElement | ConeElement | LineElement;
+interface TextElement extends BaseElement {
+  type: 'text';
+  content: string;
+  fontSize: number;
+}
+
+type Element = PlayerElement | OpponentElement | BallElement | ConeElement | LineElement | TextElement;
 
 interface Frame {
-  id: number;
   elements: Element[];
-  duration: number; // varighet i sekunder
+  duration: number;
 }
 
 const PLAYER_RADIUS = 10;
 const BALL_RADIUS = 5;
 
 const FootballAnimator = () => {
+  const [isHelpExpanded, setIsHelpExpanded] = useState(false);
+
   // Hjelpefunksjon som kloner SVG-en og inliner alle beregnede stiler.
   const inlineAllStyles = (svg: SVGSVGElement): SVGSVGElement => {
     const clone = svg.cloneNode(true) as SVGSVGElement;
@@ -85,7 +92,7 @@ const FootballAnimator = () => {
 
   const [isPlaying, setIsPlaying] = useState(false);
   const [playbackSpeed, setPlaybackSpeed] = useState(1);
-  const [frames, setFrames] = useState<Frame[]>([{ id: 0, elements: [], duration: 1 }]);
+  const [frames, setFrames] = useState<Frame[]>([{ elements: [], duration: 1 }]);
   const [currentFrame, setCurrentFrame] = useState(0);
   const [interpolatedElements, setInterpolatedElements] = useState<Element[]>([]);
   const [progress, setProgress] = useState(0);
@@ -116,9 +123,13 @@ const FootballAnimator = () => {
 
   const handleTogglePitch = () => {
     if (pitch === 'full') {
+      setPitch('fullLandscape');
+    } else if (pitch === 'fullLandscape') {
       setPitch('offensive');
     } else if (pitch === 'offensive') {
       setPitch('defensive');
+    } else if (pitch === 'defensive') {
+      setPitch('handball');
     } else {
       setPitch('full');
     }
@@ -223,6 +234,34 @@ const FootballAnimator = () => {
 
   const getPitchTemplate = () => {
     switch(pitch) {
+      case 'handball':
+        return (
+          <g>
+            {/* Ytre bane */}
+            <rect x="0" y="0" width="680" height="340" fill="none" stroke="black" strokeWidth="2"/>
+            
+            {/* Midtlinje */}
+            <line x1="340" y1="0" x2="340" y2="340" stroke="black" strokeWidth="2"/>
+            
+            {/* Venstre målfelt (straffeområde) - 6m bue fra dødlinje */}
+            <path d="M 0,51 A 102,102 1 0 1 0,289" fill="none" stroke="black" strokeWidth="2"/>
+            
+            {/* Høyre målfelt (straffeområde) - 6m bue fra dødlinje */}
+            <path d="M 680,51 A 102,102 1 0 0 680,289" fill="none" stroke="black" strokeWidth="2"/>
+            
+            {/* Venstre 9-meter (stiplet) - parallell med 6-meteren */}
+            <path d="M 0,0 A 153,153 1 0 1 0,340" fill="none" stroke="black" strokeWidth="2" strokeDasharray="5,5"/>
+            
+            {/* Høyre 9-meter (stiplet) - parallell med 6-meteren */}
+            <path d="M 680,0 A 153,153 1 0 0 680,340" fill="none" stroke="black" strokeWidth="2" strokeDasharray="5,5"/>
+            
+            {/* Venstre mål */}
+            <rect x="-15" y="120" width="15" height="100" fill="none" stroke="black" strokeWidth="2"/>
+            
+            {/* Høyre mål */}
+            <rect x="680" y="120" width="15" height="100" fill="none" stroke="black" strokeWidth="2"/>
+          </g>
+        );
       case 'full':
         return (
           <g>
@@ -236,6 +275,42 @@ const FootballAnimator = () => {
             <line x1="0" y1="525" x2="680" y2="525" stroke="black" strokeWidth="2"/>
             <circle cx="340" cy="525" r="91.5" fill="none" stroke="black" strokeWidth="2"/>
             <circle cx="340" cy="525" r="2" fill="black"/>
+          </g>
+        );
+      case 'fullLandscape':
+        return (
+          <g>
+            {/* Ytre bane */}
+            <rect x="0" y="0" width="1050" height="680" fill="none" stroke="black" strokeWidth="2"/>
+            
+            {/* Midtlinje */}
+            <line x1="525" y1="0" x2="525" y2="680" stroke="black" strokeWidth="2"/>
+            <circle cx="525" cy="340" r="91.5" fill="none" stroke="black" strokeWidth="2"/>
+            <circle cx="525" cy="340" r="2" fill="black"/>
+            
+            {/* Venstre 16-meter */}
+            <rect x="0" y="139.84" width="165" height="400.32" fill="none" stroke="black" strokeWidth="2"/>
+            
+            {/* Høyre 16-meter */}
+            <rect x="885" y="139.84" width="165" height="400.32" fill="none" stroke="black" strokeWidth="2"/>
+            
+            {/* Venstre målområde (5-meter) */}
+            <rect x="0" y="240.84" width="55" height="198.32" fill="none" stroke="black" strokeWidth="2"/>
+            
+            {/* Høyre målområde (5-meter) */}
+            <rect x="995" y="240.84" width="55" height="198.32" fill="none" stroke="black" strokeWidth="2"/>
+
+            {/* Venstre mål */}
+            <rect x="-15" y="290" width="15" height="100" fill="none" stroke="black" strokeWidth="2"/>
+            
+            {/* Høyre mål */}
+            <rect x="1050" y="290" width="15" height="100" fill="none" stroke="black" strokeWidth="2"/>
+            
+            {/* Venstre straffepunkt */}
+            <circle cx="110" cy="340" r="2" fill="black"/>
+            
+            {/* Høyre straffepunkt */}
+            <circle cx="940" cy="340" r="2" fill="black"/>
           </g>
         );
       case 'offensive':
@@ -281,15 +356,36 @@ const FootballAnimator = () => {
 
   const renderElement = (element: Element) => {
     const isSelected = selectedElement?.id === element.id;
-    const highlightStyle = isSelected ? { filter: 'drop-shadow(0 0 3px #3b82f6)' } : {};
+    const highlightStyle = isSelected ? { 
+      filter: 'drop-shadow(0 0 3px #3b82f6)',
+      outline: '2px solid #3b82f6',
+      outlineOffset: '2px'
+    } : {};
     
     const transform = element.type === 'line' ? '' : `translate(${element.x ?? 0}, ${element.y ?? 0})`;
     
     const elementProps = {
-      style: highlightStyle,
+      style: {
+        ...highlightStyle,
+        touchAction: 'none',
+        cursor: tool === 'select' ? 'move' : 'pointer',
+      },
       onClick: (e: React.MouseEvent) => handleElementClick(e, element),
       onMouseDown: (e: React.MouseEvent) => {
         if (tool === 'select') handleElementDragStart(e, element);
+      },
+      onTouchStart: (e: React.TouchEvent) => {
+        if (tool === 'select') {
+          e.preventDefault();
+          const touch = e.touches[0];
+          const event = {
+            clientX: touch.clientX,
+            clientY: touch.clientY,
+            preventDefault: () => {},
+            stopPropagation: () => {}
+          } as React.MouseEvent;
+          handleElementDragStart(event, element);
+        }
       },
       transform
     };
@@ -298,6 +394,7 @@ const FootballAnimator = () => {
       case 'player':
         return (
           <g key={element.id} {...elementProps}>
+            <circle cx="0" cy="0" r="20" fill="transparent" stroke="transparent" strokeWidth="10"/>
             <circle cx="0" cy="0" r="15" fill="white" stroke="black" strokeWidth="2"/>
             <text x="0" y="5" textAnchor="middle" fontFamily="Arial" fontSize="16" fontWeight="bold">
               {element.number}
@@ -307,6 +404,7 @@ const FootballAnimator = () => {
       case 'opponent':
         return (
           <g key={element.id} {...elementProps}>
+            <circle cx="0" cy="0" r="20" fill="transparent" stroke="transparent" strokeWidth="10"/>
             <circle cx="0" cy="0" r="15" fill="black" stroke="black" strokeWidth="2"/>
             <text x="0" y="5" textAnchor="middle" fontFamily="Arial" fontSize="16" fontWeight="bold" fill="white">
               {element.number}
@@ -316,6 +414,7 @@ const FootballAnimator = () => {
       case 'ball':
         return (
           <g key={element.id} {...elementProps}>
+            <circle cx="0" cy="0" r="20" fill="transparent" stroke="transparent" strokeWidth="10"/>
             <g transform="translate(-12, -12)">
               <Volleyball className="w-6 h-6" />
             </g>
@@ -324,26 +423,65 @@ const FootballAnimator = () => {
       case 'cone':
         return (
           <g key={element.id} {...elementProps}>
+            <rect x="-15" y="-15" width="30" height="30" fill="transparent" stroke="transparent"/>
             <path d="M -5,8 L 5,8 L 2,-8 L -2,-8 Z" fill="orange" stroke="black" strokeWidth="1"/>
           </g>
         );
       case 'line':
+        const { style, ...otherProps } = elementProps;
         return (
-          <path
-            key={element.id}
+          <g key={element.id}>
+            <path
+              d={element.path}
+              stroke="transparent"
+              strokeWidth="20"
+              fill="none"
+              {...otherProps}
+              style={{
+                ...style,
+                pointerEvents: 'all'
+              }}
+            />
+            <path
+              d={element.path}
+              fill="none"
+              stroke="black"
+              strokeWidth="2"
+              strokeDasharray={element.dashed ? "5,5" : "none"}
+              markerEnd={element.marker ? `url(#${element.marker})` : "none"}
+              style={{
+                pointerEvents: 'none'
+              }}
+            />
+          </g>
+        );
+      case 'text':
+        return (
+          <g 
+            key={element.id} 
             {...elementProps}
-            d={element.path}
-            fill="none"
-            stroke="black"
-            strokeWidth="2"
-            strokeDasharray={element.dashed ? "5,5" : "none"}
-            markerEnd={element.marker ? `url(#${element.marker})` : "none"}
-            style={{
-              ...elementProps.style,
-              cursor: tool === 'select' ? 'move' : 'default',
-              pointerEvents: 'all'
-            }}
-          />
+            onDoubleClick={(e) => handleTextDoubleClick(e, element)}
+          >
+            <rect 
+              x="-50" 
+              y="-20" 
+              width="100" 
+              height="40" 
+              fill="transparent" 
+              stroke="transparent"
+            />
+            <text
+              x="0"
+              y="0"
+              textAnchor="middle"
+              dominantBaseline="middle"
+              fontSize={element.fontSize}
+              fill="black"
+              style={{ userSelect: 'none', cursor: 'pointer' }}
+            >
+              {element.content}
+            </text>
+          </g>
         );
     }
   };
@@ -356,14 +494,15 @@ const FootballAnimator = () => {
     }
 
     const rect = svg.getBoundingClientRect();
-    const viewBoxWidth = 680;
-    const viewBoxHeight = pitch === 'full' ? 1050 : 525;
+    const viewBoxWidth = pitch === 'fullLandscape' ? 1050 : 680;
+    const viewBoxHeight = pitch === 'handball' ? 340 : 
+                         pitch === 'full' ? 1050 : 
+                         pitch === 'fullLandscape' ? 680 : 
+                         525;
     
-    // Beregn skalering basert på SVG-elementets faktiske størrelse og viewBox
     const scaleX = viewBoxWidth / rect.width;
     const scaleY = viewBoxHeight / rect.height;
     
-    // Beregn museklikk-posisjon relativt til SVG-en og skaler den
     const x = (event.clientX - rect.left) * scaleX;
     const y = (event.clientY - rect.top) * scaleY;
 
@@ -556,9 +695,15 @@ const FootballAnimator = () => {
     }
   };
 
-  const handleMouseMove = (event: React.MouseEvent<SVGSVGElement>) => {
+  const handleMouseMove = (event: React.MouseEvent<SVGSVGElement> | React.TouchEvent<SVGSVGElement>) => {
+    const coords = 'touches' in event 
+      ? getSVGCoordinates({ 
+          clientX: event.touches[0].clientX, 
+          clientY: event.touches[0].clientY 
+        } as React.MouseEvent<SVGSVGElement>) 
+      : getSVGCoordinates(event as React.MouseEvent<SVGSVGElement>);
+
     if (tool === 'select' && isDragging && selectedElement && startPoint) {
-      const coords = getSVGCoordinates(event);
       const dx = coords.x - startPoint.x;
       const dy = coords.y - startPoint.y;
 
@@ -578,7 +723,6 @@ const FootballAnimator = () => {
     }
 
     if (tool === 'line' && isDragging && lineStart) {
-      const coords = getSVGCoordinates(event);
       const { curved, dashed, marker } = getLineProperties(selectedLineStyle);
       const path = createLinePath(lineStart, coords, curved, curveOffset);
       
@@ -660,6 +804,16 @@ const FootballAnimator = () => {
             type: 'cone'
           };
           break;
+        case 'text':
+          const content = prompt('Skriv inn tekst:');
+          if (!content) return;
+          newElement = {
+            ...baseElement,
+            type: 'text',
+            content,
+            fontSize: 16
+          };
+          break;
         default:
           return;
       }
@@ -682,25 +836,26 @@ const FootballAnimator = () => {
   };
 
   const handleDuplicateFrame = () => {
-    const newFrame = {
-      id: Date.now(),
-      elements: JSON.parse(JSON.stringify(frames[currentFrame].elements)),
-      duration: frames[currentFrame].duration // Kopier varigheten fra den aktive framen
-    };
-    const updatedFrames = [
-      ...frames.slice(0, currentFrame + 1),
-      newFrame,
-      ...frames.slice(currentFrame + 1)
-    ];
-    setFrames(updatedFrames);
+    setFrames(prevFrames => {
+      const newFrame: Frame = {
+        elements: JSON.parse(JSON.stringify(prevFrames[currentFrame].elements)),
+        duration: prevFrames[currentFrame].duration
+      };
+      return [
+        ...prevFrames.slice(0, currentFrame + 1),
+        newFrame,
+        ...prevFrames.slice(currentFrame + 1)
+      ];
+    });
     setCurrentFrame(currentFrame + 1);
   };
 
   const handleDeleteFrame = () => {
     if (frames.length > 1) {
-      const newFrames = frames.filter((_, index) => index !== currentFrame);
-      setFrames(newFrames);
-      setCurrentFrame(Math.min(currentFrame, newFrames.length - 1));
+      setFrames(prevFrames => {
+        return prevFrames.filter((_, index) => index !== currentFrame);
+      });
+      setCurrentFrame(Math.min(currentFrame, frames.length - 2));
     }
   };
 
@@ -816,7 +971,7 @@ const FootballAnimator = () => {
       const serializer = new XMLSerializer();
       
       // Beregn riktig størrelse basert på SVG viewBox
-      const viewBox = svg.getAttribute('viewBox')?.split(' ').map(Number) || [0, 0, 680, pitch === 'full' ? 1050 : 525];
+      const viewBox = svg.getAttribute('viewBox')?.split(' ').map(Number) || [0, 0, 680, pitch === 'handball' ? 340 : pitch === 'full' ? 1050 : 525];
       const viewBoxWidth = viewBox[2];
       const viewBoxHeight = viewBox[3];
       
@@ -1058,7 +1213,10 @@ const FootballAnimator = () => {
   // Legg til en funksjon for å legge til en ny keyframe (dupliserer gjeldende keyframe)
   const handleAddKeyframe = () => {
     setFrames(prevFrames => {
-      const newFrame = { id: Date.now(), elements: [], duration: 1 };
+      const newFrame: Frame = {
+        elements: [],
+        duration: 1
+      };
       return [...prevFrames, newFrame];
     });
   };
@@ -1172,13 +1330,84 @@ const FootballAnimator = () => {
     }
   }, [curveOffset, selectedElement, selectedLinePoints, frames, currentFrame]);
 
+  // Legg til en ny funksjon for å håndtere dobbeltklikk på tekst
+  const handleTextDoubleClick = (event: React.MouseEvent, element: TextElement) => {
+    event.stopPropagation();
+    const newContent = prompt('Rediger tekst:', element.content);
+    if (newContent !== null) {
+      updateFrameElement(currentFrame, element.id, { content: newContent });
+    }
+  };
+
   return (
-    <Card className="w-full max-w-4xl">
-      <CardHeader>
-        <div className="px-6 py-4 border-b">
-          <h1 className="text-2xl font-semibold tracking-tight text-center">
-            Min taktikktavle
+    <Card className="w-full max-w-4xl mx-auto">
+      <CardHeader className="space-y-4">
+        <div className="px-2 sm:px-6 py-4 border-b">
+          <h1 className="text-xl sm:text-2xl font-semibold tracking-tight text-center">
+            Taktikktavle fotball
           </h1>
+        </div>
+        <div className="border rounded-md bg-white mx-2 sm:mx-6">
+          <button
+            onClick={() => setIsHelpExpanded(!isHelpExpanded)}
+            className="w-full px-3 sm:px-4 py-2 text-left flex justify-between items-center hover:bg-gray-50"
+          >
+            <span className="text-sm font-medium">Hvordan bruke taktikktavlen</span>
+            {isHelpExpanded ? (
+              <ChevronUp className="w-4 h-4 text-gray-500" />
+            ) : (
+              <ChevronDown className="w-4 h-4 text-gray-500" />
+            )}
+          </button>
+          
+          {isHelpExpanded && (
+            <div className="px-3 sm:px-4 py-3 text-sm border-t">
+              <div className="space-y-3">
+                <section>
+                  <h3 className="font-medium mb-1">Verktøy</h3>
+                  <ul className="list-disc pl-4 space-y-1 text-gray-600">
+                    <li>Velg (V) - Flytt og juster elementer</li>
+                    <li>Spiller (P) - Legg til spillere</li>
+                    <li>Motspiller (O) - Legg til motstandere</li>
+                    <li>Ball (B) - Legg til ball</li>
+                    <li>Bane (T) - Bytt mellom hel og halv bane</li>
+                    <li>Kjegle (C) - Legg til kjegler</li>
+                    <li>Linje (L) - Tegn linjer og piler</li>
+                  </ul>
+                </section>
+
+                <section>
+                  <h3 className="font-medium mb-1">Keyframes</h3>
+                  <ul className="list-disc pl-4 space-y-1 text-gray-600">
+                    <li>Kopier - Dupliser gjeldende keyframe</li>
+                    <li>Slett - Fjern gjeldende keyframe</li>
+                    <li>Tom keyframe - Legg til ny tom keyframe</li>
+                    <li>Nummererte knapper viser antall elementer i parentes</li>
+                  </ul>
+                </section>
+
+                <section>
+                  <h3 className="font-medium mb-1">Animasjon</h3>
+                  <ul className="list-disc pl-4 space-y-1 text-gray-600">
+                    <li>Start/Pause (Mellomrom) - Spill av animasjonen</li>
+                    <li>Spol tilbake (R) - Gå til start</li>
+                    <li>Juster hastighet med glideren</li>
+                    <li>Last ned som film for å dele</li>
+                  </ul>
+                </section>
+
+                <section>
+                  <h3 className="font-medium mb-1">Tips</h3>
+                  <ul className="list-disc pl-4 space-y-1 text-gray-600">
+                    <li>Bruk piltaster for å justere hastighet</li>
+                    <li>Dobbeltklikk for å velge element</li>
+                    <li>Hold Shift for å tegne rette linjer</li>
+                    <li>Juster kurvatur på linjer og bevegelser</li>
+                  </ul>
+                </section>
+              </div>
+            </div>
+          )}
         </div>
       </CardHeader>
       <TopToolbar
@@ -1188,7 +1417,7 @@ const FootballAnimator = () => {
         onDelete={handleDeleteFrame}
         onAddKeyframe={handleAddKeyframe}
       />
-      <CardContent>
+      <CardContent className="p-2 sm:p-4">
         <KeyframePanel
           frames={frames}
           currentFrame={currentFrame}
@@ -1203,13 +1432,13 @@ const FootballAnimator = () => {
           handleFrameDurationChange={handleFrameDurationChange}
         />
         <TooltipProvider delayDuration={0}>
-          <div className="p-4 border rounded bg-white mb-4">
+          <div className="p-2 sm:p-4 border rounded bg-white mb-4">
             <h3 className="text-sm font-semibold mb-2">Rediger Keyframe {currentFrame + 1}</h3>
             {(frames[currentFrame]?.elements ?? []).length > 0 ? (
               (frames[currentFrame]?.elements ?? []).map(el => (
                 <div key={el.id} className="flex flex-col border-b py-1">
                   <div className="flex items-center justify-between">
-                    <span>{el.id} [{el.type}]</span>
+                    <span className="text-sm truncate">{el.id} [{el.type}]</span>
                     <Tooltip>
                       <TooltipTrigger asChild>
                         <input
@@ -1228,19 +1457,56 @@ const FootballAnimator = () => {
                       </TooltipContent>
                     </Tooltip>
                   </div>
+                  {el.type === 'text' && (
+                    <>
+                      <div className="flex flex-wrap items-center gap-2 mt-1">
+                        <span className="text-sm whitespace-nowrap">Tekst:</span>
+                        <input
+                          type="text"
+                          value={(el as TextElement).content}
+                          onChange={(e) => updateFrameElement(currentFrame, el.id, { content: e.target.value })}
+                          className="flex-1 min-w-[100px] px-2 py-1 text-sm border rounded"
+                        />
+                      </div>
+                      <div className="flex flex-wrap items-center gap-2 mt-1">
+                        <span className="text-sm whitespace-nowrap">Størrelse:</span>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <div className="flex-1 min-w-[100px]">
+                              <Slider
+                                value={[(el as TextElement).fontSize]}
+                                onValueChange={([val]) => updateFrameElement(currentFrame, el.id, { fontSize: val })}
+                                min={8}
+                                max={48}
+                                step={1}
+                                className="w-full"
+                              />
+                            </div>
+                          </TooltipTrigger>
+                          <TooltipContent side="top" sideOffset={2} className="py-0.5 px-1.5 bg-black/90 text-white border-0">
+                            <div className="flex flex-col">
+                              <p className="text-[10px] font-medium">Juster tekststørrelse: {(el as TextElement).fontSize}px</p>
+                              <p className="text-[9px] text-gray-300">8 til 48 piksler</p>
+                            </div>
+                          </TooltipContent>
+                        </Tooltip>
+                        <span className="text-xs tabular-nums w-8">{(el as TextElement).fontSize}px</span>
+                      </div>
+                    </>
+                  )}
                   {(el.type === 'player' || el.type === 'ball') && (
-                    <div className="flex items-center gap-2 mt-1">
-                      <span className="text-sm">Trace offset:</span>
+                    <div className="flex flex-wrap items-center gap-2 mt-1">
+                      <span className="text-sm whitespace-nowrap">Trace offset:</span>
                       <Tooltip>
                         <TooltipTrigger asChild>
-                          <div className="flex-1">
+                          <div className="flex-1 min-w-[100px]">
                             <Slider
                               value={[el.traceOffset ?? 0]}
                               onValueChange={([val]) => updateFrameElement(currentFrame, el.id, { traceOffset: val })}
                               min={-50}
                               max={50}
                               step={1}
-                              className="w-32"
+                              className="w-full"
                             />
                           </div>
                         </TooltipTrigger>
@@ -1255,18 +1521,18 @@ const FootballAnimator = () => {
                     </div>
                   )}
                   {el.type === 'line' && selectedElement?.id === el.id && (
-                    <div className="flex items-center gap-2 mt-1">
-                      <span className="text-sm">Kurvatur:</span>
+                    <div className="flex flex-wrap items-center gap-2 mt-1">
+                      <span className="text-sm whitespace-nowrap">Kurvatur:</span>
                       <Tooltip>
                         <TooltipTrigger asChild>
-                          <div className="flex-1">
+                          <div className="flex-1 min-w-[100px]">
                             <Slider
                               value={[curveOffset]}
                               onValueChange={([val]) => setCurveOffset(val)}
                               min={-100}
                               max={100}
                               step={1}
-                              className="w-32"
+                              className="w-full"
                             />
                           </div>
                         </TooltipTrigger>
@@ -1358,13 +1624,13 @@ const FootballAnimator = () => {
                   className="flex gap-1 items-center"
                 >
                   <SquareSplitHorizontal className="w-4 h-4" />
-                  Bane
+                  {pitch === 'handball' ? 'Håndball' : 'Fotball'}
                 </Button>
               </TooltipTrigger>
               <TooltipContent side="top" sideOffset={2} className="py-0.5 px-1.5 bg-black/90 text-white border-0">
                 <div className="flex flex-col">
-                  <p className="text-[10px] font-medium">Bytt banevisning</p>
-                  <p className="text-[9px] text-gray-300">Snarvei: T</p>
+                  <p className="text-[10px] font-medium">Bytt banetype</p>
+                  <p className="text-[9px] text-gray-300">Fotball (hel/halv) eller håndball</p>
                 </div>
               </TooltipContent>
             </Tooltip>
@@ -1395,6 +1661,26 @@ const FootballAnimator = () => {
                 <div className="flex flex-col">
                   <p className="text-[10px] font-medium">Tegn linje eller pil</p>
                   <p className="text-[9px] text-gray-300">Snarvei: L</p>
+                </div>
+              </TooltipContent>
+            </Tooltip>
+
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button 
+                  variant={tool === 'text' ? "default" : "outline"} 
+                  size="sm" 
+                  onClick={() => setTool('text')} 
+                  className="flex gap-1 items-center"
+                >
+                  <Type className="w-4 h-4" />
+                  Tekst
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent side="top" sideOffset={2} className="py-0.5 px-1.5 bg-black/90 text-white border-0">
+                <div className="flex flex-col">
+                  <p className="text-[10px] font-medium">Legg til tekst</p>
+                  <p className="text-[9px] text-gray-300">Snarvei: X</p>
                 </div>
               </TooltipContent>
             </Tooltip>
@@ -1470,22 +1756,58 @@ const FootballAnimator = () => {
           />
         )}
 
-        <div className="relative border rounded flex justify-center items-center overflow-hidden" style={{ 
+        <div className="relative border rounded flex justify-start items-center overflow-hidden" style={{ 
           height: "calc(100vh - 220px)",
           width: "100%",
-          maxWidth: pitch === 'full' ? "calc((100vh - 220px) * 0.647)" : "calc((100vh - 220px) * 1.295)",
-          margin: "0 auto"
+          maxWidth: pitch === 'handball' 
+            ? "calc((100vh - 220px) * 2)" 
+            : pitch === 'full' 
+              ? "calc((100vh - 220px) * 0.647)" 
+              : pitch === 'fullLandscape'
+                ? "calc((100vh - 220px) * 1.544)"
+                : "calc((100vh - 220px) * 1.295)",
+          marginLeft: "auto",
+          marginRight: "auto"
         }}>
           <svg
             ref={recordedSVGRef}
-            className="w-full h-full"
-            viewBox={`0 0 680 ${pitch === 'full' ? 1050 : 525}`}
+            className="w-full h-full touch-none"
+            viewBox={`0 0 ${
+              pitch === 'fullLandscape' ? 1050 : 680
+            } ${
+              pitch === 'handball' ? 340 : 
+              pitch === 'full' ? 1050 : 
+              pitch === 'fullLandscape' ? 680 : 
+              525
+            }`}
             preserveAspectRatio="xMidYMid fit"
             xmlns="http://www.w3.org/2000/svg"
             onMouseDown={handleMouseDown}
             onMouseMove={handleMouseMove}
             onMouseUp={handleMouseUp}
             onClick={handleClick}
+            onTouchStart={(e) => {
+              const touch = e.touches[0];
+              handleMouseDown({
+                clientX: touch.clientX,
+                clientY: touch.clientY,
+                preventDefault: () => {},
+                stopPropagation: () => {}
+              } as React.MouseEvent<SVGSVGElement>);
+            }}
+            onTouchMove={(e) => {
+              e.preventDefault();
+              handleMouseMove(e);
+            }}
+            onTouchEnd={(e) => {
+              const touch = e.changedTouches[0];
+              handleMouseUp({
+                clientX: touch.clientX,
+                clientY: touch.clientY,
+                preventDefault: () => {},
+                stopPropagation: () => {}
+              } as React.MouseEvent<SVGSVGElement>);
+            }}
           >
             <defs>
               <marker
@@ -1509,7 +1831,13 @@ const FootballAnimator = () => {
                 <path d="M 2,2 L 6,6 M 2,6 L 6,2" stroke="black" strokeWidth="1" />
               </marker>
             </defs>
-            <rect x="0" y="0" width="680" height={pitch === 'full' ? 1050 : 525} fill="white" />
+            <rect 
+              x="0" 
+              y="0" 
+              width={pitch === 'fullLandscape' ? '1050' : '680'}
+              height={pitch === 'handball' ? 340 : pitch === 'full' ? 1050 : pitch === 'fullLandscape' ? 680 : 525} 
+              fill="white" 
+            />
             {getPitchTemplate()}
             {frames[currentFrame] && frames[currentFrame + 1] && renderTrace()}
             {(() => {

@@ -1,17 +1,21 @@
 import React from 'react';
 import { Button } from './ui/button';
-import { Copy, Trash2, Plus, Clock } from 'lucide-react';
-import { Slider } from './ui/slider';
 import {
+  TooltipProvider,
   Tooltip,
   TooltipContent,
-  TooltipProvider,
   TooltipTrigger,
 } from "./ui/tooltip";
+import { Slider } from './ui/slider';
 import { cn } from '../lib/utils';
 
+interface Frame {
+  elements: any[];
+  duration: number;
+}
+
 interface KeyframePanelProps {
-  frames: { id: number; elements: any[]; duration: number }[];
+  frames: Frame[];
   currentFrame: number;
   setCurrentFrame: (frame: number) => void;
   selectedElement: any;
@@ -28,132 +32,55 @@ const KeyframePanel: React.FC<KeyframePanelProps> = ({
   frames,
   currentFrame,
   setCurrentFrame,
-  selectedElement,
-  handleDuplicateFrame,
-  handleDeleteFrame,
-  handleDeleteElement,
-  handleResetNumbers,
-  handleClearElements,
-  handleAddKeyframe,
   handleFrameDurationChange,
 }) => {
   return (
     <TooltipProvider delayDuration={0}>
-      <div className="flex flex-col gap-1 p-1 bg-gray-50 rounded-lg text-[10px]">
-        <div className="flex items-center justify-between gap-1 border-b pb-1">
-          <div className="flex items-center gap-0.5">
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button onClick={handleDuplicateFrame} variant="ghost" className="h-5 w-5 p-0">
-                  <Copy className="w-3 h-3" />
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent side="top" sideOffset={2} className="py-0.5 px-1.5 bg-black/90 text-white border-0">
-                <div className="flex flex-col">
-                  <p className="text-[10px] font-medium">Dupliser ramme</p>
-                  <p className="text-[9px] text-gray-300">Snarvei: D</p>
-                </div>
-              </TooltipContent>
-            </Tooltip>
-
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button 
-                  onClick={handleDeleteFrame} 
-                  variant="ghost"
-                  className="h-5 w-5 p-0"
-                  disabled={frames.length <= 1}
-                >
-                  <Trash2 className="w-3 h-3" />
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent side="top" sideOffset={2} className="py-0.5 px-1.5 bg-black/90 text-white border-0">
-                <div className="flex flex-col">
-                  <p className="text-[10px] font-medium">Slett keyframe</p>
-                  <p className="text-[9px] text-gray-300">Snarvei: Delete</p>
-                </div>
-              </TooltipContent>
-            </Tooltip>
-
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button onClick={handleClearElements} variant="ghost" className="h-5 w-5 p-0">
-                  <Trash2 className="w-3 h-3" />
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent side="top" sideOffset={2} className="py-0.5 px-1.5 bg-black/90 text-white border-0">
-                <div className="flex flex-col">
-                  <p className="text-[10px] font-medium">Tøm keyframe</p>
-                  <p className="text-[9px] text-gray-300">Fjern alle elementer</p>
-                </div>
-              </TooltipContent>
-            </Tooltip>
-
-            {selectedElement && (
-              <>
-                <div className="h-4 w-px bg-gray-200" />
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <Button onClick={handleDeleteElement} variant="ghost" className="h-5 w-5 p-0">
-                      <Trash2 className="w-3 h-3" />
-                    </Button>
-                  </TooltipTrigger>
-                  <TooltipContent side="top" sideOffset={2} className="py-0.5 px-1.5 bg-black/90 text-white border-0">
-                    <div className="flex flex-col">
-                      <p className="text-[10px] font-medium">Slett element</p>
-                      <p className="text-[9px] text-gray-300">Snarvei: Backspace</p>
-                    </div>
-                  </TooltipContent>
-                </Tooltip>
-
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <Button onClick={handleResetNumbers} variant="ghost" className="h-5 w-5 p-0">
-                      <Plus className="w-3 h-3" />
-                    </Button>
-                  </TooltipTrigger>
-                  <TooltipContent side="top" sideOffset={2} className="py-0.5 px-1.5 bg-black/90 text-white border-0">
-                    <div className="flex flex-col">
-                      <p className="text-[10px] font-medium">Nullstill nummer</p>
-                      <p className="text-[9px] text-gray-300">Start nummerering på nytt</p>
-                    </div>
-                  </TooltipContent>
-                </Tooltip>
-              </>
-            )}
-          </div>
-        </div>
-
-        <div className="flex gap-1 items-start overflow-x-auto">
+      <div className="flex flex-col gap-2 p-2 bg-gray-50 rounded-lg">
+        <div className="flex flex-wrap items-center gap-1 max-w-full overflow-x-auto">
           {frames.map((frame, index) => (
-            <div 
-              key={frame.id} 
+            <Button
+              key={index}
+              variant={currentFrame === index ? "default" : "ghost"}
+              onClick={() => setCurrentFrame(index)}
               className={cn(
-                "flex flex-col items-center gap-0.5 p-1 rounded border transition-colors min-w-[40px]",
-                currentFrame === index 
-                  ? "bg-primary/5 border-primary" 
-                  : "bg-white hover:bg-gray-50"
+                "h-7 px-2 text-xs shrink-0",
+                currentFrame === index ? "bg-primary/5 border-primary" : ""
               )}
             >
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Button
-                    variant={currentFrame === index ? "default" : "ghost"}
-                    onClick={() => setCurrentFrame(index)}
-                    className="w-6 h-6 p-0 text-[10px] font-medium"
-                  >
-                    {index + 1}
-                  </Button>
-                </TooltipTrigger>
-                <TooltipContent side="top" sideOffset={2} className="py-0.5 px-1.5 bg-black/90 text-white border-0">
-                  <div className="flex flex-col">
-                    <p className="text-[10px] font-medium">Keyframe {index + 1}</p>
-                    <p className="text-[9px] text-gray-300">Klikk for å velge</p>
-                  </div>
-                </TooltipContent>
-              </Tooltip>
-            </div>
+              {index + 1}
+              <span className="ml-1 text-[10px] text-gray-500">
+                ({frame.elements.length})
+              </span>
+            </Button>
           ))}
+        </div>
+        
+        <div className="flex flex-wrap items-center gap-2 px-2">
+          <div className="flex items-center gap-2 min-w-[200px]">
+            <span className="text-sm whitespace-nowrap">Varighet:</span>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <div className="flex-1 min-w-[100px]">
+                  <Slider
+                    value={[frames[currentFrame]?.duration ?? 1]}
+                    onValueChange={([value]) => handleFrameDurationChange(currentFrame, value)}
+                    min={0.5}
+                    max={5}
+                    step={0.5}
+                    className="w-full"
+                  />
+                </div>
+              </TooltipTrigger>
+              <TooltipContent side="top" sideOffset={2} className="py-0.5 px-1.5 bg-black/90 text-white border-0">
+                <div className="flex flex-col">
+                  <p className="text-[10px] font-medium">Juster varighet: {frames[currentFrame]?.duration ?? 1}s</p>
+                  <p className="text-[9px] text-gray-300">0.5 til 5 sekunder</p>
+                </div>
+              </TooltipContent>
+            </Tooltip>
+            <span className="text-xs tabular-nums w-8">{frames[currentFrame]?.duration ?? 1}s</span>
+          </div>
         </div>
       </div>
     </TooltipProvider>
