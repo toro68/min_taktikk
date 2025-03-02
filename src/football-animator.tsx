@@ -404,7 +404,7 @@ const FootballAnimator = () => {
             <path
               d={element.path}
               fill="none"
-              stroke="black"
+              stroke={element.color || "black"}
               strokeWidth="2"
               strokeDasharray={element.dashed ? "5,5" : "none"}
               markerEnd={element.marker ? `url(#${element.marker})` : "none"}
@@ -682,7 +682,7 @@ const FootballAnimator = () => {
     }
 
     if (tool === 'line' && isDragging && lineStart) {
-      const { curved, dashed, marker } = getLineProperties(selectedLineStyle, lineColor === 'custom' ? customColor : lineColor);
+      const { curved, dashed, marker, strokeColor } = getLineProperties(selectedLineStyle, lineColor === 'custom' ? customColor : lineColor);
       const path = createLinePath(lineStart, coords, curved, curveOffset);
       
       setPreviewLine({
@@ -691,7 +691,7 @@ const FootballAnimator = () => {
         path,
         dashed,
         marker,
-        color: lineColor === 'custom' ? customColor : lineColor
+        color: strokeColor
       });
     }
   };
@@ -1591,8 +1591,8 @@ const FootballAnimator = () => {
                             <Slider
                               value={[curveOffset]}
                               onValueChange={([val]) => setCurveOffset(val)}
-                              min={-100}
-                              max={100}
+                              min={-300}
+                              max={300}
                               step={1}
                               className="w-full"
                             />
@@ -1601,7 +1601,7 @@ const FootballAnimator = () => {
                         <TooltipContent side="top" sideOffset={2} className="py-0.5 px-1.5 bg-black/90 text-white border-0">
                           <div className="flex flex-col">
                             <p className="text-[10px] font-medium">Juster kurvatur: {curveOffset}px</p>
-                            <p className="text-[9px] text-gray-300">Dra for å endre (-100 til 100)</p>
+                            <p className="text-[9px] text-gray-300">Dra for å endre (-300 til 300)</p>
                           </div>
                         </TooltipContent>
                       </Tooltip>
@@ -1886,16 +1886,16 @@ const FootballAnimator = () => {
                 markerHeight="6"
                 orient="auto-start-reverse"
               >
-                <path d="M 0 0 L 10 5 L 0 10 z" fill="black" />
+                <path d="M 0 0 L 10 5 L 0 10 z" fill="currentColor" />
               </marker>
               <marker id="endline" markerWidth="8" markerHeight="8" refX="0" refY="4" orient="auto">
-                <line x1="0" y1="0" x2="0" y2="8" stroke="black" strokeWidth="1" />
+                <line x1="0" y1="0" x2="0" y2="8" stroke="currentColor" strokeWidth="1" />
               </marker>
               <marker id="plus" markerWidth="8" markerHeight="8" refX="4" refY="4" orient="auto">
-                <path d="M 2,4 L 6,4 M 4,2 L 4,6" stroke="black" strokeWidth="1" />
+                <path d="M 2,4 L 6,4 M 4,2 L 4,6" stroke="currentColor" strokeWidth="1" />
               </marker>
               <marker id="xmark" markerWidth="8" markerHeight="8" refX="4" refY="4" orient="auto">
-                <path d="M 2,2 L 6,6 M 2,6 L 6,2" stroke="black" strokeWidth="1" />
+                <path d="M 2,2 L 6,6 M 2,6 L 6,2" stroke="currentColor" strokeWidth="1" />
               </marker>
             </defs>
             <rect 
