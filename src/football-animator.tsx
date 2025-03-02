@@ -349,7 +349,7 @@ const FootballAnimator = () => {
     switch(element.type) {
       case 'player':
         return (
-          <g key={element.id} {...elementProps}>
+          <g key={element.id} {...elementProps} onDoubleClick={(e) => handlePlayerNumberDoubleClick(e, element as PlayerElement)}>
             <circle cx="0" cy="0" r="20" fill="transparent" stroke="transparent" strokeWidth="10"/>
             <circle cx="0" cy="0" r="15" fill="white" stroke="black" strokeWidth="2"/>
             <text x="0" y="5" textAnchor="middle" fontFamily="Arial" fontSize="16" fontWeight="bold">
@@ -359,7 +359,7 @@ const FootballAnimator = () => {
         );
       case 'opponent':
         return (
-          <g key={element.id} {...elementProps}>
+          <g key={element.id} {...elementProps} onDoubleClick={(e) => handlePlayerNumberDoubleClick(e, element as OpponentElement)}>
             <circle cx="0" cy="0" r="20" fill="transparent" stroke="transparent" strokeWidth="10"/>
             <circle cx="0" cy="0" r="15" fill="black" stroke="black" strokeWidth="2"/>
             <text x="0" y="5" textAnchor="middle" fontFamily="Arial" fontSize="16" fontWeight="bold" fill="white">
@@ -1363,7 +1363,27 @@ const FootballAnimator = () => {
     event.stopPropagation();
     const newContent = prompt('Rediger tekst:', element.content);
     if (newContent !== null) {
-      updateFrameElement(currentFrame, element.id, { content: newContent });
+      updateFrameElement(currentFrame, element.id, {
+        ...element,
+        content: newContent
+      });
+    }
+  };
+
+  // Håndterer dobbeltklikk på spiller/motstander for å endre nummer
+  const handlePlayerNumberDoubleClick = (event: React.MouseEvent, element: PlayerElement | OpponentElement) => {
+    event.stopPropagation();
+    try {
+      console.log(`Dobbeltklikk registrert på ${element.type} med id ${element.id}`);
+      const newNumber = prompt('Endre nummer:', element.number);
+      if (newNumber !== null) {
+        updateFrameElement(currentFrame, element.id, {
+          ...element,
+          number: newNumber
+        });
+      }
+    } catch (error) {
+      console.error('Feil ved endring av spillernummer:', error);
     }
   };
 
