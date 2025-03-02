@@ -1408,6 +1408,7 @@ const FootballAnimator = () => {
       // Lagre gjeldende tilstand
       const currentFrameBackup = currentFrame;
       const isPlayingBackup = isPlaying;
+      const interpolatedElementsBackup = [...interpolatedElements];
       
       // Stopp avspilling hvis den er aktiv
       if (isPlaying) {
@@ -1416,6 +1417,9 @@ const FootballAnimator = () => {
       
       // Bytt til den valgte keyframen
       setCurrentFrame(frameIndex);
+      
+      // Sett interpolerte elementer til elementene fra den valgte keyframen
+      setInterpolatedElements([...frames[frameIndex].elements]);
       
       // Vent på at rendering er fullført
       setTimeout(() => {
@@ -1426,10 +1430,12 @@ const FootballAnimator = () => {
         
         // Gjenopprett tidligere tilstand
         setCurrentFrame(currentFrameBackup);
+        setInterpolatedElements(interpolatedElementsBackup);
+        
         if (isPlayingBackup) {
           setIsPlaying(true);
         }
-      }, 100);
+      }, 200); // Øk timeout for å sikre at rendering er fullført
     }
   };
 
