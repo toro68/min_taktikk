@@ -1132,14 +1132,18 @@ const FootballAnimator = () => {
       setIsPlaying(true);
       isPlayingRef.current = true;
       
-      // Beregn varighet og stopp etter fullført animasjon
-      const frameDuration = 1000 / playbackSpeed;
-      const recordDuration = frames.length > 1 ? frames.length * frameDuration : 5000;
+      // Beregn total varighet basert på summen av alle keyframes' individuelle varigheter
+      const totalDuration = frames.reduce((total, frame) => total + (frame.duration * 1000 / playbackSpeed), 0);
+      
+      // Legg til en buffer på 5 sekunder for å sikre at hele animasjonen blir med
+      const recordDuration = Math.max(totalDuration, 5000);
+      
+      console.log(`Total animasjonsvarighet: ${totalDuration}ms, opptaksvarighet: ${recordDuration + 5000}ms`);
       
       setTimeout(() => {
         console.log("Stopper opptak");
         recorder.stop();
-      }, recordDuration + 2000); // Legg til 2 sekunder buffer-tid
+      }, recordDuration + 5000); // Legg til 5 sekunder buffer-tid for å sikre at hele animasjonen blir med
     } else {
       console.error('Ingen SVG for opptak.');
     }
