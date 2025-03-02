@@ -40,40 +40,42 @@ const KeyframePanel: React.FC<KeyframePanelProps> = ({
   return (
     <TooltipProvider delayDuration={0}>
       <div className="flex flex-col gap-2 p-2 bg-gray-50 rounded-lg">
-        <div className="grid grid-cols-3 gap-2">
+        <div className="whitespace-nowrap overflow-x-auto pb-2" style={{ display: 'block' }}>
           {frames.map((frame, index) => (
-            <div key={index} className="flex items-center">
-              <Button
-                variant={currentFrame === index ? "default" : "ghost"}
-                onClick={() => setCurrentFrame(index)}
-                className={cn(
-                  "h-7 px-2 text-xs shrink-0 flex-grow",
-                  currentFrame === index ? "bg-primary/5 border-primary" : ""
-                )}
-              >
-                {index + 1}
-                <span className="ml-1 text-[10px] text-gray-500">
-                  ({frame.elements.length})
-                </span>
-              </Button>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Button 
-                    variant="ghost" 
-                    size="sm" 
-                    onClick={() => handleDownloadKeyframePng(index)}
-                    className="h-7 px-1 ml-1"
-                  >
-                    <Download className="w-3 h-3" />
-                  </Button>
-                </TooltipTrigger>
-                <TooltipContent side="top" sideOffset={2} className="py-0.5 px-1.5 bg-black/90 text-white border-0">
-                  <div className="flex flex-col">
-                    <p className="text-[10px] font-medium">Last ned keyframe {index + 1}</p>
-                    <p className="text-[9px] text-gray-300">Lagre som PNG</p>
-                  </div>
-                </TooltipContent>
-              </Tooltip>
+            <div key={index} style={{ display: 'inline-block', marginRight: '4px' }}>
+              <div className="flex items-center">
+                <Button
+                  variant={currentFrame === index ? "default" : "ghost"}
+                  onClick={() => setCurrentFrame(index)}
+                  className={cn(
+                    "h-7 px-2 text-xs",
+                    currentFrame === index ? "bg-primary/5 border-primary" : ""
+                  )}
+                >
+                  {index + 1}
+                  <span className="ml-1 text-[10px] text-gray-500">
+                    ({frame.elements.length})
+                  </span>
+                </Button>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button 
+                      variant="ghost" 
+                      size="sm" 
+                      onClick={() => handleDownloadKeyframePng(index)}
+                      className="h-7 px-1 ml-1"
+                    >
+                      <Download className="w-3 h-3" />
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent side="top" sideOffset={2} className="py-0.5 px-1.5 bg-black/90 text-white border-0">
+                    <div className="flex flex-col">
+                      <p className="text-[10px] font-medium">Last ned keyframe {index + 1}</p>
+                      <p className="text-[9px] text-gray-300">Lagre som PNG</p>
+                    </div>
+                  </TooltipContent>
+                </Tooltip>
+              </div>
             </div>
           ))}
         </div>
