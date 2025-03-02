@@ -1566,8 +1566,8 @@ const FootballAnimator = () => {
                             <Slider
                               value={[el.traceOffset ?? 0]}
                               onValueChange={([val]) => updateFrameElement(currentFrame, el.id, { traceOffset: val })}
-                              min={-50}
-                              max={50}
+                              min={-300}
+                              max={300}
                               step={1}
                               className="w-full"
                             />
@@ -1576,7 +1576,7 @@ const FootballAnimator = () => {
                         <TooltipContent side="top" sideOffset={2} className="py-0.5 px-1.5 bg-black/90 text-white border-0">
                           <div className="flex flex-col">
                             <p className="text-[10px] font-medium">Juster bevegelseskurve: {el.traceOffset ?? 0}px</p>
-                            <p className="text-[9px] text-gray-300">Dra for å endre (-50 til 50)</p>
+                            <p className="text-[9px] text-gray-300">Dra for å endre (-300 til 300)</p>
                           </div>
                         </TooltipContent>
                       </Tooltip>
