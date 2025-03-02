@@ -118,6 +118,14 @@
           "value": "custom"
         }
       ]
+    },
+    "keyframes": {
+      "features": {
+        "downloadPng": {
+          "enabled": true,
+          "tooltip": "Last ned keyframe som PNG"
+        }
+      }
     }
   }
 } 
