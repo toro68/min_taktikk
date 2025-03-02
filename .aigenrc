@@ -84,6 +84,40 @@
           "tooltip": "Eksporter animasjonen som MP4"
         }
       ]
+    },
+    "lineStyles": {
+      "curveRange": {
+        "min": -300,
+        "max": 300,
+        "step": 1
+      },
+      "colors": [
+        {
+          "key": "black",
+          "label": "Svart",
+          "value": "#000000"
+        },
+        {
+          "key": "red",
+          "label": "Rød",
+          "value": "#ff0000"
+        },
+        {
+          "key": "blue",
+          "label": "Blå",
+          "value": "#0000ff"
+        },
+        {
+          "key": "green",
+          "label": "Grønn",
+          "value": "#00ff00"
+        },
+        {
+          "key": "custom",
+          "label": "Egendefinert",
+          "value": "custom"
+        }
+      ]
     }
   }
 } 
