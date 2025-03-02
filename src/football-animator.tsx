@@ -15,10 +15,11 @@ import { Canvg } from 'canvg';
 import KeyframePanel from './components/KeyframePanel';
 import LineStyleSelector, { LineStyle } from './components/LineStyleSelector';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from './components/ui/tooltip';
-import TopToolbar from './components/TopToolbar';
+import { useExportImport } from './hooks/useExportImport';
 import BottomToolbar from './components/BottomToolbar';
 import ToolSelector from './components/ToolSelector';
 import { Tool, PitchType, Element as FootballElement, PlayerElement, OpponentElement, BallElement, ConeElement, LineElement, TextElement, Frame, PLAYER_RADIUS, BALL_RADIUS } from './@types/elements';
+import TopToolbar from './components/TopToolbar';
 
 interface BaseElement {
   id: string;
@@ -1479,7 +1480,7 @@ const FootballAnimator = () => {
         onDelete={handleDeleteFrame}
         onAddKeyframe={handleAddKeyframe}
       />
-      <CardContent className="p-2 sm:p-4">
+      <CardContent className="p-0 flex-1 flex flex-col overflow-hidden">
         <KeyframePanel
           frames={frames}
           currentFrame={currentFrame}
@@ -1615,196 +1616,7 @@ const FootballAnimator = () => {
             )}
           </div>
         </TooltipProvider>
-        <div className="flex flex-wrap gap-2 justify-center bg-white p-2 mb-4">
-          <TooltipProvider delayDuration={0}>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button variant={tool === 'select' ? "default" : "outline"} size="sm" onClick={() => setTool('select')} className="flex gap-1 items-center">
-                  <MousePointer className="w-4 h-4" />
-                  Velg
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent side="top" sideOffset={2} className="py-0.5 px-1.5 bg-black/90 text-white border-0">
-                <div className="flex flex-col">
-                  <p className="text-[10px] font-medium">Velg og flytt elementer</p>
-                  <p className="text-[9px] text-gray-300">Snarvei: V</p>
-                </div>
-              </TooltipContent>
-            </Tooltip>
-
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button variant={tool === 'player' ? "default" : "outline"} size="sm" onClick={() => setTool('player')} className="flex gap-1 items-center">
-                  <User className="w-4 h-4" />
-                  Spiller
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent side="top" sideOffset={2} className="py-0.5 px-1.5 bg-black/90 text-white border-0">
-                <div className="flex flex-col">
-                  <p className="text-[10px] font-medium">Legg til spiller</p>
-                  <p className="text-[9px] text-gray-300">Snarvei: P</p>
-                </div>
-              </TooltipContent>
-            </Tooltip>
-
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button variant={tool === 'opponent' ? "default" : "outline"} size="sm" onClick={() => setTool('opponent')} className="flex gap-1 items-center">
-                  <Users className="w-4 h-4" />
-                  Motspiller
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent side="top" sideOffset={2} className="py-0.5 px-1.5 bg-black/90 text-white border-0">
-                <div className="flex flex-col">
-                  <p className="text-[10px] font-medium">Legg til motstander</p>
-                  <p className="text-[9px] text-gray-300">Snarvei: O</p>
-                </div>
-              </TooltipContent>
-            </Tooltip>
-
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button variant={tool === 'ball' ? "default" : "outline"} size="sm" onClick={() => setTool('ball')} className="flex gap-1 items-center">
-                  <Volleyball className="w-4 h-4" />
-                  Ball
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent side="top" sideOffset={2} className="py-0.5 px-1.5 bg-black/90 text-white border-0">
-                <div className="flex flex-col">
-                  <p className="text-[10px] font-medium">Legg til ball</p>
-                  <p className="text-[9px] text-gray-300">Snarvei: B</p>
-                </div>
-              </TooltipContent>
-            </Tooltip>
-
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button 
-                  onClick={handleTogglePitch} 
-                  variant={pitch !== 'full' ? "default" : "outline"}
-                  size="sm"
-                  className="flex gap-1 items-center"
-                >
-                  <SquareSplitHorizontal className="w-4 h-4" />
-                  {pitch === 'handball' ? 'Håndball' : 'Fotball'}
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent side="top" sideOffset={2} className="py-0.5 px-1.5 bg-black/90 text-white border-0">
-                <div className="flex flex-col">
-                  <p className="text-[10px] font-medium">Bytt banetype</p>
-                  <p className="text-[9px] text-gray-300">Fotball (hel/halv) eller håndball</p>
-                </div>
-              </TooltipContent>
-            </Tooltip>
-
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button variant={tool === 'cone' ? "default" : "outline"} size="sm" onClick={() => setTool('cone')} className="flex gap-1 items-center">
-                  <Cone className="w-4 h-4" />
-                  Kjegle
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent side="top" sideOffset={2} className="py-0.5 px-1.5 bg-black/90 text-white border-0">
-                <div className="flex flex-col">
-                  <p className="text-[10px] font-medium">Legg til kjegle</p>
-                  <p className="text-[9px] text-gray-300">Snarvei: C</p>
-                </div>
-              </TooltipContent>
-            </Tooltip>
-
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button variant={tool === 'line' ? "default" : "outline"} size="sm" onClick={() => setTool('line')} className="flex gap-1 items-center">
-                  <PenTool className="w-4 h-4" />
-                  Linje
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent side="top" sideOffset={2} className="py-0.5 px-1.5 bg-black/90 text-white border-0">
-                <div className="flex flex-col">
-                  <p className="text-[10px] font-medium">Tegn linje eller pil</p>
-                  <p className="text-[9px] text-gray-300">Snarvei: L</p>
-                </div>
-              </TooltipContent>
-            </Tooltip>
-
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button 
-                  variant={tool === 'text' ? "default" : "outline"} 
-                  size="sm" 
-                  onClick={() => setTool('text')} 
-                  className="flex gap-1 items-center"
-                >
-                  <Type className="w-4 h-4" />
-                  Tekst
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent side="top" sideOffset={2} className="py-0.5 px-1.5 bg-black/90 text-white border-0">
-                <div className="flex flex-col">
-                  <p className="text-[10px] font-medium">Legg til tekst</p>
-                  <p className="text-[9px] text-gray-300">Snarvei: X</p>
-                </div>
-              </TooltipContent>
-            </Tooltip>
-
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button variant="outline" size="sm" onClick={handleDeleteElement} className="flex gap-1 items-center">
-                  <Trash2 className="w-4 h-4" />
-                  Slett
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent side="top" sideOffset={2} className="py-0.5 px-1.5 bg-black/90 text-white border-0">
-                <div className="flex flex-col">
-                  <p className="text-[10px] font-medium">Slett element</p>
-                  <p className="text-[9px] text-gray-300">Fjern valgt element</p>
-                </div>
-              </TooltipContent>
-            </Tooltip>
-
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button variant="ghost" size="sm" onClick={handlePlayPause} className="flex gap-1 items-center">
-                  {isPlaying ? <Pause className="w-3 h-3" /> : <Play className="w-3 h-3" />}
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent side="top" sideOffset={2} className="py-0.5 px-1.5 bg-black/90 text-white border-0">
-                <div className="flex flex-col">
-                  <p className="text-[10px] font-medium">Start/Pause</p>
-                  <p className="text-[9px] text-gray-300">Snarvei: Mellomrom</p>
-                </div>
-              </TooltipContent>
-            </Tooltip>
-
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button variant="ghost" size="sm" onClick={() => setCurrentFrame(0)} className="flex gap-1 items-center">
-                  <SkipBack className="w-3 h-3" />
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent side="top" sideOffset={2} className="py-0.5 px-1.5 bg-black/90 text-white border-0">
-                <div className="flex flex-col">
-                  <p className="text-[10px] font-medium">Spol tilbake</p>
-                  <p className="text-[9px] text-gray-300">Snarvei: R</p>
-                </div>
-              </TooltipContent>
-            </Tooltip>
-
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button variant="ghost" size="sm" onClick={handleDownloadFilm} className="flex gap-1 items-center">
-                  <Film className="w-3 h-3" />
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent side="top" sideOffset={2} className="py-0.5 px-1.5 bg-black/90 text-white border-0">
-                <div className="flex flex-col">
-                  <p className="text-[10px] font-medium">Last ned film</p>
-                  <p className="text-[9px] text-gray-300">Eksporter som MP4</p>
-                </div>
-              </TooltipContent>
-            </Tooltip>
-          </TooltipProvider>
-        </div>
+        {/* Verktøylinjen som vises over banen er fjernet */}
 
         {tool === 'line' && (
           <ToolSelector
