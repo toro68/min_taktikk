@@ -17,7 +17,8 @@ export type LineStyle =
   | 'endMark'
   | 'plusEnd'
   | 'xEnd'
-  | 'dashedCurvedArrow';
+  | 'dashedCurvedArrow'
+  | 'dashedStraightArrow';
 
 interface LineStyleSelectorProps {
   lineStyleOptions: { value: LineStyle; label: string; preview: React.ReactElement; }[];
@@ -26,7 +27,11 @@ interface LineStyleSelectorProps {
   curveOffset: number;
   setCurveOffset: (offset: number) => void;
   // Funksjonen for å hente linjeegenskaper (for eksempel om den er kurvet)
-  getLineProperties: (style: LineStyle) => { curved: boolean; dashed: boolean; marker: 'arrow' | 'endline' | 'plus' | 'xmark' | null };
+  getLineProperties: (style: LineStyle) => { 
+    curved: boolean; 
+    dashed: boolean; 
+    marker: 'arrow' | 'endline' | 'plus' | 'xmark' | 'redArrow' | 'blueArrow' | 'greenArrow' | 'orangeArrow' | 'purpleArrow' | null 
+  };
   tool: string;
 }
 
@@ -79,8 +84,8 @@ const LineStyleSelector: React.FC<LineStyleSelectorProps> = ({
                   <Slider
                     value={[curveOffset]}
                     onValueChange={([val]) => setCurveOffset(val)}
-                    min={-100}
-                    max={100}
+                    min={-300}
+                    max={300}
                     step={1}
                     className="w-32"
                   />
@@ -89,7 +94,7 @@ const LineStyleSelector: React.FC<LineStyleSelectorProps> = ({
               <TooltipContent side="top" sideOffset={2} className="py-0.5 px-1.5 bg-black/90 text-white border-0">
                 <div className="flex flex-col">
                   <p className="text-[10px] font-medium">Juster kurvatur: {curveOffset}px</p>
-                  <p className="text-[9px] text-gray-300">Dra for å endre (-100 til 100)</p>
+                  <p className="text-[9px] text-gray-300">Dra for å endre (-300 til 300)</p>
                 </div>
               </TooltipContent>
             </Tooltip>

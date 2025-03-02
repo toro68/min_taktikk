@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { Card, CardHeader, CardTitle, CardContent } from './components/ui/card';
 import { Button } from './components/ui/button';
 import {
@@ -16,59 +16,256 @@ import KeyframePanel from './components/KeyframePanel';
 import LineStyleSelector, { LineStyle } from './components/LineStyleSelector';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from './components/ui/tooltip';
 import TopToolbar from './components/TopToolbar';
-
-type Tool = 'select' | 'player' | 'opponent' | 'ball' | 'cone' | 'line' | 'text';
-type PitchType = 'full' | 'offensive' | 'defensive' | 'handball' | 'fullLandscape';
-
-interface BaseElement {
-  id: string;
-  x?: number;
-  y?: number;
-  visible?: boolean;
-}
-
-interface PlayerElement extends BaseElement {
-  type: 'player';
-  number: number;
-  traceOffset?: number;
-}
-
-interface OpponentElement extends BaseElement {
-  type: 'opponent';
-  number: number;
-}
-
-interface BallElement extends BaseElement {
-  type: 'ball';
-  traceOffset?: number;
-}
-
-interface ConeElement extends BaseElement {
-  type: 'cone';
-}
-
-interface LineElement extends BaseElement {
-  type: 'line';
-  path: string;
-  dashed: boolean;
-  marker?: 'arrow' | 'endline' | 'plus' | 'xmark' | null;
-}
-
-interface TextElement extends BaseElement {
-  type: 'text';
-  content: string;
-  fontSize: number;
-}
-
-type Element = PlayerElement | OpponentElement | BallElement | ConeElement | LineElement | TextElement;
-
-interface Frame {
-  elements: Element[];
-  duration: number;
-}
+import { useExportImport } from './hooks/useExportImport';
+import BottomToolbar from './components/BottomToolbar';
+import ToolSelector from './components/ToolSelector';
+import { nanoid } from 'nanoid';
+import { Tool, PitchType, Element as FootballElement, PlayerElement, OpponentElement, BallElement, ConeElement, LineElement, TextElement, Frame } from './@types/elements';
 
 const PLAYER_RADIUS = 10;
 const BALL_RADIUS = 5;
+
+// Hjelpefunksjoner som trengs av komponenten
+const getSVGCoordinates = (event: React.MouseEvent<SVGSVGElement>) => {
+  const svg = event.currentTarget;
+  const point = svg.createSVGPoint();
+  point.x = event.clientX;
+  point.y = event.clientY;
+  
+  // Transformer punktet til SVG koordinatsystem
+  const invertedSVGMatrix = svg.getScreenCTM()?.inverse();
+  if (!invertedSVGMatrix) return { x: 0, y: 0 };
+  
+  const transformedPoint = point.matrixTransform(invertedSVGMatrix);
+  return { x: transformedPoint.x, y: transformedPoint.y };
+};
+
+const getCubicBezierPoint = (
+  t: number, 
+  start: { x: number, y: number }, 
+  end: { x: number, y: number },
+  offset: number = 0
+) => {
+  // Beregn perpendikularvektor
+  const dx = end.x - start.x;
+  const dy = end.y - start.y;
+  const length = Math.sqrt(dx * dx + dy * dy);
+  
+  let perpX = 0, perpY = 0;
+  if (length > 0) {
+    perpX = -dy / length;
+    perpY = dx / length;
+  }
+  
+  // Beregn kontrollpunkter med offset
+  const cp1x = start.x + dx / 3 + offset * perpX;
+  const cp1y = start.y + dy / 3 + offset * perpY;
+  const cp2x = start.x + 2 * dx / 3 + offset * perpX;
+  const cp2y = start.y + 2 * dy / 3 + offset * perpY;
+  
+  // Beregn punktet ved parameter t
+  const t1 = 1 - t;
+  const xt = t1*t1*t1*start.x + 3*t1*t1*t*cp1x + 3*t1*t*t*cp2x + t*t*t*end.x;
+  const yt = t1*t1*t1*start.y + 3*t1*t1*t*cp1y + 3*t1*t*t*cp2y + t*t*t*end.y;
+  
+  return { x: xt, y: yt };
+};
+
+const createLinePath = (
+  start: { x: number, y: number }, 
+  end: { x: number, y: number }, 
+  curved: boolean, 
+  offset: number = 0
+) => {
+  if (!curved) {
+    return `M ${start.x} ${start.y} L ${end.x} ${end.y}`;
+  }
+  
+  // Beregn perpendikularvektor
+  const dx = end.x - start.x;
+  const dy = end.y - start.y;
+  const length = Math.sqrt(dx * dx + dy * dy);
+  
+  let perpX = 0, perpY = 0;
+  if (length > 0) {
+    perpX = -dy / length;
+    perpY = dx / length;
+  }
+  
+  // Beregn kontrollpunkter med offset
+  const cp1x = start.x + dx / 3 + offset * perpX;
+  const cp1y = start.y + dy / 3 + offset * perpY;
+  const cp2x = start.x + 2 * dx / 3 + offset * perpX;
+  const cp2y = start.y + 2 * dy / 3 + offset * perpY;
+  
+  return `M ${start.x} ${start.y} C ${cp1x} ${cp1y} ${cp2x} ${cp2y} ${end.x} ${end.y}`;
+};
+
+const getLineProperties = (lineStyle: LineStyle, color: string) => {
+  let dashed = false;
+  let marker: 'arrow' | 'endline' | 'plus' | 'xmark' | 'redArrow' | 'blueArrow' | 'greenArrow' | 'orangeArrow' | 'purpleArrow' | null = null;
+  let curved = true;
+  
+  if (lineStyle === 'dashedCurved' || lineStyle === 'dashedCurvedArrow' || lineStyle === 'dashedStraightArrow') {
+    dashed = true;
+  }
+  
+  if (lineStyle === 'curvedArrow' || lineStyle === 'dashedCurvedArrow' || lineStyle === 'dashedStraightArrow') {
+    marker = 'arrow';
+  } else if (lineStyle === 'endMark') {
+    marker = 'endline';
+  } else if (lineStyle === 'plusEnd') {
+    marker = 'plus';
+  } else if (lineStyle === 'xEnd') {
+    marker = 'xmark';
+  }
+  
+  if (lineStyle === 'dashedStraightArrow') {
+    curved = false;
+  }
+  
+  return { curved, dashed, marker, strokeColor: color };
+};
+
+const formatPlayerNumber = (input: string): string => {
+  // Fjern ugyldige tegn, behold bare alfanumeriske tegn
+  // For sikkerhet, begrens lengden
+  return input.trim().replace(/[^a-zA-Z0-9]/g, '').substring(0, 3);
+};
+
+// Renderfunksjon for elementene
+const renderElement = (element: FootballElement) => {
+  switch (element.type) {
+    case 'player':
+      return (
+        <g key={element.id} data-id={element.id}>
+          <circle
+            cx={element.x || 0}
+            cy={element.y || 0}
+            r={PLAYER_RADIUS}
+            fill="blue"
+            stroke="black"
+            strokeWidth="1"
+            style={{ cursor: 'pointer' }}
+            data-type="player"
+            data-id={element.id}
+          />
+          <text
+            x={element.x || 0}
+            y={element.y || 0}
+            textAnchor="middle"
+            dominantBaseline="central"
+            fill="white"
+            style={{ fontSize: "12px", fontWeight: "bold", userSelect: "none" }}
+            data-type="playerNumber"
+            data-id={element.id}
+          >
+            {element.number || ""}
+          </text>
+        </g>
+      );
+    case 'opponent':
+      return (
+        <g key={element.id} data-id={element.id}>
+          <circle
+            cx={element.x || 0}
+            cy={element.y || 0}
+            r={PLAYER_RADIUS}
+            fill="red"
+            stroke="black"
+            strokeWidth="1"
+            style={{ cursor: 'pointer' }}
+            data-type="opponent"
+            data-id={element.id}
+          />
+          <text
+            x={element.x || 0}
+            y={element.y || 0}
+            textAnchor="middle"
+            dominantBaseline="central"
+            fill="white"
+            style={{ fontSize: "12px", fontWeight: "bold", userSelect: "none" }}
+            data-type="opponentNumber"
+            data-id={element.id}
+          >
+            {element.number || ""}
+          </text>
+        </g>
+      );
+    case 'ball':
+      return (
+        <circle
+          key={element.id}
+          cx={element.x || 0}
+          cy={element.y || 0}
+          r={BALL_RADIUS}
+          fill="black"
+          data-type="ball"
+          data-id={element.id}
+          style={{ cursor: 'pointer' }}
+        />
+      );
+    case 'cone':
+      return (
+        <polygon
+          key={element.id}
+          points={`${element.x || 0},${(element.y || 0)-10} ${(element.x || 0)-7},${(element.y || 0)+5} ${(element.x || 0)+7},${(element.y || 0)+5}`}
+          fill="orange"
+          stroke="black"
+          strokeWidth="1"
+          data-type="cone"
+          data-id={element.id}
+          style={{ cursor: 'pointer' }}
+        />
+      );
+    case 'line':
+      return (
+        <path
+          key={element.id}
+          d={element.path}
+          fill="none"
+          stroke={element.color || "black"}
+          strokeWidth="2"
+          strokeDasharray={element.dashed ? "5,5" : ""}
+          markerEnd={element.marker ? `url(#${element.marker})` : ""}
+          data-type="line"
+          data-id={element.id}
+          style={{ cursor: 'pointer' }}
+        />
+      );
+    case 'text':
+      return (
+        <text
+          key={element.id}
+          x={element.x || 0}
+          y={element.y || 0}
+          fill="black"
+          textAnchor="middle"
+          dominantBaseline="central"
+          fontSize={element.fontSize || 16}
+          fontWeight="bold"
+          style={{ cursor: 'pointer', userSelect: "none" }}
+          data-type="text"
+          data-id={element.id}
+        >
+          {element.content}
+        </text>
+      );
+    default:
+      return null;
+  }
+};
+
+// Funksjon for å håndtere klikk på SVG
+const handleClick = (event: React.MouseEvent<SVGSVGElement>) => {
+  const coords = getSVGCoordinates(event);
+  // Implementer logikken for klikk på SVG her
+};
+
+// Funksjon for å håndtere musebevegelser
+const handleMouseMove = (event: React.MouseEvent<SVGSVGElement>) => {
+  // Implementer logikken for musebevegelser her
+};
 
 const FootballAnimator = () => {
   const [isHelpExpanded, setIsHelpExpanded] = useState(false);
@@ -87,16 +284,113 @@ const FootballAnimator = () => {
       }
       el.setAttribute("style", styleDeclaration);
     }
+    
+    // Spesiell håndtering for tekstelementer
+    const textElements = clone.querySelectorAll("text");
+    textElements.forEach(textEl => {
+      // Sikre at teksten er synlig
+      textEl.setAttribute("visibility", "visible");
+      
+      // Sikre at font-egenskaper er eksplisitt satt
+      textEl.setAttribute("font-family", "Arial");
+      textEl.setAttribute("font-weight", "bold");
+      textEl.setAttribute("font-size", textEl.getAttribute("fontSize") || "16");
+      
+      // Sikre at teksten er sentrert
+      textEl.setAttribute("text-anchor", "middle");
+      
+      // Sikre at fill-fargen er riktig
+      if (textEl.parentElement?.querySelector("circle[fill='black']")) {
+        textEl.setAttribute("fill", "white");
+      } else {
+        textEl.setAttribute("fill", "black");
+      }
+      
+      // Forsikre om at innholdet i teksten er bevart
+      const existingContent = textEl.textContent;
+      if (existingContent) {
+        textEl.textContent = existingContent;
+      }
+    });
+    
     return clone;
+  };
+
+  // Ny funksjon for PNG-eksport
+  const downloadPng = async (svg: SVGSVGElement, filename: string) => {
+    try {
+      // Klone og inline stiler for å sikre riktig rendering
+      const clonedSvg = inlineAllStyles(svg);
+      
+      // Hent dimensjoner fra viewBox
+      const viewBox = clonedSvg.getAttribute('viewBox')?.split(' ').map(Number) || [0, 0, 680, 525];
+      const width = viewBox[2];
+      const height = viewBox[3];
+      
+      // Opprett en canvas med riktige dimensjoner
+      const canvas = document.createElement('canvas');
+      canvas.width = width;
+      canvas.height = height;
+      
+      // Få context fra canvas
+      const ctx = canvas.getContext('2d');
+      if (!ctx) {
+        throw new Error('Kunne ikke hente canvas-kontekst');
+      }
+      
+      // Fyll hvit bakgrunn (SVG kan ha transparent bakgrunn)
+      ctx.fillStyle = 'white';
+      ctx.fillRect(0, 0, width, height);
+      
+      // Konverter SVG til en string for å bruke med Canvg
+      const svgString = new XMLSerializer().serializeToString(clonedSvg);
+      const svgBlob = new Blob([svgString], { type: 'image/svg+xml;charset=utf-8' });
+      const url = URL.createObjectURL(svgBlob);
+      
+      // Lag et bilde fra SVG URL
+      const img = new Image();
+      
+      // Returner et Promise som løses når bildet er lastet og konvertert til PNG
+      return new Promise<void>((resolve, reject) => {
+        img.onload = () => {
+          // Tegn bildet på canvas
+          ctx.drawImage(img, 0, 0, width, height);
+          
+          // Konverter canvas til dataURL (PNG)
+          const pngUrl = canvas.toDataURL('image/png');
+          
+          // Opprett nedlastingslink
+          const a = document.createElement('a');
+          a.href = pngUrl;
+          a.download = filename;
+          document.body.appendChild(a);
+          a.click();
+          
+          // Rydd opp
+          document.body.removeChild(a);
+          URL.revokeObjectURL(url);
+          
+          resolve();
+        };
+        
+        img.onerror = () => {
+          reject(new Error('Feil ved lasting av SVG som bilde'));
+        };
+        
+        img.src = url;
+      });
+    } catch (error) {
+      console.error('Feil ved eksport til PNG:', error);
+    }
   };
 
   const [isPlaying, setIsPlaying] = useState(false);
   const [playbackSpeed, setPlaybackSpeed] = useState(1);
   const [frames, setFrames] = useState<Frame[]>([{ elements: [], duration: 1 }]);
   const [currentFrame, setCurrentFrame] = useState(0);
-  const [interpolatedElements, setInterpolatedElements] = useState<Element[]>([]);
+  const [interpolatedElements, setInterpolatedElements] = useState<FootballElement[]>([]);
   const [progress, setProgress] = useState(0);
-  const [selectedElement, setSelectedElement] = useState<Element | null>(null);
+  const [selectedElement, setSelectedElement] = useState<FootballElement | null>(null);
   const [pitch, setPitch] = useState<PitchType>('offensive');
   const [tool, setTool] = useState<Tool>('select');
   const [selectedLineStyle, setSelectedLineStyle] = useState<LineStyle>('solidCurved');
@@ -106,8 +400,8 @@ const FootballAnimator = () => {
   const [lineStart, setLineStart] = useState<{x: number, y: number} | null>(null);
   const animationRef = useRef<number | null>(null);
   const svgRef = useRef<SVGSVGElement>(null);
-  const [currentNumber, setCurrentNumber] = useState(1);
-  const [elements, setElements] = useState<Element[]>([]);
+  const [currentNumber, setCurrentNumber] = useState<string>("1");
+  const [elements, setElements] = useState<FootballElement[]>([]);
   const [isDrawing, setIsDrawing] = useState(false);
   const [startPoint, setStartPoint] = useState<{x: number; y: number} | null>(null);
   const recordedSVGRef = useRef<SVGSVGElement>(null);
@@ -120,6 +414,8 @@ const FootballAnimator = () => {
   const [previewLine, setPreviewLine] = useState<LineElement | null>(null);
   const [selectedLineCurveOffset, setSelectedLineCurveOffset] = useState<number>(0);
   const [selectedLinePoints, setSelectedLinePoints] = useState<{ start: { x: number, y: number }, end: { x: number, y: number } } | null>(null);
+  const [lineColor, setLineColor] = useState<string>('black');
+  const [customColor, setCustomColor] = useState<string>('#ff0000');
 
   const handleTogglePitch = () => {
     if (pitch === 'full') {
@@ -130,6 +426,10 @@ const FootballAnimator = () => {
       setPitch('defensive');
     } else if (pitch === 'defensive') {
       setPitch('handball');
+    } else if (pitch === 'handball') {
+      setPitch('blankPortrait');
+    } else if (pitch === 'blankPortrait') {
+      setPitch('blankLandscape');
     } else {
       setPitch('full');
     }
@@ -227,6 +527,20 @@ const FootballAnimator = () => {
             </marker>
           </defs>
           <line x1="5" y1="10" x2="75" y2="10" stroke="black" strokeWidth="2" markerEnd="url(#previewXmark)"/>
+        </svg>
+      )
+    },
+    {
+      value: 'dashedStraightArrow',
+      label: 'Rett stiplet pil',
+      preview: (
+        <svg viewBox="0 0 80 20" className="w-16 h-5">
+          <defs>
+            <marker id="previewDashedStraightArrow" markerWidth="6" markerHeight="6" refX="6" refY="3" orient="auto">
+              <path d="M 0 0 L 6 3 L 0 6 z" fill="black"/>
+            </marker>
+          </defs>
+          <line x1="5" y1="10" x2="75" y2="10" stroke="black" strokeWidth="2" strokeDasharray="4,4" markerEnd="url(#previewDashedStraightArrow)"/>
         </svg>
       )
     }
@@ -335,493 +649,136 @@ const FootballAnimator = () => {
             <path d="M 248.5 0 A 91.5 91.5 0 0 0 431.5 0" fill="none" stroke="black" strokeWidth="2"/>
           </g>
         );
+      case 'blankPortrait':
+        return (
+          <g>
+            {/* Tom bane med ramme for portrettversjon */}
+            <rect 
+              x="20" 
+              y="60" 
+              width="560" 
+              height="930" 
+              fill="none" 
+              stroke="#ff0000" 
+              strokeWidth="4"
+            />
+            
+            {/* Hjørnemarkører for ekstra synlighet */}
+            <circle cx="20" cy="60" r="8" fill="#ff0000" />
+            <circle cx="580" cy="60" r="8" fill="#ff0000" />
+            <circle cx="20" cy="990" r="8" fill="#ff0000" />
+            <circle cx="580" cy="990" r="8" fill="#ff0000" />
+          </g>
+        );
+      case 'blankLandscape':
+        return (
+          <g>
+            {/* Tom bane med ramme for liggende versjon */}
+            <rect 
+              x="20" 
+              y="50" 
+              width="950" 
+              height="580" 
+              fill="none" 
+              stroke="#000000" 
+              strokeWidth="5"
+            />
+          </g>
+        );
     }
   };
 
-  const handleElementClick = (event: React.MouseEvent, element: Element) => {
+  const handleElementSelect = (element: FootballElement) => {
+    setSelectedElement(element);
+    if (element.type === 'line') {
+      // Sett riktig linjestil basert på elementets egenskaper
+      const style = element.dashed
+        ? element.marker === 'arrow'
+          ? 'dashedCurvedArrow'
+          : 'dashedCurved'
+        : element.marker === 'arrow'
+          ? 'curvedArrow'
+          : 'solidCurved';
+      setSelectedLineStyle(style as LineStyle);
+
+      const path = element.path;
+
+      // Beregn initial kurvatur basert på kontrollpunkt (cp1) med oppdaterte regexer
+      const cpMatch = path.match(/C ([0-9.-]+) ([0-9.-]+) ([0-9.-]+) ([0-9.-]+)/);
+      if (cpMatch) {
+        const [, cp1x, cp1y] = cpMatch;
+        const startMatch = path.match(/M ([0-9.-]+) ([0-9.-]+)/);
+        if (startMatch) {
+          const [, startX, startY] = startMatch;
+          const dx = Number(cp1x) - Number(startX);
+          const dy = Number(cp1y) - Number(startY);
+          const len = Math.sqrt(dx * dx + dy * dy);
+          if (len > 0) {
+            const perpX = -dy / len;
+            const perpY = dx / len;
+            const offset = Math.round(perpX * len);
+            setSelectedLineCurveOffset(offset);
+            setCurveOffset(offset);
+          }
+        }
+      }
+      
+      // Ekstraher og lagre de originale start- og sluttpunktene fra path med oppdaterte regexer
+      const startMatchEndpoints = path.match(/M ([0-9.-]+) ([0-9.-]+)/);
+      const endMatch = path.match(/([0-9.-]+) ([0-9.-]+)$/);
+      if (startMatchEndpoints && endMatch) {
+        const startPoint = { x: Number(startMatchEndpoints[1]), y: Number(startMatchEndpoints[2]) };
+        const endPoint = { x: Number(endMatch[1]), y: Number(endMatch[2]) };
+        setSelectedLinePoints({ start: startPoint, end: endPoint });
+      }
+    }
+  };
+
+  const handleElementClick = (event: React.MouseEvent, element: FootballElement) => {
     if (tool === 'select') {
       event.stopPropagation();
       handleElementSelect(element);
     }
   };
 
-  const handleElementDragStart = (event: React.MouseEvent, element: Element) => {
+  const handleElementDragStart = (event: React.MouseEvent, element: FootballElement) => {
     if (tool !== 'select') return;
+    console.log("handleElementDragStart kjørt med element:", element.type, element.id);
+    console.log("Element path:", element.type === 'line' ? element.path : 'ikke en linje');
     event.stopPropagation();
     handleElementSelect(element);
     setIsDragging(true);
     const coords = getSVGCoordinates(event as React.MouseEvent<SVGSVGElement>);
     setStartPoint(coords);
-  };
-
-  const renderElement = (element: Element) => {
-    const isSelected = selectedElement?.id === element.id;
-    const highlightStyle = isSelected ? { 
-      filter: 'drop-shadow(0 0 3px #3b82f6)',
-      outline: '2px solid #3b82f6',
-      outlineOffset: '2px'
-    } : {};
+    console.log("isDragging satt til true, startPoint:", coords, "element:", element);
     
-    const transform = element.type === 'line' ? '' : `translate(${element.x ?? 0}, ${element.y ?? 0})`;
-    
-    const elementProps = {
-      style: {
-        ...highlightStyle,
-        touchAction: 'none',
-        cursor: tool === 'select' ? 'move' : 'pointer',
-      },
-      onClick: (e: React.MouseEvent) => handleElementClick(e, element),
-      onMouseDown: (e: React.MouseEvent) => {
-        if (tool === 'select') handleElementDragStart(e, element);
-      },
-      onTouchStart: (e: React.TouchEvent) => {
-        if (tool === 'select') {
-          e.preventDefault();
-          const touch = e.touches[0];
-          const event = {
-            clientX: touch.clientX,
-            clientY: touch.clientY,
-            preventDefault: () => {},
-            stopPropagation: () => {}
-          } as React.MouseEvent;
-          handleElementDragStart(event, element);
-        }
-      },
-      transform
-    };
-
-    switch(element.type) {
-      case 'player':
-        return (
-          <g key={element.id} {...elementProps}>
-            <circle cx="0" cy="0" r="20" fill="transparent" stroke="transparent" strokeWidth="10"/>
-            <circle cx="0" cy="0" r="15" fill="white" stroke="black" strokeWidth="2"/>
-            <text x="0" y="5" textAnchor="middle" fontFamily="Arial" fontSize="16" fontWeight="bold">
-              {element.number}
-            </text>
-          </g>
-        );
-      case 'opponent':
-        return (
-          <g key={element.id} {...elementProps}>
-            <circle cx="0" cy="0" r="20" fill="transparent" stroke="transparent" strokeWidth="10"/>
-            <circle cx="0" cy="0" r="15" fill="black" stroke="black" strokeWidth="2"/>
-            <text x="0" y="5" textAnchor="middle" fontFamily="Arial" fontSize="16" fontWeight="bold" fill="white">
-              {element.number}
-            </text>
-          </g>
-        );
-      case 'ball':
-        return (
-          <g key={element.id} {...elementProps}>
-            <circle cx="0" cy="0" r="20" fill="transparent" stroke="transparent" strokeWidth="10"/>
-            <g transform="translate(-12, -12)">
-              <Volleyball className="w-6 h-6" />
-            </g>
-          </g>
-        );
-      case 'cone':
-        return (
-          <g key={element.id} {...elementProps}>
-            <rect x="-15" y="-15" width="30" height="30" fill="transparent" stroke="transparent"/>
-            <path d="M -5,8 L 5,8 L 2,-8 L -2,-8 Z" fill="orange" stroke="black" strokeWidth="1"/>
-          </g>
-        );
-      case 'line':
-        const { style, ...otherProps } = elementProps;
-        return (
-          <g key={element.id}>
-            <path
-              d={element.path}
-              stroke="transparent"
-              strokeWidth="20"
-              fill="none"
-              {...otherProps}
-              style={{
-                ...style,
-                pointerEvents: 'all'
-              }}
-            />
-            <path
-              d={element.path}
-              fill="none"
-              stroke="black"
-              strokeWidth="2"
-              strokeDasharray={element.dashed ? "5,5" : "none"}
-              markerEnd={element.marker ? `url(#${element.marker})` : "none"}
-              style={{
-                pointerEvents: 'none'
-              }}
-            />
-          </g>
-        );
-      case 'text':
-        return (
-          <g 
-            key={element.id} 
-            {...elementProps}
-            onDoubleClick={(e) => handleTextDoubleClick(e, element)}
-          >
-            <rect 
-              x="-50" 
-              y="-20" 
-              width="100" 
-              height="40" 
-              fill="transparent" 
-              stroke="transparent"
-            />
-            <text
-              x="0"
-              y="0"
-              textAnchor="middle"
-              dominantBaseline="middle"
-              fontSize={element.fontSize}
-              fill="black"
-              style={{ userSelect: 'none', cursor: 'pointer' }}
-            >
-              {element.content}
-            </text>
-          </g>
-        );
-    }
-  };
-
-  const getSVGCoordinates = (event: React.MouseEvent<SVGSVGElement>) => {
-    const svg = recordedSVGRef.current;
-    if (!svg) {
-      console.warn('SVG ref is not available');
-      return { x: 0, y: 0 };
-    }
-
-    const rect = svg.getBoundingClientRect();
-    const viewBoxWidth = pitch === 'fullLandscape' ? 1050 : 680;
-    const viewBoxHeight = pitch === 'handball' ? 340 : 
-                         pitch === 'full' ? 1050 : 
-                         pitch === 'fullLandscape' ? 680 : 
-                         525;
-    
-    const scaleX = viewBoxWidth / rect.width;
-    const scaleY = viewBoxHeight / rect.height;
-    
-    const x = (event.clientX - rect.left) * scaleX;
-    const y = (event.clientY - rect.top) * scaleY;
-
-    return { x, y };
-  };
-
-  // Hjelpefunksjon for å lage bane for linjen (curved/straight)
-  const createLinePath = (
-    start: { x: number; y: number },
-    end: { x: number; y: number },
-    curved: boolean,
-    offset = 0
-  ): string => {
-    if (curved) {
-      const dx = end.x - start.x;
-      const dy = end.y - start.y;
-      const len = Math.sqrt(dx * dx + dy * dy);
-      let perpX = 0,
-        perpY = 0;
-      if (len !== 0) {
-        perpX = -dy / len;
-        perpY = dx / len;
-      }
-      const cp1x = start.x + dx / 3 + offset * perpX;
-      const cp1y = start.y + dy / 3 + offset * perpY;
-      const cp2x = start.x + 2 * dx / 3 + offset * perpX;
-      const cp2y = start.y + 2 * dy / 3 + offset * perpY;
-      return `M ${start.x} ${start.y} C ${cp1x} ${cp1y} ${cp2x} ${cp2y} ${end.x} ${end.y}`;
-    } else {
-      return `M ${start.x} ${start.y} L ${end.x} ${end.y}`;
-    }
-  };
-
-  // Hjelpefunksjon for å beregne et punkt langs en kubisk Bézier-kurve
-  const getCubicBezierPoint = (
-    t: number,
-    start: { x: number; y: number },
-    end: { x: number; y: number },
-    offset: number
-  ): { x: number; y: number } => {
-    const dx = end.x - start.x;
-    const dy = end.y - start.y;
-    const len = Math.sqrt(dx * dx + dy * dy);
-    let perpX = 0, perpY = 0;
-    if (len !== 0) {
-      perpX = -dy / len;
-      perpY = dx / len;
-    }
-    const cp1x = start.x + dx / 3 + offset * perpX;
-    const cp1y = start.y + dy / 3 + offset * perpY;
-    const cp2x = start.x + 2 * dx / 3 + offset * perpX;
-    const cp2y = start.y + 2 * dy / 3 + offset * perpY;
-
-    const x = Math.pow(1 - t, 3) * start.x +
-              3 * Math.pow(1 - t, 2) * t * cp1x +
-              3 * (1 - t) * Math.pow(t, 2) * cp2x +
-              Math.pow(t, 3) * end.x;
-    const y = Math.pow(1 - t, 3) * start.y +
-              3 * Math.pow(1 - t, 2) * t * cp1y +
-              3 * (1 - t) * Math.pow(t, 2) * cp2y +
-              Math.pow(t, 3) * end.y;
-    return { x, y };
-  };
-
-  // Ny hjelpefunksjon for å oversette (flytte) en path-streng med dx og dy
-  const translatePath = (d: string, dx: number, dy: number): string => {
-    let index = 0;
-    return d.replace(/-?\d+(\.\d+)?/g, match => {
-      const num = parseFloat(match);
-      const newValue = (index % 2 === 0) ? num + dx : num + dy;
-      index++;
-      return newValue.toString();
-    });
-  };
-
-  const isPointNearPath = (point: { x: number; y: number }, path: string): boolean => {
-    const threshold = 10; // Piksel-avstand for å registrere klikk
-    
-    // Sjekk om det er en kurvet linje (C) eller rett linje (L)
-    const curvedMatch = path.match(/M ([0-9.-]+),([0-9.-]+) C ([0-9.-]+),([0-9.-]+) ([0-9.-]+),([0-9.-]+) ([0-9.-]+),([0-9.-]+)/);
-    const straightMatch = path.match(/M ([0-9.-]+),([0-9.-]+) L ([0-9.-]+),([0-9.-]+)/);
-    
-    if (curvedMatch) {
-      // For kurvede linjer, sjekk avstand til flere punkter langs kurven
-      const [, startX, startY, cp1x, cp1y, cp2x, cp2y, endX, endY] = curvedMatch;
-      const start = { x: Number(startX), y: Number(startY) };
-      const end = { x: Number(endX), y: Number(endY) };
-      
-      // Sjekk flere punkter langs kurven
-      for (let t = 0; t <= 1; t += 0.1) {
-        const pos = getCubicBezierPoint(
-          t,
-          start,
-          end,
-          0 // Vi bruker 0 som offset siden vi bare vil sjekke selve linjen
-        );
-        
-        const dx = point.x - pos.x;
-        const dy = point.y - pos.y;
-        const distance = Math.sqrt(dx * dx + dy * dy);
-        
-        if (distance < threshold) {
-          return true;
-        }
-      }
-    } else if (straightMatch) {
-      const [, startX, startY, endX, endY] = straightMatch;
-      const start = { x: Number(startX), y: Number(startY) };
-      const end = { x: Number(endX), y: Number(endY) };
-      
-      // Beregn distanse fra punkt til linje-segment
-      const a = point.x - start.x;
-      const b = point.y - start.y;
-      const c = end.x - start.x;
-      const d = end.y - start.y;
-      
-      const dot = a * c + b * d;
-      const len_sq = c * c + d * d;
-      
-      let param = -1;
-      if (len_sq !== 0) {
-        param = dot / len_sq;
+    // DOM-basert direkte manipulering for linjer
+    if (element.type === 'line') {
+      // Finn SVG path element direkte i DOM
+      const pathElement = document.querySelector(`path[data-id="${element.id}"]`) as SVGPathElement;
+      if (!pathElement) {
+        console.error("Kunne ikke finne path-element i DOM:", element.id);
+        return;
       }
       
-      let xx, yy;
+      console.log("Fant path-element i DOM:", pathElement);
       
-      if (param < 0) {
-        xx = start.x;
-        yy = start.y;
-      } else if (param > 1) {
-        xx = end.x;
-        yy = end.y;
-      } else {
-        xx = start.x + param * c;
-        yy = start.y + param * d;
+      // Original path string
+      const originalPath = pathElement.getAttribute('d');
+      if (!originalPath) {
+        console.error("Path-element mangler d-attributt");
+        return;
       }
       
-      const dx = point.x - xx;
-      const dy = point.y - yy;
+      // Lagre start-posisjonen
+      const startMousePos = { x: event.clientX, y: event.clientY };
       
-      return Math.sqrt(dx * dx + dy * dy) < threshold;
-    }
-    return false;
-  };
-
-  // Hjelpefunksjon for å hente linjeegenskaper basert på valgt linjestil
-  const getLineProperties = (style: LineStyle) => {
-    const lowerStyle = style.toLowerCase();
-    const curved = lowerStyle.includes("curved");
-    const dashed = lowerStyle.includes("dashed");
-    let marker: 'arrow' | 'endline' | 'plus' | 'xmark' | null = null;
-    
-    if (lowerStyle.includes("arrow")) {
-      marker = 'arrow';
-    } else if (lowerStyle === 'endmark') {
-      marker = 'endline';
-    } else if (lowerStyle === 'plusend') {
-      marker = 'plus';
-    } else if (lowerStyle === 'xend') {
-      marker = 'xmark';
-    }
-    
-    return { curved, dashed, marker };
-  };
-
-  const handleMouseDown = (event: React.MouseEvent<SVGSVGElement>) => {
-    const coords = getSVGCoordinates(event);
-    
-    if (tool === 'line') {
-      setLineStart(coords);
-      setIsDragging(true);
-      setIsDrawing(true);
-      setStartPoint(coords);
-    } else if (tool === 'select') {
-      const clickedElement = frames[currentFrame].elements.find(el => {
-        if (el.type === 'line') {
-          // Sjekk om klikket er nær linjen
-          return isPointNearPath(coords, el.path);
-        }
-        return false;
-      });
-
-      if (clickedElement) {
-        handleElementSelect(clickedElement);
-        setIsDragging(true);
-        setStartPoint(coords);
-      } else {
-        setSelectedElement(null);
-      }
-    }
-  };
-
-  const handleMouseMove = (event: React.MouseEvent<SVGSVGElement> | React.TouchEvent<SVGSVGElement>) => {
-    const coords = 'touches' in event 
-      ? getSVGCoordinates({ 
-          clientX: event.touches[0].clientX, 
-          clientY: event.touches[0].clientY 
-        } as React.MouseEvent<SVGSVGElement>) 
-      : getSVGCoordinates(event as React.MouseEvent<SVGSVGElement>);
-
-    if (tool === 'select' && isDragging && selectedElement && startPoint) {
-      const dx = coords.x - startPoint.x;
-      const dy = coords.y - startPoint.y;
-
-      const newFrames = [...frames];
-      newFrames[currentFrame].elements = newFrames[currentFrame].elements.map(el => {
-        if (el.id === selectedElement.id) {
-          if (el.type === 'line') {
-            return { ...el, path: translatePath(el.path, dx, dy) };
-          } else {
-            return { ...el, x: (el.x ?? 0) + dx, y: (el.y ?? 0) + dy };
-          }
-        }
-        return el;
-      });
-      setFrames(newFrames);
-      setStartPoint(coords);
-    }
-
-    if (tool === 'line' && isDragging && lineStart) {
-      const { curved, dashed, marker } = getLineProperties(selectedLineStyle);
-      const path = createLinePath(lineStart, coords, curved, curveOffset);
-      
-      setPreviewLine({
-        id: 'preview-line',
-        type: 'line',
-        path,
-        dashed,
-        marker,
-      });
-    }
-  };
-
-  const handleMouseUp = (event: React.MouseEvent<SVGSVGElement>) => {
-    const coords = getSVGCoordinates(event);
-    if (tool === 'line' && isDragging && lineStart) {
-      const { curved, dashed, marker } = getLineProperties(selectedLineStyle);
-      const finalizedPath = createLinePath(lineStart, coords, curved, curveOffset);
-      
-      const newFrames = [...frames];
-      newFrames[currentFrame].elements.push({
-        id: 'line-' + Date.now(),
-        type: 'line',
-        path: finalizedPath,
-        dashed,
-        marker,
-      });
-      
-      setFrames(newFrames);
-      setIsDragging(false);
-      setLineStart(null);
-      setIsDrawing(false);
-      setStartPoint(null);
-      setPreviewLine(null);
-    } else if (tool === 'select' && isDragging && selectedElement) {
-      updateFrameElement(currentFrame, selectedElement.id, { x: coords.x, y: coords.y });
-      setIsDragging(false);
-      setStartPoint(null);
-    }
-  };
-
-  const handleClick = (event: React.MouseEvent<SVGSVGElement>) => {
-    // Sjekk at den nåværende framen finnes
-    if (!frames[currentFrame]) {
-      console.warn("Ingen gyldig frame for handling.");
-      return;
-    }
-
-    const coords = getSVGCoordinates(event);
-
-    if (tool !== 'select' && tool !== 'line') {
-      const baseElement = {
-        id: `${tool}-${Date.now()}`,
-        x: coords.x,
-        y: coords.y,
+      // Direkte DOM-manipulation med MouseMove handler
+      const directMouseMove = (e: MouseEvent) => {
+        // Beregn forskyvning 
+        const dx = e.clientX - startMousePos.x;
+        const dy = e.clientY - startMousePos.y;
       };
-
-      let newElement: Element;
-      
-      switch (tool) {
-        case 'player':
-        case 'opponent':
-          newElement = {
-            ...baseElement,
-            type: tool,
-            number: currentNumber
-          };
-          setCurrentNumber(prev => prev + 1);
-          break;
-        case 'ball':
-          newElement = {
-            ...baseElement,
-            type: 'ball'
-          };
-          break;
-        case 'cone':
-          newElement = {
-            ...baseElement,
-            type: 'cone'
-          };
-          break;
-        case 'text':
-          const content = prompt('Skriv inn tekst:');
-          if (!content) return;
-          newElement = {
-            ...baseElement,
-            type: 'text',
-            content,
-            fontSize: 16
-          };
-          break;
-        default:
-          return;
-      }
-
-      const newFrames = [...frames];
-      newFrames[currentFrame].elements.push(newElement);
-      setFrames(newFrames);
-      setElements([...elements, newElement]);
     }
   };
 
@@ -882,7 +839,7 @@ const FootballAnimator = () => {
   };
 
   const handleResetNumbers = () => {
-    setCurrentNumber(1);
+    setCurrentNumber("1");
   };
 
   const handleClearElements = () => {
@@ -892,7 +849,7 @@ const FootballAnimator = () => {
     }));
     setFrames(newFrames);
     setElements([]);
-    setCurrentNumber(1);
+    setCurrentNumber("1");
   };
 
   // Funksjon for å laste ned animasjonen som en JSON-fil
@@ -1198,12 +1155,12 @@ const FootballAnimator = () => {
   };
 
   // Denne funksjonen oppdaterer et element i keyframe med index `frameIndex`.
-  const updateFrameElement = (frameIndex: number, elementId: string, newProps: Partial<Element>) => {
+  const updateFrameElement = (frameIndex: number, elementId: string, newProps: Partial<FootballElement>) => {
     setFrames(prevFrames => {
       const updatedFrames = [...prevFrames];
       if (updatedFrames[frameIndex]) {
         updatedFrames[frameIndex].elements = updatedFrames[frameIndex].elements.map(el =>
-          el.id === elementId ? ({ ...el, ...newProps } as Element) : el
+          el.id === elementId ? ({ ...el, ...newProps } as FootballElement) : el
         );
       }
       return updatedFrames;
@@ -1244,52 +1201,6 @@ const FootballAnimator = () => {
   useEffect(() => {
     isPlayingRef.current = isPlaying;
   }, [isPlaying]);
-
-  const handleElementSelect = (element: Element) => {
-    setSelectedElement(element);
-    if (element.type === 'line') {
-      // Sett riktig linjestil basert på elementets egenskaper
-      const style = element.dashed
-        ? element.marker === 'arrow'
-          ? 'dashedCurvedArrow'
-          : 'dashedCurved'
-        : element.marker === 'arrow'
-          ? 'curvedArrow'
-          : 'solidCurved';
-      setSelectedLineStyle(style as LineStyle);
-
-      const path = element.path;
-
-      // Beregn initial kurvatur basert på kontrollpunkt (cp1) med oppdaterte regexer
-      const cpMatch = path.match(/C ([0-9.-]+) ([0-9.-]+) ([0-9.-]+) ([0-9.-]+)/);
-      if (cpMatch) {
-        const [, cp1x, cp1y] = cpMatch;
-        const startMatch = path.match(/M ([0-9.-]+) ([0-9.-]+)/);
-        if (startMatch) {
-          const [, startX, startY] = startMatch;
-          const dx = Number(cp1x) - Number(startX);
-          const dy = Number(cp1y) - Number(startY);
-          const len = Math.sqrt(dx * dx + dy * dy);
-          if (len > 0) {
-            const perpX = -dy / len;
-            const perpY = dx / len;
-            const offset = Math.round(perpX * len);
-            setSelectedLineCurveOffset(offset);
-            setCurveOffset(offset);
-          }
-        }
-      }
-      
-      // Ekstraher og lagre de originale start- og sluttpunktene fra path med oppdaterte regexer
-      const startMatchEndpoints = path.match(/M ([0-9.-]+) ([0-9.-]+)/);
-      const endMatch = path.match(/([0-9.-]+) ([0-9.-]+)$/);
-      if (startMatchEndpoints && endMatch) {
-        const startPoint = { x: Number(startMatchEndpoints[1]), y: Number(startMatchEndpoints[2]) };
-        const endPoint = { x: Number(endMatch[1]), y: Number(endMatch[2]) };
-        setSelectedLinePoints({ start: startPoint, end: endPoint });
-      }
-    }
-  };
 
   // Oppdatert useEffect for curveOffset med kast til LineElement
   useEffect(() => {
@@ -1339,12 +1250,285 @@ const FootballAnimator = () => {
     }
   };
 
+  // Ny funksjon for å håndtere dobbeltklikk på spiller for å endre nummer/bokstav
+  const handlePlayerNumberDoubleClick = (event: React.MouseEvent, element: PlayerElement | OpponentElement) => {
+    event.stopPropagation();
+    try {
+      console.log(`Dobbeltklikk registrert på ${element.type} med id ${element.id} og nummer ${element.number}`);
+      
+      const newNumber = prompt('Endre nummer/bokstav:', element.number);
+      console.log(`Brukerinput: ${newNumber}`);
+      
+      // Valider input - tillat bokstaver, tall eller en kombinasjon
+      if (newNumber !== null) {
+        if (newNumber.trim() !== "") {
+          const validatedNumber = formatPlayerNumber(newNumber);
+          console.log(`Validert nummer: '${validatedNumber}'`);
+          
+          // Logg elementet før oppdatering
+          console.log('Element før oppdatering:', element);
+          
+          const newFrames = [...frames];
+          const frameIndex = currentFrame;
+          console.log(`Oppdaterer element i frame ${frameIndex+1}`);
+          
+          newFrames[frameIndex].elements = newFrames[frameIndex].elements.map(el => {
+            if (el.id === element.id) {
+              const updatedElement = { ...el, number: validatedNumber };
+              console.log('Oppdatert element:', updatedElement);
+              return updatedElement;
+            }
+            return el;
+          });
+          
+          console.log('Setter nye frames...'); 
+          setFrames(newFrames);
+          
+          // Verifiser at endringen ble gjort etter en liten forsinkelse
+          setTimeout(() => {
+            const currentElement = frames[frameIndex].elements.find(el => el.id === element.id);
+            console.log('Element etter oppdatering:', currentElement);
+          }, 500);
+        } else {
+          console.warn("Ingen endring: Tomt input");
+        }
+      } else {
+        console.log("Ingen endring: Avbrutt av bruker");
+      }
+    } catch (error) {
+      console.error("Feil ved endring av spillernummer:", error);
+    }
+  };
+
+  // Debug-funksjon for å sjekke spillernummer
+  const debugPlayerNumbers = () => {
+    let playerCount = 0;
+    let invalidNumbers = 0;
+    let problemFrames = new Set();
+    
+    console.group('Sjekker spillernummer i alle frames');
+    
+    frames.forEach((frame, frameIndex) => {
+      let framePlayerCount = 0;
+      let frameInvalidCount = 0;
+      
+      frame.elements.forEach(el => {
+        if (el.type === 'player' || el.type === 'opponent') {
+          playerCount++;
+          framePlayerCount++;
+          
+          // Sjekk for ugyldige verdier
+          if (el.number === undefined || el.number === null || el.number === '') {
+            console.warn(`Frame ${frameIndex+1}, ${el.type} med id ${el.id} har ugyldig nummer: '${el.number}'`);
+            invalidNumbers++;
+            frameInvalidCount++;
+            problemFrames.add(frameIndex);
+          } else {
+            console.log(`Frame ${frameIndex+1}, ${el.type} med id ${el.id} har nummer: '${el.number}'`);
+          }
+        }
+      });
+      
+      if (frameInvalidCount > 0) {
+        console.warn(`Frame ${frameIndex+1}: ${frameInvalidCount} av ${framePlayerCount} spillere har ugyldige nummer`);
+      }
+    });
+    
+    console.log(`Total: ${playerCount} spillere funnet, ${invalidNumbers} med ugyldige nummer`);
+    console.log(`Problem frames: ${Array.from(problemFrames).map(i => (i as number)+1).join(', ')}`);
+    console.groupEnd();
+    
+    // Legg debugFunksjonen på window-objektet for manuell kjøring
+    if (typeof window !== 'undefined') {
+      (window as any).debugPlayerNumbers = debugPlayerNumbers;
+      console.info('Du kan nå kjøre debugPlayerNumbers() i konsollen for å sjekke spillernumre');
+    }
+    
+    return { playerCount, invalidNumbers };
+  };
+
+  // Debug useEffect
+  useEffect(() => {
+    // Legg til en enkel kontroll for å unngå debugging i produksjon
+    if (process.env.NODE_ENV === 'development') {
+      console.log('Debug: Frames endret. Sjekker spillernummer...');
+      const result = debugPlayerNumbers();
+      
+      // Logg hvor mange frames vi har og noen detaljer om den aktive framen
+      console.log(`Totalt antall frames: ${frames.length}`);
+      if (frames[currentFrame]) {
+        const playerElements = frames[currentFrame].elements.filter(
+          el => el.type === 'player' || el.type === 'opponent'
+        );
+        console.log(`Aktiv frame ${currentFrame+1} har ${playerElements.length} spiller(e)`);
+        
+        if (playerElements.length > 0) {
+          console.log('Spillernumre i aktiv frame:', 
+            playerElements.map(el => `${el.type}:${(el as PlayerElement | OpponentElement).number}`).join(', ')
+          );
+        }
+      }
+    }
+  }, [frames, currentFrame]);
+
+  // Funksjon for å håndtere musetrykk
+  const handleMouseDown = (event: React.MouseEvent<SVGSVGElement>) => {
+    const coords = getSVGCoordinates(event);
+    
+    if (tool === 'line') {
+      setLineStart(coords);
+      setIsDragging(true);
+      setIsDrawing(true);
+      setStartPoint(coords);
+    } else if (tool === 'select') {
+      const clickedElement = frames[currentFrame].elements.find(el => {
+        // Sjekk om elementet er klikket på basert på type
+        if (el.type === 'player' || el.type === 'opponent' || el.type === 'ball' || el.type === 'cone') {
+          const dx = (el.x || 0) - coords.x;
+          const dy = (el.y || 0) - coords.y;
+          const radius = el.type === 'ball' ? BALL_RADIUS : PLAYER_RADIUS;
+          return (dx * dx + dy * dy) <= (radius * radius);
+        } else if (el.type === 'line') {
+          // Implementer linje-klikk-deteksjon her
+          return false;
+        } else if (el.type === 'text') {
+          // Enkel bounding box sjekk for tekst
+          const textEl = el as TextElement;
+          const width = textEl.content.length * (textEl.fontSize || 16) * 0.6;
+          const height = (textEl.fontSize || 16) * 1.2;
+          return coords.x >= ((textEl.x || 0) - width/2) && 
+                 coords.x <= ((textEl.x || 0) + width/2) && 
+                 coords.y >= ((textEl.y || 0) - height/2) && 
+                 coords.y <= ((textEl.y || 0) + height/2);
+        }
+        return false;
+      });
+      
+      if (clickedElement) {
+        handleElementSelect(clickedElement);
+        setIsDragging(true);
+        setStartPoint(coords);
+      } else {
+        setSelectedElement(null);
+      }
+    }
+  };
+
+  const handleMouseUp = (event: React.MouseEvent<SVGSVGElement>) => {
+    const coords = getSVGCoordinates(event);
+    if (tool === 'line' && isDragging && lineStart) {
+      const { curved, dashed, marker, strokeColor } = getLineProperties(selectedLineStyle, lineColor === 'custom' ? customColor : lineColor);
+      const finalizedPath = createLinePath(lineStart, coords, curved, curveOffset);
+      
+      // Beregn avstand mellom start- og sluttpunkt
+      const dx = coords.x - lineStart.x;
+      const dy = coords.y - lineStart.y;
+      const distance = Math.sqrt(dx * dx + dy * dy);
+      
+      // Bare legg til linjen hvis den er lang nok
+      if (distance > 5) {
+        const newFrames = [...frames];
+        newFrames[currentFrame].elements.push({
+          id: 'line-' + Date.now(),
+          type: 'line',
+          path: finalizedPath,
+          dashed,
+          marker,
+          color: strokeColor
+        });
+        
+        setFrames(newFrames);
+      }
+      
+      setIsDragging(false);
+      setLineStart(null);
+      setIsDrawing(false);
+      setStartPoint(null);
+      setPreviewLine(null);
+    } else if (tool === 'select' && isDragging && selectedElement) {
+      console.log("handleMouseUp: isDragging=true, selectedElement=", selectedElement.id, "type=", selectedElement.type);
+      
+      // Vi vil ikke oppdatere x og y for linjer siden de bruker path
+      // Dette skaper problemer og svært viktig å ta hånd om
+      if (selectedElement.type !== 'line') {
+        updateFrameElement(currentFrame, selectedElement.id, { x: coords.x, y: coords.y });
+      } else {
+        console.log("Linjer håndteres forskjellig - oppdaterer ikke x og y");
+      }
+      
+      setIsDragging(false);
+      setStartPoint(null);
+    }
+  };
+
+  const handleAddElement = (type: string, x: number, y: number) => {
+    let newElement: FootballElement;
+    
+    switch (type) {
+      case 'player':
+        newElement = {
+          id: `player-${Date.now()}`,
+          type: 'player',
+          x,
+          y,
+          number: currentNumber,
+          traceOffset: 0
+        };
+        setCurrentNumber(String(Number(currentNumber) + 1));
+        break;
+      case 'opponent':
+        newElement = {
+          id: `opponent-${Date.now()}`,
+          type: 'opponent',
+          x,
+          y,
+          number: currentNumber
+        };
+        setCurrentNumber(String(Number(currentNumber) + 1));
+        break;
+      case 'ball':
+        newElement = {
+          id: `ball-${Date.now()}`,
+          type: 'ball',
+          x,
+          y,
+          traceOffset: 0
+        };
+        break;
+      case 'cone':
+        newElement = {
+          id: `cone-${Date.now()}`,
+          type: 'cone',
+          x,
+          y
+        };
+        break;
+      case 'text':
+        newElement = {
+          id: `text-${Date.now()}`,
+          type: 'text',
+          x,
+          y,
+          content: 'Tekst',
+          fontSize: 16
+        };
+        break;
+      default:
+        return;
+    }
+    
+    const newFrames = [...frames];
+    newFrames[currentFrame].elements.push(newElement);
+    setFrames(newFrames);
+    setElements([...elements, newElement]);
+  };
+
   return (
     <Card className="w-full max-w-4xl mx-auto">
       <CardHeader className="space-y-4">
         <div className="px-2 sm:px-6 py-4 border-b">
           <h1 className="text-xl sm:text-2xl font-semibold tracking-tight text-center">
-            Taktikktavle fotball
+            Taktikktavle @tor.jossang
           </h1>
         </div>
         <div className="border rounded-md bg-white mx-2 sm:mx-6">
@@ -1367,12 +1551,13 @@ const FootballAnimator = () => {
                   <h3 className="font-medium mb-1">Verktøy</h3>
                   <ul className="list-disc pl-4 space-y-1 text-gray-600">
                     <li>Velg (V) - Flytt og juster elementer</li>
-                    <li>Spiller (P) - Legg til spillere</li>
-                    <li>Motspiller (O) - Legg til motstandere</li>
+                    <li>Spiller (P) - Legg til spillere (kan ha tall eller bokstaver)</li>
+                    <li>Motspiller (O) - Legg til motstandere (kan ha tall eller bokstaver)</li>
                     <li>Ball (B) - Legg til ball</li>
                     <li>Bane (T) - Bytt mellom hel og halv bane</li>
                     <li>Kjegle (C) - Legg til kjegler</li>
-                    <li>Linje (L) - Tegn linjer og piler</li>
+                    <li>Linje (L) - Tegn linjer, piler og bevegelser med ulike stiler og farger</li>
+                    <li>Tekst (X) - Legg til tekst på banen</li>
                   </ul>
                 </section>
 
@@ -1393,6 +1578,7 @@ const FootballAnimator = () => {
                     <li>Spol tilbake (R) - Gå til start</li>
                     <li>Juster hastighet med glideren</li>
                     <li>Last ned som film for å dele</li>
+                    <li>Lagre som PNG-bilde for å eksportere statisk visning</li>
                   </ul>
                 </section>
 
@@ -1401,8 +1587,11 @@ const FootballAnimator = () => {
                   <ul className="list-disc pl-4 space-y-1 text-gray-600">
                     <li>Bruk piltaster for å justere hastighet</li>
                     <li>Dobbeltklikk for å velge element</li>
+                    <li>Dobbeltklikk på spiller for å endre nummer eller legge inn bokstaver</li>
                     <li>Hold Shift for å tegne rette linjer</li>
-                    <li>Juster kurvatur på linjer og bevegelser</li>
+                    <li>Juster kurvatur på linjer og bevegelser med glidebryteren</li>
+                    <li>Velg mellom ulike linjestiler: solid, stiplet, piler og sluttmarkører</li>
+                    <li>Bruk fargevalg for å endre farge på linjer og piler</li>
                   </ul>
                 </section>
               </div>
@@ -1529,8 +1718,8 @@ const FootballAnimator = () => {
                             <Slider
                               value={[curveOffset]}
                               onValueChange={([val]) => setCurveOffset(val)}
-                              min={-100}
-                              max={100}
+                              min={-300}
+                              max={300}
                               step={1}
                               className="w-full"
                             />
@@ -1539,7 +1728,7 @@ const FootballAnimator = () => {
                         <TooltipContent side="top" sideOffset={2} className="py-0.5 px-1.5 bg-black/90 text-white border-0">
                           <div className="flex flex-col">
                             <p className="text-[10px] font-medium">Juster kurvatur: {curveOffset}px</p>
-                            <p className="text-[9px] text-gray-300">Dra for å endre (-100 til 100)</p>
+                            <p className="text-[9px] text-gray-300">Dra for å endre (-300 til 300)</p>
                           </div>
                         </TooltipContent>
                       </Tooltip>
@@ -1553,308 +1742,250 @@ const FootballAnimator = () => {
             )}
           </div>
         </TooltipProvider>
-        <div className="flex flex-wrap gap-2 justify-center bg-white p-2 mb-4">
-          <TooltipProvider delayDuration={0}>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button variant={tool === 'select' ? "default" : "outline"} size="sm" onClick={() => setTool('select')} className="flex gap-1 items-center">
-                  <MousePointer className="w-4 h-4" />
-                  Velg
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent side="top" sideOffset={2} className="py-0.5 px-1.5 bg-black/90 text-white border-0">
-                <div className="flex flex-col">
-                  <p className="text-[10px] font-medium">Velg og flytt elementer</p>
-                  <p className="text-[9px] text-gray-300">Snarvei: V</p>
-                </div>
-              </TooltipContent>
-            </Tooltip>
-
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button variant={tool === 'player' ? "default" : "outline"} size="sm" onClick={() => setTool('player')} className="flex gap-1 items-center">
-                  <User className="w-4 h-4" />
-                  Spiller
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent side="top" sideOffset={2} className="py-0.5 px-1.5 bg-black/90 text-white border-0">
-                <div className="flex flex-col">
-                  <p className="text-[10px] font-medium">Legg til spiller</p>
-                  <p className="text-[9px] text-gray-300">Snarvei: P</p>
-                </div>
-              </TooltipContent>
-            </Tooltip>
-
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button variant={tool === 'opponent' ? "default" : "outline"} size="sm" onClick={() => setTool('opponent')} className="flex gap-1 items-center">
-                  <Users className="w-4 h-4" />
-                  Motspiller
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent side="top" sideOffset={2} className="py-0.5 px-1.5 bg-black/90 text-white border-0">
-                <div className="flex flex-col">
-                  <p className="text-[10px] font-medium">Legg til motstander</p>
-                  <p className="text-[9px] text-gray-300">Snarvei: O</p>
-                </div>
-              </TooltipContent>
-            </Tooltip>
-
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button variant={tool === 'ball' ? "default" : "outline"} size="sm" onClick={() => setTool('ball')} className="flex gap-1 items-center">
-                  <Volleyball className="w-4 h-4" />
-                  Ball
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent side="top" sideOffset={2} className="py-0.5 px-1.5 bg-black/90 text-white border-0">
-                <div className="flex flex-col">
-                  <p className="text-[10px] font-medium">Legg til ball</p>
-                  <p className="text-[9px] text-gray-300">Snarvei: B</p>
-                </div>
-              </TooltipContent>
-            </Tooltip>
-
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button 
-                  onClick={handleTogglePitch} 
-                  variant={pitch !== 'full' ? "default" : "outline"}
-                  size="sm"
-                  className="flex gap-1 items-center"
-                >
-                  <SquareSplitHorizontal className="w-4 h-4" />
-                  {pitch === 'handball' ? 'Håndball' : 'Fotball'}
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent side="top" sideOffset={2} className="py-0.5 px-1.5 bg-black/90 text-white border-0">
-                <div className="flex flex-col">
-                  <p className="text-[10px] font-medium">Bytt banetype</p>
-                  <p className="text-[9px] text-gray-300">Fotball (hel/halv) eller håndball</p>
-                </div>
-              </TooltipContent>
-            </Tooltip>
-
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button variant={tool === 'cone' ? "default" : "outline"} size="sm" onClick={() => setTool('cone')} className="flex gap-1 items-center">
-                  <Cone className="w-4 h-4" />
-                  Kjegle
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent side="top" sideOffset={2} className="py-0.5 px-1.5 bg-black/90 text-white border-0">
-                <div className="flex flex-col">
-                  <p className="text-[10px] font-medium">Legg til kjegle</p>
-                  <p className="text-[9px] text-gray-300">Snarvei: C</p>
-                </div>
-              </TooltipContent>
-            </Tooltip>
-
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button variant={tool === 'line' ? "default" : "outline"} size="sm" onClick={() => setTool('line')} className="flex gap-1 items-center">
-                  <PenTool className="w-4 h-4" />
-                  Linje
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent side="top" sideOffset={2} className="py-0.5 px-1.5 bg-black/90 text-white border-0">
-                <div className="flex flex-col">
-                  <p className="text-[10px] font-medium">Tegn linje eller pil</p>
-                  <p className="text-[9px] text-gray-300">Snarvei: L</p>
-                </div>
-              </TooltipContent>
-            </Tooltip>
-
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button 
-                  variant={tool === 'text' ? "default" : "outline"} 
-                  size="sm" 
-                  onClick={() => setTool('text')} 
-                  className="flex gap-1 items-center"
-                >
-                  <Type className="w-4 h-4" />
-                  Tekst
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent side="top" sideOffset={2} className="py-0.5 px-1.5 bg-black/90 text-white border-0">
-                <div className="flex flex-col">
-                  <p className="text-[10px] font-medium">Legg til tekst</p>
-                  <p className="text-[9px] text-gray-300">Snarvei: X</p>
-                </div>
-              </TooltipContent>
-            </Tooltip>
-
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button variant="outline" size="sm" onClick={handleDeleteElement} className="flex gap-1 items-center">
-                  <Trash2 className="w-4 h-4" />
-                  Slett
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent side="top" sideOffset={2} className="py-0.5 px-1.5 bg-black/90 text-white border-0">
-                <div className="flex flex-col">
-                  <p className="text-[10px] font-medium">Slett element</p>
-                  <p className="text-[9px] text-gray-300">Fjern valgt element</p>
-                </div>
-              </TooltipContent>
-            </Tooltip>
-
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button variant="ghost" size="sm" onClick={handlePlayPause} className="flex gap-1 items-center">
-                  {isPlaying ? <Pause className="w-3 h-3" /> : <Play className="w-3 h-3" />}
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent side="top" sideOffset={2} className="py-0.5 px-1.5 bg-black/90 text-white border-0">
-                <div className="flex flex-col">
-                  <p className="text-[10px] font-medium">Start/Pause</p>
-                  <p className="text-[9px] text-gray-300">Snarvei: Mellomrom</p>
-                </div>
-              </TooltipContent>
-            </Tooltip>
-
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button variant="ghost" size="sm" onClick={() => setCurrentFrame(0)} className="flex gap-1 items-center">
-                  <SkipBack className="w-3 h-3" />
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent side="top" sideOffset={2} className="py-0.5 px-1.5 bg-black/90 text-white border-0">
-                <div className="flex flex-col">
-                  <p className="text-[10px] font-medium">Spol tilbake</p>
-                  <p className="text-[9px] text-gray-300">Snarvei: R</p>
-                </div>
-              </TooltipContent>
-            </Tooltip>
-
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button variant="ghost" size="sm" onClick={handleDownloadFilm} className="flex gap-1 items-center">
-                  <Film className="w-3 h-3" />
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent side="top" sideOffset={2} className="py-0.5 px-1.5 bg-black/90 text-white border-0">
-                <div className="flex flex-col">
-                  <p className="text-[10px] font-medium">Last ned film</p>
-                  <p className="text-[9px] text-gray-300">Eksporter som MP4</p>
-                </div>
-              </TooltipContent>
-            </Tooltip>
-          </TooltipProvider>
-        </div>
-
-        {tool === 'line' && (
-          <LineStyleSelector
-            lineStyleOptions={lineStyleOptions}
-            selectedLineStyle={selectedLineStyle}
-            setSelectedLineStyle={setSelectedLineStyle}
-            curveOffset={curveOffset}
-            setCurveOffset={setCurveOffset}
-            getLineProperties={getLineProperties}
-            tool={tool}
-          />
-        )}
-
-        <div className="relative border rounded flex justify-start items-center overflow-hidden" style={{ 
-          height: "calc(100vh - 220px)",
-          width: "100%",
-          maxWidth: pitch === 'handball' 
-            ? "calc((100vh - 220px) * 2)" 
-            : pitch === 'full' 
-              ? "calc((100vh - 220px) * 0.647)" 
-              : pitch === 'fullLandscape'
-                ? "calc((100vh - 220px) * 1.544)"
-                : "calc((100vh - 220px) * 1.295)",
-          marginLeft: "auto",
-          marginRight: "auto"
-        }}>
-          <svg
-            ref={recordedSVGRef}
-            className="w-full h-full touch-none"
-            viewBox={`0 0 ${
-              pitch === 'fullLandscape' ? 1050 : 680
-            } ${
-              pitch === 'handball' ? 340 : 
-              pitch === 'full' ? 1050 : 
-              pitch === 'fullLandscape' ? 680 : 
-              525
-            }`}
-            preserveAspectRatio="xMidYMid fit"
-            xmlns="http://www.w3.org/2000/svg"
-            onMouseDown={handleMouseDown}
-            onMouseMove={handleMouseMove}
-            onMouseUp={handleMouseUp}
-            onClick={handleClick}
-            onTouchStart={(e) => {
-              const touch = e.touches[0];
-              handleMouseDown({
-                clientX: touch.clientX,
-                clientY: touch.clientY,
-                preventDefault: () => {},
-                stopPropagation: () => {}
-              } as React.MouseEvent<SVGSVGElement>);
-            }}
-            onTouchMove={(e) => {
-              e.preventDefault();
-              handleMouseMove(e);
-            }}
-            onTouchEnd={(e) => {
-              const touch = e.changedTouches[0];
-              handleMouseUp({
-                clientX: touch.clientX,
-                clientY: touch.clientY,
-                preventDefault: () => {},
-                stopPropagation: () => {}
-              } as React.MouseEvent<SVGSVGElement>);
-            }}
-          >
-            <defs>
-              <marker
-                id="arrow"
-                viewBox="0 0 10 10"
-                refX="9"
-                refY="5"
-                markerWidth="6"
-                markerHeight="6"
-                orient="auto-start-reverse"
-              >
-                <path d="M 0 0 L 10 5 L 0 10 z" fill="black" />
-              </marker>
-              <marker id="endline" markerWidth="8" markerHeight="8" refX="0" refY="4" orient="auto">
-                <line x1="0" y1="0" x2="0" y2="8" stroke="black" strokeWidth="1" />
-              </marker>
-              <marker id="plus" markerWidth="8" markerHeight="8" refX="4" refY="4" orient="auto">
-                <path d="M 2,4 L 6,4 M 4,2 L 4,6" stroke="black" strokeWidth="1" />
-              </marker>
-              <marker id="xmark" markerWidth="8" markerHeight="8" refX="4" refY="4" orient="auto">
-                <path d="M 2,2 L 6,6 M 2,6 L 6,2" stroke="black" strokeWidth="1" />
-              </marker>
-            </defs>
-            <rect 
-              x="0" 
-              y="0" 
-              width={pitch === 'fullLandscape' ? '1050' : '680'}
-              height={pitch === 'handball' ? 340 : pitch === 'full' ? 1050 : pitch === 'fullLandscape' ? 680 : 525} 
-              fill="white" 
+        
+        <div className="flex flex-col md:flex-row">
+          <div className="w-full md:w-64 p-2">
+            <ToolSelector
+              selectedTool={tool}
+              setSelectedTool={setTool}
+              pitch={pitch}
+              handleTogglePitch={handleTogglePitch}
+              selectedLineStyle={selectedLineStyle}
+              setSelectedLineStyle={setSelectedLineStyle}
+              curveOffset={curveOffset}
+              setCurveOffset={setCurveOffset}
+              lineColor={lineColor}
+              setLineColor={setLineColor}
+              customColor={customColor}
+              setCustomColor={setCustomColor}
             />
-            {getPitchTemplate()}
-            {frames[currentFrame] && frames[currentFrame + 1] && renderTrace()}
-            {(() => {
-              // Bestem hvilke elementer som skal vises
-              const elementsToRender = isPlaying || isRecording
-                ? interpolatedElements
-                : frames[currentFrame]?.elements ?? [];
-              
-              // Filtrer og render elementene
-              return elementsToRender
-                .filter(el => el.visible !== false)
-                .map(renderElement);
-            })()}
-            {previewLine && renderElement(previewLine)}
-          </svg>
+          </div>
+          
+          <div className="w-full md:w-64 p-2">
+            <div className="relative border rounded flex justify-start items-center overflow-hidden" style={{ 
+              height: "calc(100vh - 220px)",
+              width: "100%",
+              maxWidth: pitch === 'handball' 
+                ? "calc((100vh - 220px) * 2)" 
+                : pitch === 'full' || pitch === 'blankPortrait'
+                  ? "calc((100vh - 220px) * 0.647)" 
+                  : pitch === 'fullLandscape' || pitch === 'blankLandscape'
+                    ? "calc((100vh - 220px) * 1.544)"
+                    : "calc((100vh - 220px) * 1.295)",
+              marginLeft: "auto",
+              marginRight: "auto"
+            }}>
+              {/* Fjerner indikatortekst som viser aktivt verktøy */}
+              <svg
+                ref={recordedSVGRef}
+                className="w-full h-full touch-none"
+                viewBox={(() => {
+                  // Bestem dimensjoner basert på banetype
+                  let width, height;
+                  
+                  switch(pitch) {
+                    case 'fullLandscape':
+                    case 'blankLandscape':
+                      width = 1050;
+                      height = 680;
+                      break;
+                    case 'full':
+                    case 'blankPortrait':
+                      width = 680;
+                      height = 1050;
+                      break;
+                    case 'handball':
+                      width = 680;
+                      height = 340;
+                      break;
+                    default: // offensive, defensive
+                      width = 680;
+                      height = 525;
+                  }
+                  
+                  return `0 0 ${width} ${height}`;
+                })()}
+                preserveAspectRatio="xMidYMid meet"
+                xmlns="http://www.w3.org/2000/svg"
+                onMouseDown={handleMouseDown}
+                onMouseMove={handleMouseMove}
+                onMouseUp={handleMouseUp}
+                onClick={handleClick}
+                onTouchStart={(e: React.TouchEvent<SVGSVGElement>) => {
+                  const touch = e.touches[0];
+                  if (touch) {
+                    const mockEvent = {
+                      clientX: touch.clientX,
+                      clientY: touch.clientY,
+                      preventDefault: e.preventDefault.bind(e),
+                      stopPropagation: e.stopPropagation.bind(e)
+                    } as unknown as React.MouseEvent<SVGSVGElement>;
+                    handleMouseDown(mockEvent);
+                  }
+                }}
+                onTouchMove={(e: React.TouchEvent<SVGSVGElement>) => {
+                  e.preventDefault();
+                  const touch = e.touches[0];
+                  if (touch) {
+                    const mockEvent = {
+                      clientX: touch.clientX,
+                      clientY: touch.clientY,
+                      preventDefault: e.preventDefault.bind(e),
+                      stopPropagation: e.stopPropagation.bind(e)
+                    } as unknown as React.MouseEvent<SVGSVGElement>;
+                    handleMouseMove(mockEvent);
+                  }
+                }}
+                onTouchEnd={(e: React.TouchEvent<SVGSVGElement>) => {
+                  const touch = e.changedTouches[0];
+                  if (touch) {
+                    const mockEvent = {
+                      clientX: touch.clientX,
+                      clientY: touch.clientY,
+                      preventDefault: e.preventDefault.bind(e),
+                      stopPropagation: e.stopPropagation.bind(e)
+                    } as unknown as React.MouseEvent<SVGSVGElement>;
+                    handleMouseUp(mockEvent);
+                  }
+                }}
+              >
+                <defs>
+                  <marker
+                    id="arrow"
+                    viewBox="0 0 10 10"
+                    refX="9"
+                    refY="5"
+                    markerWidth="6"
+                    markerHeight="6"
+                    orient="auto-start-reverse"
+                  >
+                    <path d="M 0 0 L 10 5 L 0 10 z" fill="black" />
+                  </marker>
+                  <marker id="endline" markerWidth="8" markerHeight="8" refX="0" refY="4" orient="auto">
+                    <line x1="0" y1="0" x2="0" y2="8" stroke="black" strokeWidth="1" />
+                  </marker>
+                  <marker id="plus" markerWidth="8" markerHeight="8" refX="4" refY="4" orient="auto">
+                    <path d="M 2,4 L 6,4 M 4,2 L 4,6" stroke="black" strokeWidth="1" />
+                  </marker>
+                  <marker id="xmark" markerWidth="8" markerHeight="8" refX="4" refY="4" orient="auto">
+                    <path d="M 2,2 L 6,6 M 2,6 L 6,2" stroke="black" strokeWidth="1" />
+                  </marker>
+                </defs>
+                <rect 
+                  x="0" 
+                  y="0" 
+                  width={pitch === 'fullLandscape' ? '1050' : '680'}
+                  height={pitch === 'handball' ? 340 : pitch === 'full' ? 1050 : pitch === 'fullLandscape' ? 680 : 525} 
+                  fill="white" 
+                />
+                {getPitchTemplate()}
+                {frames[currentFrame] && frames[currentFrame + 1] && renderTrace()}
+                {(() => {
+                  // Bestem hvilke elementer som skal vises
+                  const elementsToRender = isPlaying || isRecording
+                    ? interpolatedElements
+                    : frames[currentFrame]?.elements ?? [];
+                  
+                  // Filtrer og render elementene
+                  return elementsToRender
+                    .filter(el => el.visible !== false)
+                    .map(renderElement);
+                })()}
+                {previewLine && renderElement(previewLine)}
+                
+                {/* Debug-knapp for å flytte den valgte linjen */}
+                {selectedElement?.type === 'line' && (
+                  <g>
+                    <rect 
+                      x="10" 
+                      y="10" 
+                      width="120" 
+                      height="30" 
+                      fill="#3b82f6" 
+                      rx="5" 
+                      ry="5"
+                      onClick={() => {
+                        console.log("Debug: Flytter linje 10px ned og høyre");
+                        if (selectedElement.type === 'line') {
+                          const newFrames = [...frames];
+                          newFrames[currentFrame].elements = newFrames[currentFrame].elements.map(el => {
+                            if (el.id === selectedElement.id && el.type === 'line') {
+                              // Finn start- og sluttpunkter
+                              const startMatch = el.path.match(/M ([0-9.-]+) ([0-9.-]+)/);
+                              const endMatch = el.path.match(/([0-9.-]+) ([0-9.-]+)$/);
+                              
+                              if (startMatch && endMatch) {
+                                const startX = parseFloat(startMatch[1]) + 10;
+                                const startY = parseFloat(startMatch[2]) + 10;
+                                const endX = parseFloat(endMatch[1]) + 10;
+                                const endY = parseFloat(endMatch[2]) + 10;
+                                
+                                // For kubiske kurver (C)
+                                if (el.path.includes('C')) {
+                                  const cpMatch = el.path.match(/C ([0-9.-]+) ([0-9.-]+) ([0-9.-]+) ([0-9.-]+)/);
+                                  if (cpMatch) {
+                                    const cp1x = parseFloat(cpMatch[1]) + 10;
+                                    const cp1y = parseFloat(cpMatch[2]) + 10;
+                                    const cp2x = parseFloat(cpMatch[3]) + 10;
+                                    const cp2y = parseFloat(cpMatch[4]) + 10;
+                                    
+                                    return { 
+                                      ...el, 
+                                      path: `M ${startX} ${startY} C ${cp1x} ${cp1y} ${cp2x} ${cp2y} ${endX} ${endY}` 
+                                    };
+                                  }
+                                }
+                                
+                                // For enkle/rette linjer (L)
+                                return { 
+                                  ...el, 
+                                  path: `M ${startX} ${startY} L ${endX} ${endY}` 
+                                };
+                              }
+                            }
+                            return el;
+                          });
+                          
+                          setFrames(newFrames);
+                          console.log("Debug: Frames oppdatert");
+                        }
+                      }}
+                    />
+                    <text 
+                      x="20" 
+                      y="30" 
+                      fill="white" 
+                      fontWeight="bold" 
+                      fontSize="14px"
+                    >
+                      Flytt linjen
+                    </text>
+                  </g>
+                )}
+                {/* Slutt debug-knapp */}
+              </svg>
+            </div>
+          </div>
         </div>
       </CardContent>
+      <BottomToolbar 
+        selectedTool={tool}
+        setSelectedTool={setTool}
+        pitch={pitch}
+        handleTogglePitch={handleTogglePitch}
+        isPlaying={isPlaying}
+        onPlayPause={handlePlayPause}
+        onRewind={() => setCurrentFrame(0)} /* Bruk funksjon for å sette rammen til 0 */
+        onDeleteElement={handleDeleteElement}
+        onDownloadFilm={handleDownloadFilm}
+        onDownloadPng={() => {
+          if (recordedSVGRef.current) {
+            downloadPng(recordedSVGRef.current, 'taktikk.png');
+          }
+        }}
+        onDownloadAnimation={handleDownloadAnimation}
+        selectedElement={selectedElement}
+      />
     </Card>
   );
 };

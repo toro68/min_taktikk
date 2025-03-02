@@ -26,7 +26,7 @@ const TopToolbar: React.FC<TopToolbarProps> = ({
 }) => {
   return (
     <TooltipProvider delayDuration={0}>
-      <div className="sticky top-0 z-50 bg-white border-b">
+      <div className="bg-white border-b">
         <div className="flex items-center gap-2 h-8 px-1">
           <div className="flex items-center gap-1">
             <Button onClick={onDuplicate} variant="outline" size="sm" className="flex gap-1 items-center">
