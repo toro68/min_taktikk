@@ -17,6 +17,7 @@ import LineStyleSelector, { LineStyle } from './components/LineStyleSelector';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from './components/ui/tooltip';
 import TopToolbar from './components/TopToolbar';
 import BottomToolbar from './components/BottomToolbar';
+import ToolSelector from './components/ToolSelector';
 import { Tool, PitchType, Element as FootballElement, PlayerElement, OpponentElement, BallElement, ConeElement, LineElement, TextElement, Frame, PLAYER_RADIUS, BALL_RADIUS } from './@types/elements';
 
 interface BaseElement {
@@ -76,6 +77,8 @@ const FootballAnimator = () => {
   const [previewLine, setPreviewLine] = useState<LineElement | null>(null);
   const [selectedLineCurveOffset, setSelectedLineCurveOffset] = useState<number>(0);
   const [selectedLinePoints, setSelectedLinePoints] = useState<{ start: { x: number, y: number }, end: { x: number, y: number } } | null>(null);
+  const [lineColor, setLineColor] = useState<string>('black');
+  const [customColor, setCustomColor] = useState<string>('#ff0000');
 
   const handleTogglePitch = () => {
     if (pitch === 'full') {
@@ -605,7 +608,7 @@ const FootballAnimator = () => {
   };
 
   // Hjelpefunksjon for å hente linjeegenskaper basert på valgt linjestil
-  const getLineProperties = (style: LineStyle) => {
+  const getLineProperties = (style: LineStyle, color: string = 'black') => {
     const lowerStyle = style.toLowerCase();
     const curved = lowerStyle.includes("curved");
     const dashed = lowerStyle.includes("dashed");
@@ -621,7 +624,7 @@ const FootballAnimator = () => {
       marker = 'xmark';
     }
     
-    return { curved, dashed, marker };
+    return { curved, dashed, marker, strokeColor: color };
   };
 
   const handleMouseDown = (event: React.MouseEvent<SVGSVGElement>) => {
@@ -679,7 +682,7 @@ const FootballAnimator = () => {
     }
 
     if (tool === 'line' && isDragging && lineStart) {
-      const { curved, dashed, marker } = getLineProperties(selectedLineStyle);
+      const { curved, dashed, marker } = getLineProperties(selectedLineStyle, lineColor === 'custom' ? customColor : lineColor);
       const path = createLinePath(lineStart, coords, curved, curveOffset);
       
       setPreviewLine({
@@ -688,6 +691,7 @@ const FootballAnimator = () => {
         path,
         dashed,
         marker,
+        color: lineColor === 'custom' ? customColor : lineColor
       });
     }
   };
@@ -695,19 +699,29 @@ const FootballAnimator = () => {
   const handleMouseUp = (event: React.MouseEvent<SVGSVGElement>) => {
     const coords = getSVGCoordinates(event);
     if (tool === 'line' && isDragging && lineStart) {
-      const { curved, dashed, marker } = getLineProperties(selectedLineStyle);
+      const { curved, dashed, marker, strokeColor } = getLineProperties(selectedLineStyle, lineColor === 'custom' ? customColor : lineColor);
       const finalizedPath = createLinePath(lineStart, coords, curved, curveOffset);
       
-      const newFrames = [...frames];
-      newFrames[currentFrame].elements.push({
-        id: 'line-' + Date.now(),
-        type: 'line',
-        path: finalizedPath,
-        dashed,
-        marker,
-      });
+      // Beregn avstand mellom start- og sluttpunkt
+      const dx = coords.x - lineStart.x;
+      const dy = coords.y - lineStart.y;
+      const distance = Math.sqrt(dx * dx + dy * dy);
       
-      setFrames(newFrames);
+      // Bare legg til linjen hvis den er lang nok
+      if (distance > 5) {
+        const newFrames = [...frames];
+        newFrames[currentFrame].elements.push({
+          id: 'line-' + Date.now(),
+          type: 'line',
+          path: finalizedPath,
+          dashed,
+          marker,
+          color: strokeColor
+        });
+        
+        setFrames(newFrames);
+      }
+      
       setIsDragging(false);
       setLineStart(null);
       setIsDrawing(false);
@@ -1793,14 +1807,19 @@ const FootballAnimator = () => {
         </div>
 
         {tool === 'line' && (
-          <LineStyleSelector
-            lineStyleOptions={lineStyleOptions}
+          <ToolSelector
+            selectedTool={tool}
+            setSelectedTool={setTool}
+            pitch={pitch}
+            handleTogglePitch={handleTogglePitch}
             selectedLineStyle={selectedLineStyle}
             setSelectedLineStyle={setSelectedLineStyle}
             curveOffset={curveOffset}
             setCurveOffset={setCurveOffset}
-            getLineProperties={getLineProperties}
-            tool={tool}
+            lineColor={lineColor}
+            setLineColor={setLineColor}
+            customColor={customColor}
+            setCustomColor={setCustomColor}
           />
         )}
 
