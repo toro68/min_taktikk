@@ -40,14 +40,14 @@ const KeyframePanel: React.FC<KeyframePanelProps> = ({
   return (
     <TooltipProvider delayDuration={0}>
       <div className="flex flex-col gap-2 p-2 bg-gray-50 rounded-lg">
-        <div className="flex flex-wrap items-center gap-1 max-w-full overflow-x-auto">
+        <div className="grid grid-cols-3 gap-2">
           {frames.map((frame, index) => (
             <div key={index} className="flex items-center">
               <Button
                 variant={currentFrame === index ? "default" : "ghost"}
                 onClick={() => setCurrentFrame(index)}
                 className={cn(
-                  "h-7 px-2 text-xs shrink-0",
+                  "h-7 px-2 text-xs shrink-0 flex-grow",
                   currentFrame === index ? "bg-primary/5 border-primary" : ""
                 )}
               >
@@ -78,7 +78,7 @@ const KeyframePanel: React.FC<KeyframePanelProps> = ({
           ))}
         </div>
         
-        <div className="flex flex-wrap items-center gap-2 px-2">
+        <div className="flex flex-wrap items-center gap-2 px-2 mt-2">
           <div className="flex items-center gap-2 min-w-[200px]">
             <span className="text-sm whitespace-nowrap">Varighet:</span>
             <Tooltip>
