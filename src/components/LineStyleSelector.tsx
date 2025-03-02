@@ -17,7 +17,8 @@ export type LineStyle =
   | 'endMark'
   | 'plusEnd'
   | 'xEnd'
-  | 'dashedCurvedArrow';
+  | 'dashedCurvedArrow'
+  | 'dashedStraightArrow';
 
 interface LineStyleSelectorProps {
   lineStyleOptions: { value: LineStyle; label: string; preview: React.ReactElement; }[];
