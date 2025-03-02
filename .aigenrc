@@ -2,7 +2,7 @@
   "version": "1.0",
   "settings": {
     "toolbar": {
-      "position": "above",
+      "position": "below",
       "layout": "single-line",
       "buttons": [
         {
