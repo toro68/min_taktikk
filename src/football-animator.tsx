@@ -16,9 +16,8 @@ import KeyframePanel from './components/KeyframePanel';
 import LineStyleSelector, { LineStyle } from './components/LineStyleSelector';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from './components/ui/tooltip';
 import TopToolbar from './components/TopToolbar';
-
-type Tool = 'select' | 'player' | 'opponent' | 'ball' | 'cone' | 'line' | 'text';
-type PitchType = 'full' | 'offensive' | 'defensive' | 'handball' | 'fullLandscape';
+import BottomToolbar from './components/BottomToolbar';
+import { Tool, PitchType, Element as FootballElement, PlayerElement, OpponentElement, BallElement, ConeElement, LineElement, TextElement, Frame, PLAYER_RADIUS, BALL_RADIUS } from './@types/elements';
 
 interface BaseElement {
   id: string;
@@ -26,49 +25,6 @@ interface BaseElement {
   y?: number;
   visible?: boolean;
 }
-
-interface PlayerElement extends BaseElement {
-  type: 'player';
-  number: number;
-  traceOffset?: number;
-}
-
-interface OpponentElement extends BaseElement {
-  type: 'opponent';
-  number: number;
-}
-
-interface BallElement extends BaseElement {
-  type: 'ball';
-  traceOffset?: number;
-}
-
-interface ConeElement extends BaseElement {
-  type: 'cone';
-}
-
-interface LineElement extends BaseElement {
-  type: 'line';
-  path: string;
-  dashed: boolean;
-  marker?: 'arrow' | 'endline' | 'plus' | 'xmark' | null;
-}
-
-interface TextElement extends BaseElement {
-  type: 'text';
-  content: string;
-  fontSize: number;
-}
-
-type Element = PlayerElement | OpponentElement | BallElement | ConeElement | LineElement | TextElement;
-
-interface Frame {
-  elements: Element[];
-  duration: number;
-}
-
-const PLAYER_RADIUS = 10;
-const BALL_RADIUS = 5;
 
 const FootballAnimator = () => {
   const [isHelpExpanded, setIsHelpExpanded] = useState(false);
@@ -94,9 +50,9 @@ const FootballAnimator = () => {
   const [playbackSpeed, setPlaybackSpeed] = useState(1);
   const [frames, setFrames] = useState<Frame[]>([{ elements: [], duration: 1 }]);
   const [currentFrame, setCurrentFrame] = useState(0);
-  const [interpolatedElements, setInterpolatedElements] = useState<Element[]>([]);
+  const [interpolatedElements, setInterpolatedElements] = useState<FootballElement[]>([]);
   const [progress, setProgress] = useState(0);
-  const [selectedElement, setSelectedElement] = useState<Element | null>(null);
+  const [selectedElement, setSelectedElement] = useState<FootballElement | null>(null);
   const [pitch, setPitch] = useState<PitchType>('offensive');
   const [tool, setTool] = useState<Tool>('select');
   const [selectedLineStyle, setSelectedLineStyle] = useState<LineStyle>('solidCurved');
@@ -106,8 +62,8 @@ const FootballAnimator = () => {
   const [lineStart, setLineStart] = useState<{x: number, y: number} | null>(null);
   const animationRef = useRef<number | null>(null);
   const svgRef = useRef<SVGSVGElement>(null);
-  const [currentNumber, setCurrentNumber] = useState(1);
-  const [elements, setElements] = useState<Element[]>([]);
+  const [currentNumber, setCurrentNumber] = useState<string>("1");
+  const [elements, setElements] = useState<FootballElement[]>([]);
   const [isDrawing, setIsDrawing] = useState(false);
   const [startPoint, setStartPoint] = useState<{x: number; y: number} | null>(null);
   const recordedSVGRef = useRef<SVGSVGElement>(null);
@@ -338,14 +294,14 @@ const FootballAnimator = () => {
     }
   };
 
-  const handleElementClick = (event: React.MouseEvent, element: Element) => {
+  const handleElementClick = (event: React.MouseEvent, element: FootballElement) => {
     if (tool === 'select') {
       event.stopPropagation();
       handleElementSelect(element);
     }
   };
 
-  const handleElementDragStart = (event: React.MouseEvent, element: Element) => {
+  const handleElementDragStart = (event: React.MouseEvent, element: FootballElement) => {
     if (tool !== 'select') return;
     event.stopPropagation();
     handleElementSelect(element);
@@ -354,7 +310,7 @@ const FootballAnimator = () => {
     setStartPoint(coords);
   };
 
-  const renderElement = (element: Element) => {
+  const renderElement = (element: FootballElement) => {
     const isSelected = selectedElement?.id === element.id;
     const highlightStyle = isSelected ? { 
       filter: 'drop-shadow(0 0 3px #3b82f6)',
@@ -780,7 +736,7 @@ const FootballAnimator = () => {
         y: coords.y,
       };
 
-      let newElement: Element;
+      let newElement: FootballElement;
       
       switch (tool) {
         case 'player':
@@ -790,7 +746,10 @@ const FootballAnimator = () => {
             type: tool,
             number: currentNumber
           };
-          setCurrentNumber(prev => prev + 1);
+          setCurrentNumber(prev => {
+            const nextNum = parseInt(prev) + 1;
+            return nextNum.toString();
+          });
           break;
         case 'ball':
           newElement = {
@@ -882,7 +841,7 @@ const FootballAnimator = () => {
   };
 
   const handleResetNumbers = () => {
-    setCurrentNumber(1);
+    setCurrentNumber("1");
   };
 
   const handleClearElements = () => {
@@ -892,10 +851,79 @@ const FootballAnimator = () => {
     }));
     setFrames(newFrames);
     setElements([]);
-    setCurrentNumber(1);
+    setCurrentNumber("1");
   };
 
-  // Funksjon for å laste ned animasjonen som en JSON-fil
+  // Ny funksjon for PNG-eksport
+  const downloadPng = async (svg: SVGSVGElement, filename: string) => {
+    try {
+      // Klone og inline stiler for å sikre riktig rendering
+      const clonedSvg = inlineAllStyles(svg);
+      
+      // Hent dimensjoner fra viewBox
+      const viewBox = clonedSvg.getAttribute('viewBox')?.split(' ').map(Number) || [0, 0, 680, 525];
+      const width = viewBox[2];
+      const height = viewBox[3];
+      
+      // Opprett canvas med riktig størrelse
+      const canvas = document.createElement('canvas');
+      canvas.width = width;
+      canvas.height = height;
+      const ctx = canvas.getContext('2d');
+      
+      if (!ctx) {
+        throw new Error('Kunne ikke opprette canvas-kontekst');
+      }
+      
+      // Konverter SVG til blob URL
+      const svgString = new XMLSerializer().serializeToString(clonedSvg);
+      const svgBlob = new Blob([svgString], { type: 'image/svg+xml;charset=utf-8' });
+      const url = URL.createObjectURL(svgBlob);
+      
+      // Last SVG som bilde og tegn på canvas
+      const img = new Image();
+      
+      // Returner Promise som løses når bildet er lastet og konvertert til PNG
+      return new Promise<void>((resolve, reject) => {
+        img.onload = () => {
+          // Tegn bildet på canvas
+          ctx.drawImage(img, 0, 0, width, height);
+          
+          // Konverter canvas til dataURL (PNG)
+          const pngUrl = canvas.toDataURL('image/png');
+          
+          // Opprett nedlastingslink
+          const a = document.createElement('a');
+          a.href = pngUrl;
+          a.download = filename;
+          document.body.appendChild(a);
+          a.click();
+          
+          // Rydd opp
+          document.body.removeChild(a);
+          URL.revokeObjectURL(url);
+          resolve();
+        };
+        
+        img.onerror = () => {
+          reject(new Error('Feil ved lasting av SVG som bilde'));
+        };
+        
+        img.src = url;
+      });
+    } catch (error) {
+      console.error('Feil ved eksport til PNG:', error);
+    }
+  };
+
+  // Funksjon for å laste ned banen som PNG
+  const handleDownloadPng = () => {
+    if (recordedSVGRef.current) {
+      downloadPng(recordedSVGRef.current, 'taktikk.png');
+    }
+  };
+
+  // Funksjon for å laste ned animasjonen som JSON
   const handleDownloadAnimation = () => {
     const dataStr = JSON.stringify(frames, null, 2);
     const blob = new Blob([dataStr], { type: 'application/json' });
@@ -1198,12 +1226,12 @@ const FootballAnimator = () => {
   };
 
   // Denne funksjonen oppdaterer et element i keyframe med index `frameIndex`.
-  const updateFrameElement = (frameIndex: number, elementId: string, newProps: Partial<Element>) => {
+  const updateFrameElement = (frameIndex: number, elementId: string, newProps: Partial<FootballElement>) => {
     setFrames(prevFrames => {
       const updatedFrames = [...prevFrames];
       if (updatedFrames[frameIndex]) {
         updatedFrames[frameIndex].elements = updatedFrames[frameIndex].elements.map(el =>
-          el.id === elementId ? ({ ...el, ...newProps } as Element) : el
+          el.id === elementId ? ({ ...el, ...newProps } as FootballElement) : el
         );
       }
       return updatedFrames;
@@ -1245,7 +1273,7 @@ const FootballAnimator = () => {
     isPlayingRef.current = isPlaying;
   }, [isPlaying]);
 
-  const handleElementSelect = (element: Element) => {
+  const handleElementSelect = (element: FootballElement) => {
     setSelectedElement(element);
     if (element.type === 'line') {
       // Sett riktig linjestil basert på elementets egenskaper
@@ -1855,6 +1883,20 @@ const FootballAnimator = () => {
           </svg>
         </div>
       </CardContent>
+      <BottomToolbar 
+        selectedTool={tool}
+        setSelectedTool={setTool}
+        pitch={pitch}
+        handleTogglePitch={handleTogglePitch}
+        isPlaying={isPlaying}
+        onPlayPause={handlePlayPause}
+        onRewind={() => setCurrentFrame(0)}
+        onDeleteElement={handleDeleteElement}
+        onDownloadFilm={handleDownloadFilm}
+        onDownloadPng={handleDownloadPng}
+        onDownloadAnimation={handleDownloadAnimation}
+        selectedElement={selectedElement}
+      />
     </Card>
   );
 };
