@@ -6,7 +6,7 @@ interface CardProps {
 }
 
 export const Card = ({ children, className = "" }: CardProps) => {
-  return <div className={`card ${className}`}>{children}</div>;
+  return <div className={`card flex flex-col ${className}`}>{children}</div>;
 };
 
 interface CardHeaderProps {

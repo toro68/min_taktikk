@@ -45,7 +45,7 @@ const BottomToolbar: React.FC<BottomToolbarProps> = ({
   const activeButtonStyle = "bg-blue-600 text-white font-bold border-2 border-blue-700 shadow-md shadow-blue-300";
   
   return (
-    <div className="flex items-center justify-center gap-2 p-2 border-t bg-white">
+    <div className="flex items-center justify-center gap-2 p-2 border-t bg-white sticky bottom-0 z-10 w-full">
       <TooltipProvider delayDuration={0}>
         {/* Verktøyknapper */}
         <Tooltip>
