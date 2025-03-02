@@ -1402,6 +1402,37 @@ const FootballAnimator = () => {
     }
   };
 
+  // Funksjon for å laste ned en spesifikk keyframe som PNG
+  const handleDownloadKeyframePng = (frameIndex: number) => {
+    if (recordedSVGRef.current) {
+      // Lagre gjeldende tilstand
+      const currentFrameBackup = currentFrame;
+      const isPlayingBackup = isPlaying;
+      
+      // Stopp avspilling hvis den er aktiv
+      if (isPlaying) {
+        setIsPlaying(false);
+      }
+      
+      // Bytt til den valgte keyframen
+      setCurrentFrame(frameIndex);
+      
+      // Vent på at rendering er fullført
+      setTimeout(() => {
+        // Last ned PNG
+        if (recordedSVGRef.current) {
+          downloadPng(recordedSVGRef.current, `keyframe-${frameIndex + 1}.png`);
+        }
+        
+        // Gjenopprett tidligere tilstand
+        setCurrentFrame(currentFrameBackup);
+        if (isPlayingBackup) {
+          setIsPlaying(true);
+        }
+      }, 100);
+    }
+  };
+
   return (
     <Card className="w-full max-w-4xl mx-auto">
       <CardHeader className="space-y-4">
@@ -1493,6 +1524,7 @@ const FootballAnimator = () => {
           handleClearElements={handleClearElements}
           handleAddKeyframe={handleAddKeyframe}
           handleFrameDurationChange={handleFrameDurationChange}
+          handleDownloadKeyframePng={handleDownloadKeyframePng}
         />
         <TooltipProvider delayDuration={0}>
           <div className="p-2 sm:p-4 border rounded bg-white mb-4">
