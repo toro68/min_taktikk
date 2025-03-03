@@ -827,9 +827,20 @@ const FootballAnimator = () => {
   const handleDeleteFrame = () => {
     if (frames.length > 1) {
       setFrames(prevFrames => {
-        return prevFrames.filter((_, index) => index !== currentFrame);
+        // Fjern den aktuelle framen
+        const newFrames = prevFrames.filter((_, index) => index !== currentFrame);
+        return newFrames;
       });
-      setCurrentFrame(Math.min(currentFrame, frames.length - 2));
+      
+      // Oppdater currentFrame for å unngå å peke på en ikke-eksisterende frame
+      const newCurrentFrame = Math.min(currentFrame, frames.length - 2);
+      setCurrentFrame(newCurrentFrame);
+      
+      // Logg informasjon om sletting for feilsøking
+      console.log(`Slettet keyframe ${currentFrame + 1}. Ny aktiv keyframe: ${newCurrentFrame + 1}. Totalt antall keyframes: ${frames.length - 1}`);
+    } else {
+      // Ikke tillat sletting av siste gjenværende keyframe
+      console.warn("Kan ikke slette siste keyframe. Minst én keyframe må beholdes.");
     }
   };
 
@@ -973,10 +984,20 @@ const FootballAnimator = () => {
         setIsPlaying(false);
       }
     } else if (newProgress >= 1) {
+      // Sikre at vi går til neste gyldige frame
       newProgress = 0;
       const nextFrame = currentFrameRef.current + 1;
-      currentFrameRef.current = nextFrame;
-      setCurrentFrame(nextFrame);
+      
+      // Sjekk at neste frame eksisterer (kan ha blitt slettet)
+      if (nextFrame < frames.length) {
+        currentFrameRef.current = nextFrame;
+        setCurrentFrame(nextFrame);
+      } else {
+        // Hvis neste frame ikke finnes, gå til siste gyldige frame
+        const lastValidFrame = frames.length - 1;
+        currentFrameRef.current = lastValidFrame;
+        setCurrentFrame(lastValidFrame);
+      }
     }
     
     progressRef.current = newProgress;
@@ -1009,6 +1030,12 @@ const FootballAnimator = () => {
       let canvasFallback: HTMLCanvasElement | null = null;
       let recording = true;
       let updateCanvasRafId = 0;
+      
+      // Logg informasjon om alle keyframes for feilsøking
+      console.log(`Starter opptak med ${frames.length} keyframes:`);
+      frames.forEach((frame, index) => {
+        console.log(`Keyframe ${index + 1}: ${frame.elements.length} elementer, varighet: ${frame.duration}s`);
+      });
       
       const svg = recordedSVGRef.current;
       const serializer = new XMLSerializer();
@@ -1062,10 +1089,10 @@ const FootballAnimator = () => {
           
           console.log("UpdateCanvas: " + (performance.now() - startTime).toFixed(0) + " ms");
           
-          if (performance.now() - startTime >= 5000) {
-            recording = false;
-            if (updateCanvasRafId) cancelAnimationFrame(updateCanvasRafId);
-            return;
+          // Fjernet 5000 ms begrensningen for å tillate lengre opptak
+          // Legg til en mer fleksibel timeout-sjekk for å unngå at nettleseren henger
+          if (performance.now() - startTime >= 10000) {
+            console.warn("En enkelt frame tok mer enn 10 sekunder å rendere. Sjekk for komplekse elementer.");
           }
           
           // Fortsett animasjonsløkken
@@ -1086,7 +1113,7 @@ const FootballAnimator = () => {
       // Konfigurer MediaRecorder med høy kvalitet og kompatible innstillinger
       const recorder = new MediaRecorder(stream, { 
         mimeType: 'video/webm;codecs=vp8',
-        videoBitsPerSecond: 5000000 // 5 Mbps for bedre kompatibilitet
+        videoBitsPerSecond: 2500000 // Redusert til 2.5 Mbps for bedre stabilitet ved lengre opptak
       });
       
       const chunks: Blob[] = [];
@@ -1094,6 +1121,7 @@ const FootballAnimator = () => {
       recorder.ondataavailable = (event) => {
         if (event.data.size > 0) {
           chunks.push(event.data);
+          console.log(`Databit mottatt: ${(event.data.size / 1024 / 1024).toFixed(2)} MB`);
         }
       };
       
@@ -1102,8 +1130,12 @@ const FootballAnimator = () => {
         recording = false;
         if (updateCanvasRafId) cancelAnimationFrame(updateCanvasRafId);
         
+        console.log(`Opptak fullført. Totalt ${chunks.length} datablokker samlet.`);
+        
         // Lag video-blob og last ned
         const blobVideo = new Blob(chunks, { type: 'video/webm' });
+        console.log(`Total videostørrelse: ${(blobVideo.size / 1024 / 1024).toFixed(2)} MB`);
+        
         const url = URL.createObjectURL(blobVideo);
         const anchor = document.createElement('a');
         anchor.href = url;
@@ -1124,8 +1156,9 @@ const FootballAnimator = () => {
         isPlayingRef.current = false;
       };
       
-      // Start opptak med datainnsamling hvert 100ms
-      recorder.start(100);
+      // Start opptak med datainnsamling hvert 1000ms (1 sekund)
+      // Dette hjelper med å håndtere lengre opptak ved å dele dem opp i mindre segmenter
+      recorder.start(1000);
       console.log("Opptak startet");
       
       // Start avspilling
@@ -1135,15 +1168,21 @@ const FootballAnimator = () => {
       // Beregn total varighet basert på summen av alle keyframes' individuelle varigheter
       const totalDuration = frames.reduce((total, frame) => total + (frame.duration * 1000 / playbackSpeed), 0);
       
-      // Legg til en buffer på 5 sekunder for å sikre at hele animasjonen blir med
-      const recordDuration = Math.max(totalDuration, 5000);
+      // Tillat lengre opptak, opp til 10 minutter (600000 ms)
+      const maxRecordDuration = 600000; // 10 minutter
       
-      console.log(`Total animasjonsvarighet: ${totalDuration}ms, opptaksvarighet: ${recordDuration + 5000}ms`);
+      // Legg til ekstra tid basert på antall keyframes for å sikre at alle kommer med
+      const keyframeBuffer = frames.length * 1000; // 1000ms ekstra per keyframe
+      const recordDuration = Math.min(Math.max(totalDuration * 1.5, 5000) + keyframeBuffer, maxRecordDuration);
+      
+      console.log(`Total animasjonsvarighet: ${totalDuration}ms, opptaksvarighet: ${recordDuration + 20000}ms (maks ${maxRecordDuration}ms)`);
+      console.log(`Antall keyframes: ${frames.length}, ekstra buffer per keyframe: ${keyframeBuffer}ms`);
+      console.log(`Gjennomsnittlig varighet per keyframe: ${totalDuration / frames.length}ms`);
       
       setTimeout(() => {
         console.log("Stopper opptak");
         recorder.stop();
-      }, recordDuration + 5000); // Legg til 5 sekunder buffer-tid for å sikre at hele animasjonen blir med
+      }, recordDuration + 20000); // Økt buffer-tid fra 10 til 20 sekunder, pluss ekstra tid per keyframe
     } else {
       console.error('Ingen SVG for opptak.');
     }
