@@ -1034,6 +1034,52 @@ const FootballAnimator = () => {
     fileInput.click();
   };
 
+  const handleLoadExampleAnimation = () => {
+    // Hent eksempelanimasjonen fra public/examples-mappen
+    fetch('/min_taktikk/examples/pasningsmonster.json')
+      .then(response => {
+        if (!response.ok) {
+          throw new Error('Kunne ikke laste eksempelanimasjonen');
+        }
+        return response.json();
+      })
+      .then(jsonData => {
+        // Valider at dataene har riktig format
+        if (Array.isArray(jsonData) && jsonData.length > 0) {
+          // Sjekk at hver frame har elements-array
+          const isValid = jsonData.every(frame => 
+            frame && typeof frame === 'object' && Array.isArray(frame.elements)
+          );
+          
+          if (isValid) {
+            // Oppdater frames-state med de importerte dataene
+            setFrames(jsonData);
+            setCurrentFrame(0);
+            setProgress(0);
+            currentFrameRef.current = 0;
+            progressRef.current = 0;
+            
+            // Oppdater elementer med første frame
+            if (jsonData[0] && jsonData[0].elements) {
+              setElements(jsonData[0].elements);
+            }
+            
+            console.log(`Eksempelanimasjon lastet inn: ${jsonData.length} keyframes`);
+          } else {
+            console.error('Ugyldig JSON-format: Mangler elements-array i frames');
+            alert('Ugyldig animasjonsformat. Filen mangler nødvendige data.');
+          }
+        } else {
+          console.error('Ugyldig JSON-format: Ikke et array eller tomt array');
+          alert('Ugyldig animasjonsformat. Filen inneholder ikke keyframes.');
+        }
+      })
+      .catch(error => {
+        console.error('Feil ved lasting av eksempelanimasjon:', error);
+        alert('Kunne ikke laste eksempelanimasjonen. Vennligst prøv igjen senere.');
+      });
+  };
+
   // Ny implementasjon av animasjonsløkken via requestAnimationFrame
   const animateFrames = (currentTime: number) => {
     if (!isPlayingRef.current) return;
@@ -1899,6 +1945,7 @@ const FootballAnimator = () => {
         onDownloadPng={handleDownloadPng}
         onDownloadAnimation={handleDownloadAnimation}
         onLoadAnimation={handleLoadAnimation}
+        onLoadExampleAnimation={handleLoadExampleAnimation}
         selectedElement={selectedElement}
       />
     </Card>

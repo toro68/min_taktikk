@@ -2,7 +2,7 @@ import React from 'react';
 import { Button } from './ui/button';
 import { 
   MousePointer, User, Users, Volleyball, Cone, PenTool, Type, SquareSplitHorizontal,
-  Trash2, Play, Pause, SkipBack, Film, Download, Upload
+  Trash2, Play, Pause, SkipBack, Film, Download, Upload, BookOpen
 } from 'lucide-react';
 import {
   Tooltip,
@@ -25,6 +25,7 @@ interface BottomToolbarProps {
   onDownloadPng: () => void;
   onDownloadAnimation: () => void;
   onLoadAnimation: () => void;
+  onLoadExampleAnimation: () => void;
   selectedElement?: any | null;
 }
 
@@ -41,6 +42,7 @@ const BottomToolbar: React.FC<BottomToolbarProps> = ({
   onDownloadPng,
   onDownloadAnimation,
   onLoadAnimation,
+  onLoadExampleAnimation,
   selectedElement
 }) => {
   // Stil for aktiv knapp - endret for å gjøre den mer synlig
@@ -300,12 +302,12 @@ const BottomToolbar: React.FC<BottomToolbarProps> = ({
               className="flex gap-1 items-center bg-blue-50 hover:bg-blue-100"
             >
               <Download className="w-4 h-4" />
-              <span className="hidden sm:inline">Lagre animasjon</span>
+              <span className="hidden sm:inline">Lagre JSON</span>
             </Button>
           </TooltipTrigger>
           <TooltipContent side="top" sideOffset={2} className="py-0.5 px-1.5 bg-black/90 text-white border-0">
             <div className="flex flex-col">
-              <p className="text-[10px] font-medium">Lagre animasjon</p>
+              <p className="text-[10px] font-medium">Lagre JSON</p>
               <p className="text-[9px] text-gray-300">Last ned som JSON-fil</p>
             </div>
           </TooltipContent>
@@ -320,13 +322,33 @@ const BottomToolbar: React.FC<BottomToolbarProps> = ({
               className="flex gap-1 items-center bg-blue-50 hover:bg-blue-100"
             >
               <Upload className="w-4 h-4" />
-              <span className="hidden sm:inline">Last inn</span>
+              <span className="hidden sm:inline">Last inn JSON</span>
             </Button>
           </TooltipTrigger>
           <TooltipContent side="top" sideOffset={2} className="py-0.5 px-1.5 bg-black/90 text-white border-0">
             <div className="flex flex-col">
-              <p className="text-[10px] font-medium">Last inn animasjon</p>
+              <p className="text-[10px] font-medium">Last inn JSON</p>
               <p className="text-[9px] text-gray-300">Importer JSON-fil</p>
+            </div>
+          </TooltipContent>
+        </Tooltip>
+
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Button 
+              variant="ghost" 
+              size="sm" 
+              onClick={onLoadExampleAnimation} 
+              className="flex gap-1 items-center bg-green-50 hover:bg-green-100"
+            >
+              <BookOpen className="w-4 h-4" />
+              <span className="hidden sm:inline">Eksempel</span>
+            </Button>
+          </TooltipTrigger>
+          <TooltipContent side="top" sideOffset={2} className="py-0.5 px-1.5 bg-black/90 text-white border-0">
+            <div className="flex flex-col">
+              <p className="text-[10px] font-medium">Last inn eksempel</p>
+              <p className="text-[9px] text-gray-300">Prøv pasningsmonster-animasjonen</p>
             </div>
           </TooltipContent>
         </Tooltip>
