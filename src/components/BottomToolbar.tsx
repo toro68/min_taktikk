@@ -2,7 +2,7 @@ import React from 'react';
 import { Button } from './ui/button';
 import { 
   MousePointer, User, Users, Volleyball, Cone, PenTool, Type, SquareSplitHorizontal,
-  Trash2, Play, Pause, SkipBack, Film, Download
+  Trash2, Play, Pause, SkipBack, Film, Download, Upload
 } from 'lucide-react';
 import {
   Tooltip,
@@ -24,6 +24,7 @@ interface BottomToolbarProps {
   onDownloadFilm: () => void;
   onDownloadPng: () => void;
   onDownloadAnimation: () => void;
+  onLoadAnimation: () => void;
   selectedElement?: any | null;
 }
 
@@ -39,6 +40,7 @@ const BottomToolbar: React.FC<BottomToolbarProps> = ({
   onDownloadFilm,
   onDownloadPng,
   onDownloadAnimation,
+  onLoadAnimation,
   selectedElement
 }) => {
   // Stil for aktiv knapp - endret for å gjøre den mer synlig
@@ -305,6 +307,26 @@ const BottomToolbar: React.FC<BottomToolbarProps> = ({
             <div className="flex flex-col">
               <p className="text-[10px] font-medium">Lagre animasjon</p>
               <p className="text-[9px] text-gray-300">Last ned som JSON-fil</p>
+            </div>
+          </TooltipContent>
+        </Tooltip>
+
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Button 
+              variant="ghost" 
+              size="sm" 
+              onClick={onLoadAnimation} 
+              className="flex gap-1 items-center bg-blue-50 hover:bg-blue-100"
+            >
+              <Upload className="w-4 h-4" />
+              <span className="hidden sm:inline">Last inn</span>
+            </Button>
+          </TooltipTrigger>
+          <TooltipContent side="top" sideOffset={2} className="py-0.5 px-1.5 bg-black/90 text-white border-0">
+            <div className="flex flex-col">
+              <p className="text-[10px] font-medium">Last inn animasjon</p>
+              <p className="text-[9px] text-gray-300">Importer JSON-fil</p>
             </div>
           </TooltipContent>
         </Tooltip>

@@ -963,6 +963,77 @@ const FootballAnimator = () => {
     URL.revokeObjectURL(url);
   };
 
+  // Funksjon for å laste inn animasjon fra JSON-fil
+  const handleLoadAnimation = () => {
+    // Opprett et skjult filinput-element
+    const fileInput = document.createElement('input');
+    fileInput.type = 'file';
+    fileInput.accept = '.json';
+    fileInput.style.display = 'none';
+    document.body.appendChild(fileInput);
+    
+    // Håndter filvalg
+    fileInput.onchange = (event) => {
+      const target = event.target as HTMLInputElement;
+      if (target.files && target.files.length > 0) {
+        const file = target.files[0];
+        const reader = new FileReader();
+        
+        reader.onload = (e) => {
+          try {
+            const jsonData = JSON.parse(e.target?.result as string);
+            
+            // Valider at dataene har riktig format
+            if (Array.isArray(jsonData) && jsonData.length > 0) {
+              // Sjekk at hver frame har elements-array
+              const isValid = jsonData.every(frame => 
+                frame && typeof frame === 'object' && Array.isArray(frame.elements)
+              );
+              
+              if (isValid) {
+                // Oppdater frames-state med de importerte dataene
+                setFrames(jsonData);
+                setCurrentFrame(0);
+                setProgress(0);
+                currentFrameRef.current = 0;
+                progressRef.current = 0;
+                
+                // Oppdater elementer med første frame
+                if (jsonData[0] && jsonData[0].elements) {
+                  setElements(jsonData[0].elements);
+                }
+                
+                console.log(`Animasjon lastet inn: ${jsonData.length} keyframes`);
+              } else {
+                console.error('Ugyldig JSON-format: Mangler elements-array i frames');
+                alert('Ugyldig animasjonsformat. Filen mangler nødvendige data.');
+              }
+            } else {
+              console.error('Ugyldig JSON-format: Ikke et array eller tomt array');
+              alert('Ugyldig animasjonsformat. Filen inneholder ikke keyframes.');
+            }
+          } catch (error) {
+            console.error('Feil ved parsing av JSON:', error);
+            alert('Kunne ikke lese filen. Sjekk at det er en gyldig JSON-fil.');
+          }
+        };
+        
+        reader.onerror = () => {
+          console.error('Feil ved lesing av fil');
+          alert('Feil ved lesing av fil. Vennligst prøv igjen.');
+        };
+        
+        reader.readAsText(file);
+      }
+      
+      // Fjern filinput-elementet
+      document.body.removeChild(fileInput);
+    };
+    
+    // Utløs klikk på filinput
+    fileInput.click();
+  };
+
   // Ny implementasjon av animasjonsløkken via requestAnimationFrame
   const animateFrames = (currentTime: number) => {
     if (!isPlayingRef.current) return;
@@ -1827,6 +1898,7 @@ const FootballAnimator = () => {
         onDownloadFilm={handleDownloadFilm}
         onDownloadPng={handleDownloadPng}
         onDownloadAnimation={handleDownloadAnimation}
+        onLoadAnimation={handleLoadAnimation}
         selectedElement={selectedElement}
       />
     </Card>
