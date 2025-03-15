@@ -891,8 +891,8 @@ const FootballAnimator = () => {
       const width = viewBox[2];
       const height = viewBox[3];
       
-      // Skaleringsforhold for høyere oppløsning (8x original størrelse for større filer)
-      const scale = 8;
+      // Skaleringsforhold for høyere oppløsning (10x original størrelse for større filer)
+      const scale = 10;
       
       // Opprett canvas med høyere oppløsning
       const canvas = document.createElement('canvas');
