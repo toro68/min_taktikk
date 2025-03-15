@@ -891,8 +891,8 @@ const FootballAnimator = () => {
       const width = viewBox[2];
       const height = viewBox[3];
       
-      // Skaleringsforhold for høyere oppløsning (4x original størrelse)
-      const scale = 4;
+      // Skaleringsforhold for høyere oppløsning (8x original størrelse for større filer)
+      const scale = 8;
       
       // Opprett canvas med høyere oppløsning
       const canvas = document.createElement('canvas');
@@ -911,7 +911,11 @@ const FootballAnimator = () => {
       // Skaler konteksten for å matche den høyere oppløsningen
       ctx.scale(scale, scale);
       
-      // Konverter SVG til blob URL
+      // Forbedre SVG-kvaliteten ved å legge til ekstra attributter
+      clonedSvg.setAttribute('shape-rendering', 'geometricPrecision');
+      clonedSvg.setAttribute('text-rendering', 'optimizeLegibility');
+      
+      // Konverter SVG til blob URL med forbedret kvalitet
       const svgString = new XMLSerializer().serializeToString(clonedSvg);
       const svgBlob = new Blob([svgString], { type: 'image/svg+xml;charset=utf-8' });
       const url = URL.createObjectURL(svgBlob);
@@ -922,25 +926,40 @@ const FootballAnimator = () => {
       // Returner Promise som løses når bildet er lastet og konvertert til PNG
       return new Promise<void>((resolve, reject) => {
         img.onload = () => {
-          // Tegn bildet på canvas med hvit bakgrunn
+          // Tegn hvit bakgrunn først
           ctx.fillStyle = 'white';
           ctx.fillRect(0, 0, width, height);
+          
+          // Tegn bildet med høy kvalitet
           ctx.drawImage(img, 0, 0, width, height);
           
-          // Konverter canvas til dataURL (PNG) med høy kvalitet
-          const pngUrl = canvas.toDataURL('image/png', 1.0);
+          // Legg til ekstra detaljer for å øke filstørrelsen
+          // Tegn en tynn ramme rundt banen for å forbedre utseendet
+          ctx.strokeStyle = '#f0f0f0';
+          ctx.lineWidth = 0.5;
+          ctx.strokeRect(0, 0, width, height);
           
-          // Opprett nedlastingslink
-          const a = document.createElement('a');
-          a.href = pngUrl;
-          a.download = filename;
-          document.body.appendChild(a);
-          a.click();
-          
-          // Rydd opp
-          document.body.removeChild(a);
-          URL.revokeObjectURL(url);
-          resolve();
+          // Konverter canvas til dataURL (PNG) med maksimal kvalitet
+          // Bruk Blob i stedet for dataURL for å håndtere større filer
+          canvas.toBlob((blob) => {
+            if (!blob) {
+              reject(new Error('Kunne ikke generere PNG-blob'));
+              return;
+            }
+            
+            // Opprett nedlastingslink med blob
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = filename;
+            document.body.appendChild(a);
+            a.click();
+            
+            // Rydd opp
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+            resolve();
+          }, 'image/png', 1.0); // Maksimal kvalitet
         };
         
         img.onerror = () => {
