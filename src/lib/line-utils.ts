@@ -158,6 +158,97 @@ export const isPointNearPath = (point: { x: number; y: number }, path: string): 
 };
 
 /**
+ * Oppretter en sinuskurve-bane mellom to punkter
+ */
+export const createSineWavePath = (
+  start: { x: number; y: number },
+  end: { x: number; y: number },
+  amplitude = 10,
+  frequency = 3
+): string => {
+  const dx = end.x - start.x;
+  const dy = end.y - start.y;
+  const length = Math.sqrt(dx * dx + dy * dy);
+  
+  if (length === 0) return `M ${start.x} ${start.y} L ${end.x} ${end.y}`;
+  
+  // Normaliser retningsvektoren
+  const nx = dx / length;
+  const ny = dy / length;
+  
+  // Beregn normal vektor (vinkelrett på linjen)
+  const perpX = -ny;
+  const perpY = nx;
+  
+  // Øk antall bølger for tettere bølgemønster
+  const numWaves = Math.max(2, Math.round(frequency * length / 50));
+  
+  // Bruk flere segmenter per bølge for jevnere kurver
+  const segmentsPerWave = 4; // Flere segmenter gir jevnere bølger
+  const totalSegments = numWaves * segmentsPerWave;
+  
+  let path = `M ${start.x} ${start.y}`;
+  
+  // Bruk flere punkter for å lage jevnere sinuskurve
+  for (let i = 0; i <= totalSegments; i++) {
+    if (i === 0) continue; // Hopp over startpunktet som allerede er lagt til
+    
+    const t = i / totalSegments; // Normalisert posisjon langs linjen (0-1)
+    
+    // Beregn posisjon langs basislinjen
+    const x = start.x + t * dx;
+    const y = start.y + t * dy;
+    
+    // Beregn sinusbølge-offset (bruk cosinus for jevnere start)
+    // 2*PI*frequency gir riktig antall bølger
+    const sinValue = Math.sin(2 * Math.PI * frequency * t);
+    
+    // Legg til offset vinkelrett på linjen
+    const offsetX = perpX * amplitude * sinValue;
+    const offsetY = perpY * amplitude * sinValue;
+    
+    // Hvis dette er det første punktet etter start, bruk kubisk kurve med kontrollpunkter
+    // for å sikre en jevn start på bølgen
+    if (i === 1) {
+      // Første kontrollpunkt nær startpunktet
+      const cp1x = start.x + (dx / totalSegments) * 0.5;
+      const cp1y = start.y + (dy / totalSegments) * 0.5;
+      
+      // Andre kontrollpunkt nær første bølgepunkt
+      const cp2x = x - (dx / totalSegments) * 0.5 + offsetX * 0.5;
+      const cp2y = y - (dy / totalSegments) * 0.5 + offsetY * 0.5;
+      
+      path += ` C ${cp1x} ${cp1y}, ${cp2x} ${cp2y}, ${x + offsetX} ${y + offsetY}`;
+    } 
+    // For siste punkt, sikre jevn avslutning
+    else if (i === totalSegments) {
+      const prevT = (i - 1) / totalSegments;
+      const prevX = start.x + prevT * dx;
+      const prevY = start.y + prevT * dy;
+      const prevSinValue = Math.sin(2 * Math.PI * frequency * prevT);
+      const prevOffsetX = perpX * amplitude * prevSinValue;
+      const prevOffsetY = perpY * amplitude * prevSinValue;
+      
+      // Første kontrollpunkt etter forrige bølgepunkt
+      const cp1x = prevX + offsetX + (dx / totalSegments) * 0.5;
+      const cp1y = prevY + offsetY + (dy / totalSegments) * 0.5;
+      
+      // Andre kontrollpunkt nær sluttpunktet
+      const cp2x = end.x - (dx / totalSegments) * 0.5;
+      const cp2y = end.y - (dy / totalSegments) * 0.5;
+      
+      path += ` C ${cp1x} ${cp1y}, ${cp2x} ${cp2y}, ${end.x} ${end.y}`;
+    }
+    // For alle mellomliggende punkter, bruk S-kommando (jevn kubisk Bezier)
+    else {
+      path += ` L ${x + offsetX} ${y + offsetY}`;
+    }
+  }
+  
+  return path;
+};
+
+/**
  * Henter egenskaper for en linjestil
  */
 export const getLineProperties = (style: LineStyle, color: string = 'black') => {
@@ -166,6 +257,7 @@ export const getLineProperties = (style: LineStyle, color: string = 'black') => 
   let strokeColor = color;
   let curved = false;
   let dashed = false;
+  let sineWave = false;
   let marker: 'arrow' | 'endline' | 'plus' | 'xmark' | 'redArrow' | 'blueArrow' | 'greenArrow' | 'orangeArrow' | 'purpleArrow' | null = null;
   
   switch (style) {
@@ -217,6 +309,13 @@ export const getLineProperties = (style: LineStyle, color: string = 'black') => 
       strokeDasharray = '5,5';
       marker = 'arrow';
       break;
+    case 'sineWave':
+      sineWave = true;
+      break;
+    case 'sineWaveArrow':
+      sineWave = true;
+      marker = 'arrow';
+      break;
   }
   
   // Hvis fargen er spesifisert, bruk riktig pil basert på fargen
@@ -237,6 +336,7 @@ export const getLineProperties = (style: LineStyle, color: string = 'black') => 
   return {
     curved,
     dashed,
+    sineWave,
     marker,
     strokeDasharray,
     strokeWidth,
