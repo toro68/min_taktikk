@@ -891,15 +891,25 @@ const FootballAnimator = () => {
       const width = viewBox[2];
       const height = viewBox[3];
       
-      // Opprett canvas med riktig størrelse
+      // Skaleringsforhold for høyere oppløsning (4x original størrelse)
+      const scale = 4;
+      
+      // Opprett canvas med høyere oppløsning
       const canvas = document.createElement('canvas');
-      canvas.width = width;
-      canvas.height = height;
-      const ctx = canvas.getContext('2d');
+      canvas.width = width * scale;
+      canvas.height = height * scale;
+      const ctx = canvas.getContext('2d', { alpha: true });
       
       if (!ctx) {
         throw new Error('Kunne ikke opprette canvas-kontekst');
       }
+      
+      // Aktiver anti-aliasing for bedre kvalitet
+      ctx.imageSmoothingEnabled = true;
+      ctx.imageSmoothingQuality = 'high';
+      
+      // Skaler konteksten for å matche den høyere oppløsningen
+      ctx.scale(scale, scale);
       
       // Konverter SVG til blob URL
       const svgString = new XMLSerializer().serializeToString(clonedSvg);
@@ -912,11 +922,13 @@ const FootballAnimator = () => {
       // Returner Promise som løses når bildet er lastet og konvertert til PNG
       return new Promise<void>((resolve, reject) => {
         img.onload = () => {
-          // Tegn bildet på canvas
+          // Tegn bildet på canvas med hvit bakgrunn
+          ctx.fillStyle = 'white';
+          ctx.fillRect(0, 0, width, height);
           ctx.drawImage(img, 0, 0, width, height);
           
-          // Konverter canvas til dataURL (PNG)
-          const pngUrl = canvas.toDataURL('image/png');
+          // Konverter canvas til dataURL (PNG) med høy kvalitet
+          const pngUrl = canvas.toDataURL('image/png', 1.0);
           
           // Opprett nedlastingslink
           const a = document.createElement('a');
