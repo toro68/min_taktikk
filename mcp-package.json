@@ -1,0 +1,26 @@
+{
+  "name": "min-taktikk-mcp-server",
+  "version": "0.1.0",
+  "description": "MCP Server for Min Taktikk - Football Tactics Analyzer",
+  "type": "module",
+  "main": "mcp-server.mjs",
+  "bin": {
+    "min-taktikk-mcp-server": "./mcp-server.mjs"
+  },
+  "scripts": {
+    "start": "node mcp-server.mjs",
+    "dev": "node --inspect mcp-server.mjs"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^0.5.0"
+  },
+  "keywords": [
+    "mcp",
+    "football",
+    "tactics",
+    "analysis",
+    "animation"
+  ],
+  "author": "Min Taktikk",
+  "license": "MIT"
+}

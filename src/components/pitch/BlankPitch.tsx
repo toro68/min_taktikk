@@ -1,108 +1,80 @@
-import React, { useEffect } from 'react';
-import { PitchType } from '../../@types/elements';
-import { getPitchDimensions } from '../../lib/svg-utils';
+import React from 'react';
+import { SVG_ATTRIBUTES } from '../../constants/svg';
 
 interface BlankPitchProps {
-  pitchType: PitchType;
+  width: number;
+  height: number;
+  isPortrait?: boolean;
 }
 
-const BlankPitch: React.FC<BlankPitchProps> = ({ pitchType }) => {
-  const { width, height } = getPitchDimensions(pitchType);
-  const isPortrait = pitchType === 'blankPortrait';
-  
-  useEffect(() => {
-    console.log(`BlankPitch montert med type: ${pitchType}`);
-    console.log(`Er portrett: ${isPortrait}, dimensjoner: ${width}x${height}`);
-    
-    // Alertbox for å sikre at koden kjøres
-    if (isPortrait) {
-      alert('Blank Portrait bane lastet!');
-    }
-  }, [pitchType, isPortrait, width, height]);
-  
-  // EKSTREME farger og stiler for å sikre synlighet
-  const outerStrokeWidth = isPortrait ? 10 : 2; 
-  const innerStrokeWidth = isPortrait ? 5 : 1;
-  const outerStrokeColor = isPortrait ? "#ff0000" : "#000000"; // Rød
-  const innerStrokeColor = isPortrait ? "#ffff00" : "#000000"; // Gul
+const BlankPitch: React.FC<BlankPitchProps> = ({ width, height, isPortrait = false }) => {
+  const outerStrokeColor = isPortrait ? SVG_ATTRIBUTES.stroke.red : SVG_ATTRIBUTES.stroke.black;
+  const innerStrokeColor = isPortrait ? "#ffff00" : SVG_ATTRIBUTES.stroke.black; // Gul kan være egen konstant senere
   
   return (
-    <svg
-      viewBox={`0 0 ${width} ${height}`}
-      className="w-full h-full"
-      preserveAspectRatio="xMidYMid meet"
-      style={{ border: isPortrait ? '3px dashed #ff00ff' : 'none' }} // Magenta border på selve SVG-elementet
+    <div 
+      className="flex items-center justify-center bg-gray-100" 
+      style={{ 
+        width: `${width}px`, 
+        height: `${height}px`,
+        border: isPortrait ? '3px dashed #ff00ff' : 'none' // Magenta kan være egen konstant
+      }}
     >
-      {/* Bakgrunn - ikke helt hvit for portrett */}
-      <rect
-        x="0"
-        y="0"
-        width={width}
-        height={height}
-        fill={isPortrait ? "#f0f0f0" : "white"} // Litt gråere bakgrunn for portrett
-        stroke="none"
-      />
-      
-      {/* Ytre ramme */}
-      <rect
-        x="20"
-        y="20"
-        width={width - 40}
-        height={height - 40}
-        fill="none"
-        stroke={outerStrokeColor}
-        strokeWidth={outerStrokeWidth}
-      />
-      
-      {/* Indre ramme */}
-      <rect
-        x="40"
-        y="40"
-        width={width - 80}
-        height={height - 80}
-        fill="none"
-        stroke={innerStrokeColor}
-        strokeWidth={innerStrokeWidth}
-      />
-      
-      {/* Tydelig tekst for debugging */}
-      {isPortrait && (
-        <>
+      <svg 
+        width={width} 
+        height={height} 
+        viewBox={`0 0 ${width} ${height}`}
+        className="border-2"
+        style={{ borderColor: outerStrokeColor }}
+      >
+        <rect
+          x="2"
+          y="2"
+          width={width - 4}
+          height={height - 4}
+          fill={isPortrait ? "#f0f0f0" : SVG_ATTRIBUTES.fill.white}
+          stroke={outerStrokeColor}
+          strokeWidth={SVG_ATTRIBUTES.strokeWidth.normal}
+        />
+        
+        <rect
+          x="20"
+          y="20"
+          width={width - 40}
+          height={height - 40}
+          fill={SVG_ATTRIBUTES.fill.none}
+          stroke={innerStrokeColor}
+          strokeWidth={SVG_ATTRIBUTES.strokeWidth.thin}
+        />
+        
+        {isPortrait ? (
           <text
             x={width / 2}
             y={height / 2 - 20}
             textAnchor="middle"
             dominantBaseline="middle"
-            fill="#ff0000"
+            fill={SVG_ATTRIBUTES.stroke.red}
             fontSize="24"
             fontWeight="bold"
           >
             BLANK PORTRETT
           </text>
+        ) : (
           <text
             x={width / 2}
-            y={height / 2 + 20}
+            y={height / 2}
             textAnchor="middle"
             dominantBaseline="middle"
-            fill="#0000ff"
-            fontSize="18"
+            fill={SVG_ATTRIBUTES.stroke.black}
+            fontSize="32"
+            fontWeight="bold"
           >
-            {width}x{height}
+            BLANK LANDSKAP
           </text>
-        </>
-      )}
-      
-      {/* Hjørnemarkører */}
-      {isPortrait && (
-        <>
-          <circle cx="20" cy="20" r="10" fill="#ff0000" />
-          <circle cx={width-20} cy="20" r="10" fill="#ff0000" />
-          <circle cx="20" cy={height-20} r="10" fill="#ff0000" />
-          <circle cx={width-20} cy={height-20} r="10" fill="#ff0000" />
-        </>
-      )}
-    </svg>
+        )}
+      </svg>
+    </div>
   );
 };
 
-export default BlankPitch; 
+export default BlankPitch;

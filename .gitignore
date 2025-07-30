@@ -36,3 +36,4 @@ main.*.js.map
 
 # Prosjektspesifikke mapper
 min_taktikk_fresh/
+coverage/

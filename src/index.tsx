@@ -1,15 +1,20 @@
 import React from 'react';
 import ReactDOM from 'react-dom/client';
-import FootballAnimator from './football-animator';
+import './index.css';
+import App from './App';
+import ErrorBoundary from './components/core/ErrorBoundary';
+import { AppThemeProvider } from './providers/AppThemeProvider';
 
-const rootElement = document.getElementById('root');
-if (!rootElement) {
-  throw new Error('Finner ikke et element med id "root" i index.html');
-}
+const root = ReactDOM.createRoot(
+  document.getElementById('root') as HTMLElement
+);
 
-const root = ReactDOM.createRoot(rootElement);
 root.render(
   <React.StrictMode>
-    <FootballAnimator />
+    <ErrorBoundary>
+      <AppThemeProvider>
+        <App />
+      </AppThemeProvider>
+    </ErrorBoundary>
   </React.StrictMode>
-); 
+);

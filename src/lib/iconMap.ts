@@ -1,0 +1,120 @@
+import { 
+  MousePointer, 
+  User, 
+  Users, 
+  Volleyball, 
+  Cone, 
+  PenTool, 
+  Type, 
+  Square,
+  SquareDashedBottom,
+  Trash2,
+  Play,
+  Pause,
+  SkipBack,
+  Copy,
+  Plus,
+  Film,
+  Download,
+  FileImage,
+  Upload,
+  BookOpen,
+  Image,
+  Minus,
+  Smile,
+  ArrowRight,
+  CornerDownRight,
+  // Base style ikoner
+  Waves,
+  MoreHorizontal,
+  ArrowUpRight,
+  // Profesjonelle taktikk-symboler
+  TrendingUp,
+  Zap,
+  RotateCcw,
+  Footprints,
+  ArrowRightLeft,
+  ArrowBigRight,
+  Target,
+  Shuffle,
+  Circle,
+  ArrowBigUp,
+  Shield,
+  GitBranch,
+  // Ekstra ikoner for bedre representasjon
+  Users2,
+  Activity,
+  Move3D,
+  ChevronUp,
+  Crosshair,
+  // Nye ikoner for å matche .aigenrc
+  ChevronDown,
+  Palette,
+  Settings,
+  // Hook icon (using a fish hook-like icon)
+  Fish,
+  LucideIcon
+} from 'lucide-react';
+
+// Map icon strings to actual icon components
+export const ICON_MAP: Record<string, LucideIcon> = {
+  'MousePointer': MousePointer,
+  'User': User,
+  'Users': Users,
+  'Volleyball': Volleyball,
+  'Cone': Cone,
+  'PenTool': PenTool,
+  'Type': Type,
+  'Square': Square,
+  'SquareDashedBottom': SquareDashedBottom,
+  'Trash2': Trash2,
+  'Play': Play,
+  'Pause': Pause,
+  'SkipBack': SkipBack,
+  'Copy': Copy,
+  'Plus': Plus,
+  'Film': Film,
+  'Download': Download,
+  'FileImage': FileImage,
+  'Upload': Upload,
+  'BookOpen': BookOpen,
+  'Image': Image,
+  'Minus': Minus,
+  'Smile': Smile,
+  'ArrowRight': ArrowRight,
+  'CornerDownRight': CornerDownRight,
+  // Base style ikoner
+  'Waves': Waves,
+  'MoreHorizontal': MoreHorizontal,
+  'ArrowUpRight': ArrowUpRight,
+  'Hook': Fish, // Using Fish icon for hook
+  // Profesjonelle taktikk-symboler
+  'TrendingUp': TrendingUp,
+  'Zap': Zap,
+  'RotateCcw': RotateCcw,
+  'Footprints': Footprints,
+  'ArrowRightLeft': ArrowRightLeft,
+  'ArrowBigRight': ArrowBigRight,
+  'Target': Target,
+  'Shuffle': Shuffle,
+  'Circle': Circle,
+  'ArrowBigUp': ArrowBigUp,
+  'Shield': Shield,
+  'GitBranch': GitBranch,
+  // Ekstra ikoner for bedre representasjon
+  'Users2': Users2,
+  'Activity': Activity,
+  'Move3D': Move3D,
+  'ChevronUp': ChevronUp,
+  'ChevronDown': ChevronDown,
+  'Crosshair': Crosshair,
+  'Palette': Palette,
+  'Settings': Settings,
+  // Add special handling for Play/Pause
+  'Play/Pause': Play, // Default to Play, component logic will handle the switch
+};
+
+// Function to get icon component from string
+export const getIconComponent = (iconName: string): LucideIcon => {
+  return ICON_MAP[iconName] || Square; // Fallback to Square if icon not found
+};

@@ -77,12 +77,15 @@ interface SelectContentProps<T extends string> {
 export const SelectContent = <T extends string>({ children, onSelect }: SelectContentProps<T>) => {
   return (
     <div className="select-content absolute top-full mt-1 w-full rounded-lg border border-gray-200 bg-white shadow-lg z-10">
-      {React.Children.map(children, (child) => {
+      {React.Children.map(children, (child, index) => {
         if (!React.isValidElement(child)) return child;
         if (child.type === SelectItem) {
-          return React.cloneElement(child as React.ReactElement<SelectItemProps<T>>, { onSelect });
+          return React.cloneElement(child as React.ReactElement<SelectItemProps<T>>, { 
+            onSelect,
+            key: child.key || `select-item-${index}`
+          });
         }
-        return child;
+        return React.cloneElement(child, { key: child.key || `select-child-${index}` });
       })}
     </div>
   );

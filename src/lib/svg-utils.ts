@@ -1,57 +1,218 @@
-import { PitchType, LineElement } from '../@types/elements';
+import { PitchType } from '../@types/elements';
 
-interface Point {
+export interface Coordinates {
   x: number;
   y: number;
 }
 
+export interface PitchDimensions {
+  width: number;
+  height: number;
+  viewBox: string;
+}
+
+// Add coordinate caching for performance during drag operations
+const coordinateCache = new Map<string, { coords: Coordinates; timestamp: number }>();
+const CACHE_DURATION = 16; // Cache for 16ms (one frame at 60fps)
+
+/**
+ * Helper to validate SVG coordinates
+ */
+export const isValidCoordinate = (value: number): boolean => {
+  return typeof value === 'number' && !isNaN(value) && isFinite(value);
+};
+
 /**
  * Konverterer klientkoordinater til SVG-koordinater
- * @param clientX Klientens X-koordinat
- * @param clientY Klientens Y-koordinat
- * @param svgElement SVG-elementet
- * @returns SVG-koordinater
+ * Robust implementation that handles all edge cases
  */
-export const getSVGCoordinates = (
+export function getSVGCoordinates(
   clientX: number, 
   clientY: number, 
   svgElement: SVGSVGElement | null
-): Point => {
-  if (!svgElement) return { x: 0, y: 0 };
+): Coordinates {
+  // Early return for invalid input
+  if (!svgElement || typeof clientX !== 'number' || typeof clientY !== 'number') {
+    return { x: 0, y: 0 };
+  }
+
+  // Check for NaN or infinite values
+  if (!isFinite(clientX) || !isFinite(clientY)) {
+    return { x: 0, y: 0 };
+  }
+
+  // Create cache key for this calculation - handle missing getAttribute safely
+  const viewBoxForCache = (svgElement.getAttribute && svgElement.getAttribute('viewBox')) || 'default';
+  const cacheKey = `${clientX.toFixed(1)}-${clientY.toFixed(1)}-${viewBoxForCache}`;
+  const now = Date.now();
   
-  const svgPoint = svgElement.createSVGPoint();
-  svgPoint.x = clientX;
-  svgPoint.y = clientY;
+  // Check cache first
+  const cached = coordinateCache.get(cacheKey);
+  if (cached && (now - cached.timestamp) < CACHE_DURATION) {
+    return cached.coords;
+  }
   
-  const transformedPoint = svgPoint.matrixTransform(svgElement.getScreenCTM()?.inverse());
+  const rect = svgElement.getBoundingClientRect && svgElement.getBoundingClientRect();
+  
+  // Handle missing getBoundingClientRect or invalid rect
+  if (!rect || typeof rect.width !== 'number' || typeof rect.height !== 'number') {
+    return { x: 0, y: 0 };
+  }
+  
+  // Handle zero or negative dimensions
+  if (rect.width <= 0 || rect.height <= 0) {
+    return { x: clientX, y: clientY };
+  }
+  
+  // Try native SVG transformation first (browser environment)
+  if (typeof svgElement.createSVGPoint === 'function') {
+    try {
+      const point = svgElement.createSVGPoint();
+      point.x = clientX;
+      point.y = clientY;
+      
+      const ctm = svgElement.getScreenCTM();
+      if (ctm) {
+        const transformedPoint = point.matrixTransform(ctm.inverse());          // Validate the result
+          if (isFinite(transformedPoint.x) && isFinite(transformedPoint.y)) {
+            const result = { x: transformedPoint.x, y: transformedPoint.y };
+            
+            // Cache the result
+            coordinateCache.set(cacheKey, { coords: result, timestamp: now });
+            
+            return result;
+          }
+      }
+    } catch (error) {
+      // Fall through to manual calculation
+    }
+  }
+  
+  // Manual calculation fallback - optimized for performance
+  const relativeX = clientX - rect.left;
+  const relativeY = clientY - rect.top;
+  
+  // Default to element dimensions if no viewBox
+  let viewBoxX = 0;
+  let viewBoxY = 0;
+  let viewBoxWidth = rect.width;
+  let viewBoxHeight = rect.height;
+  
+  // Parse viewBox attribute if present - optimized version
+  const viewBoxAttr = svgElement.getAttribute?.('viewBox');
+  if (viewBoxAttr) {
+    // Use faster parsing without regex
+    const values = viewBoxAttr.trim().split(/\s+/);
+    if (values.length === 4) {
+      const x = parseFloat(values[0]);
+      const y = parseFloat(values[1]);
+      const w = parseFloat(values[2]);
+      const h = parseFloat(values[3]);
+      
+      // Only update if all values are valid
+      if (!isNaN(x) && !isNaN(y) && !isNaN(w) && !isNaN(h) && w > 0 && h > 0) {
+        viewBoxX = x;
+        viewBoxY = y;
+        viewBoxWidth = w;
+        viewBoxHeight = h;
+      }
+    }
+  }
+  
+  // Calculate scale factors
+  const scaleX = viewBoxWidth > 0 && rect.width > 0 ? viewBoxWidth / rect.width : 1;
+  const scaleY = viewBoxHeight > 0 && rect.height > 0 ? viewBoxHeight / rect.height : 1;
+  
+  // Transform to SVG coordinate space
+  const transformedX = viewBoxX + (relativeX * scaleX);
+  const transformedY = viewBoxY + (relativeY * scaleY);
+  
+  // Final validation and result
+  const result = {
+    x: isFinite(transformedX) ? transformedX : 0,
+    y: isFinite(transformedY) ? transformedY : 0
+  };
+  
+  // Cache the result
+  coordinateCache.set(cacheKey, { coords: result, timestamp: now });
+  
+  // Clean up old cache entries periodically
+  if (coordinateCache.size > 100) {
+    coordinateCache.forEach((value, key) => {
+      if (now - value.timestamp > 1000) { // Remove entries older than 1 second
+        coordinateCache.delete(key);
+      }
+    });
+  }
+  
+  return result;
+};
+
+/**
+ * Constrains coordinates to viewBox boundaries
+ */
+const constrainToViewBox = (coords: Coordinates, svgElement: SVGSVGElement): Coordinates => {
+  const viewBoxAttr = svgElement.getAttribute('viewBox');
+  if (!viewBoxAttr) return coords;
+  
+  const values = viewBoxAttr.trim().split(/\s+/);
+  if (values.length !== 4) return coords;
+  
+  const [x, y, width, height] = values.map(parseFloat);
+  if (values.some(value => isNaN(parseFloat(value)))) return coords;
+  
   return {
-    x: transformedPoint.x,
-    y: transformedPoint.y
+    x: Math.max(x, Math.min(x + width, coords.x)),
+    y: Math.max(y, Math.min(y + height, coords.y))
   };
 };
 
 /**
  * Henter dimensjoner for ulike banetyper
  */
-export const getPitchDimensions = (pitchType: PitchType): { width: number; height: number } => {
-  switch (pitchType) {
+export const getPitchDimensions = (pitch: PitchType): PitchDimensions => {
+  let width: number, height: number;
+  
+  switch (pitch) {
     case 'full':
-      return { width: 1050, height: 680 };
-    case 'offensive':
-      return { width: 525, height: 680 };
-    case 'defensive':
-      return { width: 525, height: 680 };
-    case 'handball':
-      return { width: 400, height: 200 };
+      width = 680;
+      height = 1050;
+      break;
     case 'fullLandscape':
-      return { width: 1050, height: 680 };
+      width = 1050;
+      height = 680;
+      break;
+    case 'handball':
+      width = 680;
+      height = 340;
+      break;
     case 'blankPortrait':
-      return { width: 680, height: 1050 };
+      width = 680;
+      height = 1050;
+      break;
     case 'blankLandscape':
-      return { width: 1050, height: 680 };
+      width = 1050;
+      height = 680;
+      break;
+    case 'offensive':
+      width = 680;
+      height = 525;
+      break;
+    case 'defensive':
+      width = 680;
+      height = 525;
+      break;
     default:
-      return { width: 1050, height: 680 };
+      width = 680;
+      height = 525;
+      break;
   }
+  
+  return {
+    width,
+    height,
+    viewBox: `0 0 ${width} ${height}`
+  };
 };
 
 /**
@@ -67,7 +228,7 @@ export const generateId = (): string => {
  * @param p2 Andre punkt
  * @returns Avstand mellom punktene
  */
-export const calculateDistance = (p1: Point, p2: Point): number => {
+export const calculateDistance = (p1: Coordinates, p2: Coordinates): number => {
   const dx = p2.x - p1.x;
   const dy = p2.y - p1.y;
   return Math.sqrt(dx * dx + dy * dy);
@@ -114,7 +275,7 @@ export const calculateRotationAngle = (
  * @param points Array med punkter
  * @returns SVG-linjesti
  */
-export const createLinePath = (points: Point[]): string => {
+export const createLinePath = (points: Coordinates[]): string => {
   if (points.length < 2) return '';
   
   let path = `M ${points[0].x} ${points[0].y}`;
@@ -132,7 +293,7 @@ export const createLinePath = (points: Point[]): string => {
  * @param curveOffset Offset for kontrollpunkter
  * @returns SVG-kurvesti
  */
-export const createCurvePath = (points: Point[], curveOffset: number = 30): string => {
+export const createCurvePath = (points: Coordinates[], curveOffset: number = 30): string => {
   if (points.length < 2) return '';
   
   let path = `M ${points[0].x} ${points[0].y}`;
@@ -168,8 +329,8 @@ export const createCurvePath = (points: Point[], curveOffset: number = 30): stri
  * @param markerLength Markørens lengde
  * @returns Endepunkt for markøren
  */
-export const calculateMarkerEndpoint = (path: string, markerLength: number = 10): Point => {
-  const commands = path.trim().split(/(?=[MLHVCSQTAZmlhvcsqtaz])/);
+export const calculateMarkerEndpoint = (path: string, markerLength: number = 10): Coordinates => {
+  const commands = path.trim().split(/([MLHVCSQTAZmlhvcsqtaz])/);
   
   if (commands.length < 2) return { x: 0, y: 0 };
   
@@ -199,14 +360,41 @@ export const calculateMarkerEndpoint = (path: string, markerLength: number = 10)
   // Beregn retningsvektor
   const dx = endX - prevX;
   const dy = endY - prevY;
-  
-  // Normaliser og skaler
   const length = Math.sqrt(dx * dx + dy * dy);
-  const normalizedX = dx / length;
-  const normalizedY = dy / length;
+  
+  if (length === 0) return { x: endX, y: endY };
+  
+  // Normaliser og skaler med markør lengde
+  const unitX = dx / length;
+  const unitY = dy / length;
   
   return {
-    x: endX + normalizedX * markerLength,
-    y: endY + normalizedY * markerLength
+    x: endX + unitX * markerLength,
+    y: endY + unitY * markerLength
   };
-}; 
+};
+
+/**
+ * Helper to validate SVG coordinates
+ */
+export const validateCoordinates = (coords: Coordinates): Coordinates => {
+  return {
+    x: isFinite(coords.x) ? coords.x : 0,
+    y: isFinite(coords.y) ? coords.y : 0
+  };
+};
+
+/**
+ * Helper to check if coordinates are within bounds
+ */
+export const isWithinBounds = (
+  coords: Coordinates, 
+  bounds: { width: number; height: number }
+): boolean => {
+  return (
+    coords.x >= 0 && 
+    coords.x <= bounds.width && 
+    coords.y >= 0 && 
+    coords.y <= bounds.height
+  );
+};

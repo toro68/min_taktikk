@@ -1,0 +1,9 @@
+{
+  "mcpServers": {
+    "min-taktikk": {
+      "command": "node",
+      "args": ["mcp-server.mjs"],
+      "cwd": "/Users/tor.inge.jossang@aftenbladet.no/dev/min_taktikk"
+    }
+  }
+}

@@ -1,20 +1,26 @@
 import React from 'react';
 
-export const Slider = ({
-  value,
-  onValueChange,
-  min,
-  max,
-  step,
-  className = ""
-}: {
+interface SliderProps {
   value: number[];
-  onValueChange: (value: number[]) => void;
   min: number;
   max: number;
   step: number;
+  onValueChange: (value: number[]) => void;
   className?: string;
+}
+
+export const Slider: React.FC<SliderProps> = ({
+  value,
+  min,
+  max,
+  step,
+  onValueChange,
+  className = ''
 }) => {
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    onValueChange([parseFloat(e.target.value)]);
+  };
+
   return (
     <input
       type="range"
@@ -22,8 +28,8 @@ export const Slider = ({
       max={max}
       step={step}
       value={value[0]}
-      onChange={(e) => onValueChange([parseFloat(e.target.value)])}
-      className={`slider ${className}`}
+      onChange={handleChange}
+      className={`w-full ${className}`}
     />
   );
-}; 
+};

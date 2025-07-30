@@ -1,123 +1,233 @@
 {
-  "version": "1.0",
+  "version": "1.1",
   "settings": {
     "toolbar": {
-      "position": "below",
-      "layout": "single-line",
-      "buttons": [
-        {
-          "key": "select",
-          "icon": "MousePointer",
-          "label": "Velg",
-          "tooltip": "Velg og flytt elementer"
-        },
-        {
-          "key": "player",
-          "icon": "User",
-          "label": "Spiller",
-          "tooltip": "Legg til spiller"
-        },
-        {
-          "key": "opponent",
-          "icon": "Users",
-          "label": "Motspiller",
-          "tooltip": "Legg til motstander"
-        },
-        {
-          "key": "ball",
-          "icon": "Volleyball",
-          "label": "Ball",
-          "tooltip": "Legg til ball"
-        },
-        {
-          "key": "togglePitch",
-          "icon": "SquareDashedBottom",
-          "label": "Bytt bane",
-          "tooltip": "Bytt banevisning"
-        },
-        {
-          "key": "cone",
-          "icon": "Cone",
-          "label": "Kjegle",
-          "tooltip": "Legg til kjegle"
-        },
-        {
-          "key": "line",
-          "icon": "PenTool",
-          "label": "Linje",
-          "tooltip": "Tegn linje eller pil"
-        },
-        {
-          "key": "delete",
-          "icon": "Trash2",
-          "label": "Slett",
-          "tooltip": "Fjern valgt element"
-        },
-        {
-          "key": "playPause",
-          "icon": "Play/Pause",
-          "label": "Start/Pause",
-          "tooltip": "Start eller pause animasjonen"
-        },
-        {
-          "key": "rewind",
-          "icon": "SkipBack",
-          "label": "Spol tilbake",
-          "tooltip": "Spol tilbake til start"
-        },
-        {
-          "key": "copy",
-          "icon": "Copy",
-          "label": "Kopier",
-          "tooltip": "Kopier"
-        },
-        {
-          "key": "addKeyframe",
-          "icon": "Plus",
-          "label": "Tom keyframe",
-          "tooltip": "Legg til tom keyframe"
-        },
-        {
-          "key": "downloadFilm",
-          "icon": "Film",
-          "label": "Last ned film",
-          "tooltip": "Eksporter animasjonen som MP4"
+      "layout": "split",
+      "bottom": {
+        "label": "Hovedverktøy",
+        "compact": true,
+        "buttons": [
+          {
+            "key": "select",
+            "icon": "MousePointer",
+            "tooltip": "Velg og flytt elementer"
+          },
+          {
+            "key": "player",
+            "icon": "User",
+            "tooltip": "Legg til spiller"
+          },
+          {
+            "key": "opponent",
+            "icon": "Users",
+            "tooltip": "Legg til motstander"
+          },
+          {
+            "key": "ball",
+            "icon": "Volleyball",
+            "tooltip": "Legg til ball"
+          },
+          {
+            "key": "cone",
+            "icon": "Cone",
+            "tooltip": "Legg til kjegle"
+          },
+          {
+            "key": "line",
+            "icon": "PenTool",
+            "tooltip": "Tegn linje eller pil"
+          },
+          {
+            "key": "text",
+            "icon": "Type",
+            "tooltip": "Legg til tekst"
+          },
+          {
+            "key": "area",
+            "icon": "Square",
+            "tooltip": "Merk et område på banen"
+          },
+          {
+            "key": "togglePitch",
+            "icon": "SquareDashedBottom",
+            "tooltip": "Bytt banevisning"
+          }
+        ]
+      },
+      "top": {
+        "label": "Animasjon og eksport",
+        "grouped": true,
+        "groups": {
+          "animation": {
+            "buttons": [
+              {
+                "key": "playPause",
+                "icon": "Play",
+                "label": "Start/Pause",
+                "tooltip": "Start eller pause animasjonen"
+              },
+              {
+                "key": "rewind",
+                "icon": "SkipBack",
+                "label": "Spol tilbake",
+                "tooltip": "Spol tilbake til start"
+              },
+              {
+                "key": "addKeyframe",
+                "icon": "Plus",
+                "label": "Ny keyframe",
+                "tooltip": "Legg til ny keyframe"
+              }
+            ]
+          },
+          "export": {
+            "buttons": [
+              {
+                "key": "downloadJson",
+                "icon": "Download",
+                "label": "Lagre",
+                "tooltip": "Lagre animasjon som JSON"
+              },
+              {
+                "key": "downloadPng",
+                "icon": "Image",
+                "label": "PNG",
+                "tooltip": "Last ned som PNG"
+              },
+              {
+                "key": "downloadFilm",
+                "icon": "Film",
+                "label": "Video",
+                "tooltip": "Eksporter som video"
+              },
+              {
+                "key": "downloadGif",
+                "icon": "FileImage",
+                "label": "GIF",
+                "tooltip": "Last ned som GIF"
+              },
+              {
+                "key": "loadAnimation",
+                "icon": "Upload",
+                "label": "Last inn",
+                "tooltip": "Last inn JSON-animasjon"
+              },
+              {
+                "key": "loadExample",
+                "icon": "BookOpen",
+                "label": "Eksempel",
+                "tooltip": "Last inn eksempel-animasjon"
+              }
+            ]
+          }
         }
-      ]
+      },
+      "contextual": {
+        "line": {
+          "position": "bottom",
+          "expanded": true,
+          "compact": true,
+          "showLabels": false,
+          "controls": ["style", "curve", "color", "marker"],
+          "styles": [
+            "solidStraight",
+            "solidCurved", 
+            "straightArrow",
+            "curvedArrow",
+            "dashedStraight",
+            "dashedCurved",
+            "sineWave",
+            "fishHook",
+            "hook"
+          ]
+        }
+      }
     },
     "lineStyles": {
-      "curveRange": {
-        "min": -300,
-        "max": 300,
-        "step": 1
-      },
       "colors": [
-        {
-          "key": "black",
-          "label": "Svart",
-          "value": "#000000"
+        {"name": "Svart", "value": "#000000"},
+        {"name": "Rød", "value": "#ff0000"},
+        {"name": "Blå", "value": "#0000ff"},
+        {"name": "Grønn", "value": "#008000"},
+        {"name": "Gul", "value": "#ffff00"},
+        {"name": "Oransje", "value": "#ffa500"}
+      ],
+      "curveRange": {
+        "min": -400,
+        "max": 400,
+        "step": 10
+      },
+      "markers": [
+        { "key": null, "icon": "Minus", "label": "Ingen markør" },
+        { "key": "arrow", "icon": "ArrowRight", "label": "Pil" },
+        { "key": "endline", "icon": "Move", "label": "Endestrek" },
+        { "key": "plus", "icon": "Plus", "label": "Pluss" },
+        { "key": "xmark", "icon": "X", "label": "Kryss" },
+        { "key": "target", "icon": "Target", "label": "Mål" },
+        { "key": "circle", "icon": "Circle", "label": "Sirkel" }
+      ],
+      "professionalStyles": {
+        "player": {
+          "label": "Spillerbevegelse",
+          "options": [
+            {
+              "key": "solid",
+              "label": "Heltrukken",
+              "icon": "Line"
+            },
+            {
+              "key": "dashed",
+              "label": "Stiplet",
+              "icon": "LineDotted"
+            },
+            {
+              "key": "dotted",
+              "label": "Prikket",
+              "icon": "Dot"
+            }
+          ]
         },
-        {
-          "key": "red",
-          "label": "Rød",
-          "value": "#ff0000"
+        "opponent": {
+          "label": "Motstanderbevegelse",
+          "options": [
+            {
+              "key": "solid",
+              "label": "Heltrukken",
+              "icon": "Line"
+            },
+            {
+              "key": "dashed",
+              "label": "Stiplet",
+              "icon": "LineDotted"
+            },
+            {
+              "key": "dotted",
+              "label": "Prikket",
+              "icon": "Dot"
+            }
+          ]
         },
-        {
-          "key": "blue",
-          "label": "Blå",
-          "value": "#0000ff"
-        },
-        {
-          "key": "green",
-          "label": "Grønn",
-          "value": "#00ff00"
-        },
-        {
-          "key": "custom",
-          "label": "Egendefinert",
-          "value": "custom"
+        "ball": {
+          "label": "Ballbevegelse",
+          "options": [
+            {
+              "key": "solid",
+              "label": "Heltrukken",
+              "icon": "Line"
+            },
+            {
+              "key": "dashed",
+              "label": "Stiplet",
+              "icon": "LineDotted"
+            },
+            {
+              "key": "dotted",
+              "label": "Prikket",
+              "icon": "Dot"
+            }
+          ]
         }
-      ]
+      }
     },
     "keyframes": {
       "features": {
@@ -126,6 +236,52 @@
           "tooltip": "Last ned keyframe som PNG"
         }
       }
+    },
+    "traces": {
+      "enabled": true,
+      "description": "Viser bevegelseslinjer for spillere under animasjon",
+      "features": {
+        "playerTraces": {
+          "enabled": true,
+          "opacity": 0.7,
+          "style": "dashedStraightArrow"
+        },
+        "ballTraces": {
+          "enabled": true,
+          "opacity": 0.8,
+          "style": "solidStraight"
+        }
+      },
+      "curveRange": {
+        "min": -300,
+        "max": 300,
+        "step": 1
+      }
+    },
+    "pitchTypes": [
+      "offensive",
+      "defensive", 
+      "handball",
+      "full",
+      "fullLandscape",
+      "blankPortrait",
+      "blankLandscape"
+    ],
+    "guidelines": {
+      "modes": ["lines", "colors", "full"]
+    },
+    "ui": {
+      "theme": {
+        "primaryColor": "#3b82f6",
+        "secondaryColor": "#64748b",
+        "successColor": "#10b981",
+        "warningColor": "#f59e0b",
+        "errorColor": "#ef4444"
+      },
+      "animations": {
+        "enabled": true,
+        "duration": 200
+      }
     }
   }
-} 
+}

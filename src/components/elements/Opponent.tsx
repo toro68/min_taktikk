@@ -1,30 +1,42 @@
 import React from 'react';
 import { OpponentElement } from '../../@types/elements';
-import { PLAYER_RADIUS } from '../../@types/elements';
 
 interface OpponentProps {
   element: OpponentElement;
-  isSelected: boolean;
-  onDoubleClick?: (event: React.MouseEvent<SVGGElement>) => void;
+  isSelected?: boolean;
+  onClick?: (e: React.MouseEvent) => void;
+  onMouseDown?: (e: React.MouseEvent) => void;
+  onTouchStart?: (e: React.TouchEvent) => void;
+  onDoubleClick?: (e: React.MouseEvent) => void;
 }
 
-const Opponent: React.FC<OpponentProps> = ({ element, isSelected, onDoubleClick }) => {
-  const { x = 0, y = 0, number, visible = true } = element;
+const Opponent: React.FC<OpponentProps> = ({ 
+  element, 
+  isSelected = false, 
+  onClick, 
+  onMouseDown, 
+  onTouchStart,
+  onDoubleClick 
+}) => {
+  const { x = 0, y = 0, number = '1', color = '#ff0000', visible = true } = element;
   
   if (!visible) return null;
-  
+
   return (
     <g
       transform={`translate(${x}, ${y})`}
+      onClick={onClick}
+      onMouseDown={onMouseDown}
+      onTouchStart={onTouchStart}
       onDoubleClick={onDoubleClick}
       style={{ cursor: 'pointer' }}
     >
       {/* Motstander-sirkel */}
       <circle
-        r={PLAYER_RADIUS}
-        fill="#ff0000"
-        stroke={isSelected ? '#0000ff' : 'none'}
-        strokeWidth={2}
+        r="15"
+        fill={color}
+        stroke={isSelected ? '#0000ff' : '#000000'}
+        strokeWidth={isSelected ? 3 : 2}
       />
       
       {/* Motstander-nummer */}
@@ -32,7 +44,7 @@ const Opponent: React.FC<OpponentProps> = ({ element, isSelected, onDoubleClick 
         textAnchor="middle"
         dominantBaseline="central"
         fill="white"
-        fontSize="10"
+        fontSize="12"
         fontWeight="bold"
       >
         {number}
@@ -41,4 +53,4 @@ const Opponent: React.FC<OpponentProps> = ({ element, isSelected, onDoubleClick 
   );
 };
 
-export default Opponent; 
+export default Opponent;

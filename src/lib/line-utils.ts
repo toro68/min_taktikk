@@ -1,345 +1,308 @@
-import { LineElement } from '../@types/elements';
-import { LineStyle } from '../components/LineStyleSelector';
+import { LineStyle, BaseLineStyle, LineStyleConfig, LineStyleModifiers, Coordinates } from '../types';
+import { getLineStylesConfig, getTracesConfig } from './config';
+import { legacyToNewStyle } from '../constants/lineStyles';
+import { getLinePropertiesFromStyle } from './lineStyleUtils';
 
 /**
- * Oppretter en linjesti mellom to punkter
+ * Henter linjeegenskaper basert på ny LineStyleConfig
+ */
+export const getLinePropertiesFromConfig = (config: LineStyleConfig, color: string = 'black', curveOffset: number = 0) => {
+  const props = {
+    curved: config.base === 'curved',
+    dashed: config.modifiers.dashed || false,
+    sineWave: config.base === 'sineWave',
+    fishHook: config.base === 'fishHook',
+    hookStart: config.base === 'hook' && config.modifiers.hookDirection === 'left',
+    hookEnd: config.base === 'hook' && config.modifiers.hookDirection === 'right',
+    marker: null as "arrow" | "endline" | "plus" | "xmark" | "redArrow" | "blueArrow" | "greenArrow" | "orangeArrow" | "purpleArrow" | "target" | "circle" | "doubleArrow" | "smallArrow" | null,
+    strokeColor: color,
+    curveOffset
+  };
+
+  // Set marker based on modifiers
+  if (config.modifiers.arrow) {
+    props.marker = 'arrow';
+  } else if (config.modifiers.endMarker && config.modifiers.endMarker !== 'none') {
+    // Map endMarker values to valid marker types
+    const markerMap: Record<string, typeof props.marker> = {
+      'circle': 'circle',
+      'square': 'plus' // Map square to plus as a placeholder
+    };
+    props.marker = markerMap[config.modifiers.endMarker] || 'circle';
+  }
+
+  return props;
+};
+
+/**
+ * Henter linjeegenskaper basert på valgt linjestil
+ */
+export const getLineProperties = (style: LineStyle, color: string = 'black', curveOffset: number = 0) => {
+  // Use the new style utilities directly
+  const properties = getLinePropertiesFromStyle(style);
+  return {
+    ...properties,
+    strokeColor: color,
+    curveOffset
+  };
+};
+
+/**
+ * Oppretter SVG-sti for linje basert på stil og offset
  */
 export const createLinePath = (
-  start: { x: number; y: number },
-  end: { x: number; y: number },
-  curved: boolean,
-  offset = 0
+  start: Coordinates,
+  end: Coordinates,
+  style: LineStyle | boolean,
+  offset: number = 0
 ): string => {
-  if (!curved) {
-    return `M ${start.x} ${start.y} L ${end.x} ${end.y}`;
+  // Handle both LineStyle and boolean (for backward compatibility)
+  let actualStyle: LineStyle;
+  if (typeof style === 'boolean') {
+    actualStyle = style ? 'curved' : 'straight';
+  } else {
+    actualStyle = style;
   }
+  
+  // Use config-based path generation
+  const properties = getLinePropertiesFromStyle(actualStyle);
+  
+  if (properties.sineWave) {
+    return createSineWavePath(start, end, offset);
+  }
+  
+  if (properties.fishHook) {
+    return createFishHookPath(start, end, offset);
+  }
+  
+  if (properties.hookStart || properties.hookEnd) {
+    return createHookPath(start, end, offset, properties.hookEnd);
+  }
+  
+  if (properties.curved) {
+    return createCurvedPath(start, end, offset);
+  }
+  
+  return createStraightPath(start, end);
+};
+
+/**
+ * Oppretter rett linje
+ */
+const createStraightPath = (start: Coordinates, end: Coordinates): string => {
+  return `M ${start.x} ${start.y} L ${end.x} ${end.y}`;
+};
+
+/**
+ * Oppretter kurvet linje
+ */
+const createCurvedPath = (start: Coordinates, end: Coordinates, offset: number): string => {
+  const dx = end.x - start.x;
+  const dy = end.y - start.y;
+  const length = Math.sqrt(dx * dx + dy * dy);
+
+  if (length === 0) return `M ${start.x} ${start.y}`;
+
+  // Use default offset of 50 if offset is 0 (to ensure curves are actually curved)
+  const actualOffset = offset || 50;
 
   const midX = (start.x + end.x) / 2;
   const midY = (start.y + end.y) / 2;
+  
+  // Perpendicular vector for curve control point
+  const perpX = -dy / length;
+  const perpY = dx / length;
+  
+  const controlX = midX + perpX * actualOffset;
+  const controlY = midY + perpY * actualOffset;
 
-  // Beregn normal vektor
+  return `M ${start.x} ${start.y} Q ${controlX} ${controlY} ${end.x} ${end.y}`;
+};
+
+/**
+ * Oppretter sinus-bølge sti med kort bølgelengde
+ */
+const createSineWavePath = (start: Coordinates, end: Coordinates, offset: number): string => {
   const dx = end.x - start.x;
   const dy = end.y - start.y;
-  const length = Math.sqrt(dx * dx + dy * dy);
+  const lineLength = Math.sqrt(dx * dx + dy * dy);
   
-  if (length === 0) return `M ${start.x} ${start.y} L ${end.x} ${end.y}`;
+  if (lineLength === 0) return `M ${start.x} ${start.y}`;
   
-  const normalX = -dy / length;
-  const normalY = dx / length;
-
-  // Beregn kontrollpunkt med offset
-  const controlX = midX + normalX * offset;
-  const controlY = midY + normalY * offset;
-
-  return `M ${start.x} ${start.y} Q ${controlX} ${controlY}, ${end.x} ${end.y}`;
-};
-
-/**
- * Beregner et punkt på en kubisk Bezier-kurve
- */
-export const getCubicBezierPoint = (
-  t: number,
-  start: { x: number; y: number },
-  end: { x: number; y: number },
-  offset: number
-): { x: number; y: number } => {
-  const midX = (start.x + end.x) / 2;
-  const midY = (start.y + end.y) / 2;
-
-  // Beregn normal vektor
-  const dx = end.x - start.x;
-  const dy = end.y - start.y;
-  const length = Math.sqrt(dx * dx + dy * dy);
+  // Beregn amplitude basert på offset eller bruk default - mindre bølgehøyde
+  const amplitude = Math.abs(offset) || 8;
   
-  if (length === 0) {
-    return { x: start.x, y: start.y };
-  }
+  // Kortere bølgelengde - flere sykluser per linje
+  const wavelength = 25; // Pixels per wave cycle (redusert fra 40 til 25)
+  const numWaves = Math.max(1, lineLength / wavelength);
+  const segments = Math.ceil(numWaves * 6); // 6 segments per wave for smooth curves
   
-  const normalX = -dy / length;
-  const normalY = dx / length;
-
-  // Beregn kontrollpunkt med offset
-  const controlX = midX + normalX * offset;
-  const controlY = midY + normalY * offset;
-
-  // Kvadratisk Bezier-formel: B(t) = (1-t)^2 * P0 + 2(1-t)t * P1 + t^2 * P2
-  const u = 1 - t;
-  const tt = t * t;
-  const uu = u * u;
-  
-  const x = uu * start.x + 2 * u * t * controlX + tt * end.x;
-  const y = uu * start.y + 2 * u * t * controlY + tt * end.y;
-  
-  return { x, y };
-};
-
-/**
- * Flytter en sti med gitte delta-verdier
- */
-export const translatePath = (d: string, dx: number, dy: number): string => {
-  return d.replace(/([0-9.-]+) ([0-9.-]+)/g, (match, x, y) => {
-    return `${parseFloat(x) + dx} ${parseFloat(y) + dy}`;
-  });
-};
-
-/**
- * Sjekker om et punkt er nær en sti
- */
-export const isPointNearPath = (point: { x: number; y: number }, path: string): boolean => {
-  // Enkel implementasjon: Sjekk om punktet er nær endepunktene
-  const matches = path.match(/M ([0-9.-]+) ([0-9.-]+).*?([0-9.-]+) ([0-9.-]+)$/);
-  if (!matches) return false;
-
-  const startX = parseFloat(matches[1]);
-  const startY = parseFloat(matches[2]);
-  const endX = parseFloat(matches[3]);
-  const endY = parseFloat(matches[4]);
-
-  const distToStart = Math.sqrt(
-    Math.pow(point.x - startX, 2) + Math.pow(point.y - startY, 2)
-  );
-  const distToEnd = Math.sqrt(
-    Math.pow(point.x - endX, 2) + Math.pow(point.y - endY, 2)
-  );
-
-  // Sjekk om punktet er nær linjens endepunkter
-  if (distToStart < 10 || distToEnd < 10) return true;
-
-  // For rette linjer, beregn avstand til linjesegmentet
-  if (!path.includes('Q')) {
-    const lineLength = Math.sqrt(
-      Math.pow(endX - startX, 2) + Math.pow(endY - startY, 2)
-    );
-    if (lineLength === 0) return false;
-
-    // Beregn avstand fra punkt til linje
-    const t =
-      ((point.x - startX) * (endX - startX) + (point.y - startY) * (endY - startY)) /
-      (lineLength * lineLength);
-    
-    if (t < 0) {
-      return distToStart < 10;
-    }
-    if (t > 1) {
-      return distToEnd < 10;
-    }
-    
-    const projX = startX + t * (endX - startX);
-    const projY = startY + t * (endY - startY);
-    const distance = Math.sqrt(
-      Math.pow(point.x - projX, 2) + Math.pow(point.y - projY, 2)
-    );
-    
-    return distance < 10;
-  }
-
-  // For kurver, bruk en enkel tilnærming med flere punkter langs kurven
-  const steps = 10;
-  let minDist = Infinity;
-  
-  // Finn kontrollpunktet fra stien
-  const qMatch = path.match(/Q ([0-9.-]+) ([0-9.-]+),/);
-  if (!qMatch) return false;
-  
-  const controlX = parseFloat(qMatch[1]);
-  const controlY = parseFloat(qMatch[2]);
-  
-  for (let i = 0; i <= steps; i++) {
-    const t = i / steps;
-    const u = 1 - t;
-    const x = u * u * startX + 2 * u * t * controlX + t * t * endX;
-    const y = u * u * startY + 2 * u * t * controlY + t * t * endY;
-    
-    const dist = Math.sqrt(Math.pow(point.x - x, 2) + Math.pow(point.y - y, 2));
-    minDist = Math.min(minDist, dist);
-  }
-  
-  return minDist < 10;
-};
-
-/**
- * Oppretter en sinuskurve-bane mellom to punkter
- */
-export const createSineWavePath = (
-  start: { x: number; y: number },
-  end: { x: number; y: number },
-  amplitude = 10,
-  frequency = 3
-): string => {
-  const dx = end.x - start.x;
-  const dy = end.y - start.y;
-  const length = Math.sqrt(dx * dx + dy * dy);
-  
-  if (length === 0) return `M ${start.x} ${start.y} L ${end.x} ${end.y}`;
-  
-  // Normaliser retningsvektoren
-  const nx = dx / length;
-  const ny = dy / length;
-  
-  // Beregn normal vektor (vinkelrett på linjen)
-  const perpX = -ny;
-  const perpY = nx;
-  
-  // Øk antall bølger for tettere bølgemønster
-  const numWaves = Math.max(2, Math.round(frequency * length / 50));
-  
-  // Bruk flere segmenter per bølge for jevnere kurver
-  const segmentsPerWave = 4; // Flere segmenter gir jevnere bølger
-  const totalSegments = numWaves * segmentsPerWave;
+  // Retningsvektor og perpendikulær vektor
+  const unitX = dx / lineLength;
+  const unitY = dy / lineLength;
+  const perpX = -unitY; // Perpendikulær retning
+  const perpY = unitX;
   
   let path = `M ${start.x} ${start.y}`;
   
-  // Bruk flere punkter for å lage jevnere sinuskurve
-  for (let i = 0; i <= totalSegments; i++) {
-    if (i === 0) continue; // Hopp over startpunktet som allerede er lagt til
+  // Generer punkter langs linjen med sinusbølge
+  for (let i = 1; i <= segments; i++) {
+    const t = i / segments;
     
-    const t = i / totalSegments; // Normalisert posisjon langs linjen (0-1)
+    // Posisjon langs hovedlinjen
+    const baseX = start.x + dx * t;
+    const baseY = start.y + dy * t;
     
-    // Beregn posisjon langs basislinjen
-    const x = start.x + t * dx;
-    const y = start.y + t * dy;
+    // Sinusbølge offset perpendikylært til linjen
+    const wavePhase = t * numWaves * 2 * Math.PI;
+    const waveOffset = Math.sin(wavePhase) * amplitude;
     
-    // Beregn sinusbølge-offset (bruk cosinus for jevnere start)
-    // 2*PI*frequency gir riktig antall bølger
-    const sinValue = Math.sin(2 * Math.PI * frequency * t);
+    // Endelig posisjon med bølgeoffset
+    const x = baseX + perpX * waveOffset;
+    const y = baseY + perpY * waveOffset;
     
-    // Legg til offset vinkelrett på linjen
-    const offsetX = perpX * amplitude * sinValue;
-    const offsetY = perpY * amplitude * sinValue;
-    
-    // Hvis dette er det første punktet etter start, bruk kubisk kurve med kontrollpunkter
-    // for å sikre en jevn start på bølgen
-    if (i === 1) {
-      // Første kontrollpunkt nær startpunktet
-      const cp1x = start.x + (dx / totalSegments) * 0.5;
-      const cp1y = start.y + (dy / totalSegments) * 0.5;
-      
-      // Andre kontrollpunkt nær første bølgepunkt
-      const cp2x = x - (dx / totalSegments) * 0.5 + offsetX * 0.5;
-      const cp2y = y - (dy / totalSegments) * 0.5 + offsetY * 0.5;
-      
-      path += ` C ${cp1x} ${cp1y}, ${cp2x} ${cp2y}, ${x + offsetX} ${y + offsetY}`;
-    } 
-    // For siste punkt, sikre jevn avslutning
-    else if (i === totalSegments) {
-      const prevT = (i - 1) / totalSegments;
-      const prevX = start.x + prevT * dx;
-      const prevY = start.y + prevT * dy;
-      const prevSinValue = Math.sin(2 * Math.PI * frequency * prevT);
-      const prevOffsetX = perpX * amplitude * prevSinValue;
-      const prevOffsetY = perpY * amplitude * prevSinValue;
-      
-      // Første kontrollpunkt etter forrige bølgepunkt
-      const cp1x = prevX + offsetX + (dx / totalSegments) * 0.5;
-      const cp1y = prevY + offsetY + (dy / totalSegments) * 0.5;
-      
-      // Andre kontrollpunkt nær sluttpunktet
-      const cp2x = end.x - (dx / totalSegments) * 0.5;
-      const cp2y = end.y - (dy / totalSegments) * 0.5;
-      
-      path += ` C ${cp1x} ${cp1y}, ${cp2x} ${cp2y}, ${end.x} ${end.y}`;
-    }
-    // For alle mellomliggende punkter, bruk S-kommando (jevn kubisk Bezier)
-    else {
-      path += ` L ${x + offsetX} ${y + offsetY}`;
-    }
+    // Bruk line-to for enkel sine wave
+    path += ` L ${x} ${y}`;
   }
   
   return path;
 };
 
 /**
- * Henter egenskaper for en linjestil
+ * Oppretter fiskehetekrok sti
  */
-export const getLineProperties = (style: LineStyle, color: string = 'black') => {
-  let strokeDasharray = 'none';
-  let strokeWidth = 2;
-  let strokeColor = color;
-  let curved = false;
-  let dashed = false;
-  let sineWave = false;
-  let marker: 'arrow' | 'endline' | 'plus' | 'xmark' | 'redArrow' | 'blueArrow' | 'greenArrow' | 'orangeArrow' | 'purpleArrow' | null = null;
+const createFishHookPath = (start: Coordinates, end: Coordinates, offset: number): string => {
+  const dx = end.x - start.x;
+  const dy = end.y - start.y;
+  const hookLength = Math.min(Math.abs(dx), Math.abs(dy)) * 0.3;
   
-  switch (style) {
-    case 'solidCurved':
-      curved = true;
-      break;
-    case 'dashedCurved':
-      curved = true;
-      dashed = true;
-      strokeDasharray = '5,5';
-      break;
-    case 'solidStraight':
-      curved = false;
-      break;
-    case 'dashedStraight':
-      curved = false;
-      dashed = true;
-      strokeDasharray = '5,5';
-      break;
-    case 'curvedArrow':
-      curved = true;
-      marker = 'arrow';
-      break;
-    case 'straightArrow':
-      curved = false;
-      marker = 'arrow';
-      break;
-    case 'endMark':
-      curved = false;
-      marker = 'endline';
-      break;
-    case 'plusEnd':
-      curved = false;
-      marker = 'plus';
-      break;
-    case 'xEnd':
-      curved = false;
-      marker = 'xmark';
-      break;
-    case 'dashedCurvedArrow':
-      curved = true;
-      dashed = true;
-      strokeDasharray = '5,5';
-      marker = 'arrow';
-      break;
-    case 'dashedStraightArrow':
-      curved = false;
-      dashed = true;
-      strokeDasharray = '5,5';
-      marker = 'arrow';
-      break;
-    case 'sineWave':
-      sineWave = true;
-      break;
-    case 'sineWaveArrow':
-      sineWave = true;
-      marker = 'arrow';
-      break;
+  const midX = start.x + dx * 0.8;
+  const midY = start.y + dy * 0.8;
+  
+  const hookEndX = end.x;
+  const hookEndY = end.y - hookLength;
+  
+  return `M ${start.x} ${start.y} L ${midX} ${midY} Q ${end.x} ${end.y}, ${hookEndX} ${hookEndY}`;
+};
+
+/**
+ * Oppretter hook sti (buet i start eller slutt)
+ */
+const createHookPath = (start: Coordinates, end: Coordinates, offset: number, hookAtEnd: boolean): string => {
+  // Use default offset of 30 if offset is 0 (to ensure hooks are actually curved)
+  const actualOffset = offset || 30;
+  
+  if (hookAtEnd) {
+    const cp1x = start.x + (end.x - start.x) * 0.7;
+    const cp1y = start.y + (end.y - start.y) * 0.7;
+    return `M ${start.x} ${start.y} Q ${cp1x} ${cp1y + actualOffset}, ${end.x} ${end.y}`;
+  } else {
+    const cp1x = start.x + (end.x - start.x) * 0.3;
+    const cp1y = start.y + (end.y - start.y) * 0.3;
+    return `M ${start.x} ${start.y} Q ${cp1x} ${cp1y + actualOffset}, ${end.x} ${end.y}`;
   }
-  
-  // Hvis fargen er spesifisert, bruk riktig pil basert på fargen
-  if (marker === 'arrow') {
-    if (color === 'red') {
-      marker = 'redArrow';
-    } else if (color === 'blue') {
-      marker = 'blueArrow';
-    } else if (color === 'green') {
-      marker = 'greenArrow';
-    } else if (color === 'orange') {
-      marker = 'orangeArrow';
-    } else if (color === 'purple') {
-      marker = 'purpleArrow';
+};
+
+/**
+ * Oppdaterer en linjesti med nye endepunkter
+ */
+export const updateLineEndpoints = (
+  originalPath: string,
+  style: LineStyle,
+  newStart?: Coordinates,
+  newEnd?: Coordinates,
+  curveOffset: number = 0
+): string => {
+  // Extract current endpoints
+  const currentEndpoints = extractPathEndpoints(originalPath);
+  if (!currentEndpoints) return originalPath;
+
+  const startPoint = newStart || currentEndpoints.start;
+  const endPoint = newEnd || currentEndpoints.end;
+
+  // Recreate path with new endpoints
+  return createLinePath(startPoint, endPoint, style, curveOffset);
+};
+
+/**
+ * Henter start- og endepunkter fra en SVG-sti
+ */
+export const extractPathEndpoints = (pathString: string): { start: Coordinates; end: Coordinates } | null => {
+  const commands = pathString.trim().split(/(?=[MLHVCSQTAZmlhvcsqtaz])/);
+  if (commands.length < 2) return null;
+
+  // Get start point (M command)
+  const startMatch = commands[0].match(/M\s*(-?\d+(?:\.\d+)?)\s+(-?\d+(?:\.\d+)?)/);
+  if (!startMatch) return null;
+
+  // Get end point (last command)
+  let endX = 0, endY = 0;
+  for (let i = commands.length - 1; i >= 0; i--) {
+    const cmd = commands[i];
+    const coordMatch = cmd.match(/[MLCSQTA]\s*(?:[-\d\s.,]*\s+)?(-?\d+(?:\.\d+)?)\s+(-?\d+(?:\.\d+)?)(?:\s|$)/);
+    if (coordMatch) {
+      endX = parseFloat(coordMatch[1]);
+      endY = parseFloat(coordMatch[2]);
+      break;
     }
   }
-  
+
   return {
-    curved,
-    dashed,
-    sineWave,
-    marker,
-    strokeDasharray,
-    strokeWidth,
-    strokeColor
+    start: { x: parseFloat(startMatch[1]), y: parseFloat(startMatch[2]) },
+    end: { x: endX, y: endY }
   };
+};
+
+/**
+ * Checks if a point is near a line path (for selection)
+ */
+export const isPointNearLine = (
+  point: { x: number; y: number },
+  pathString: string,
+  tolerance: number = 10
+): boolean => {
+  const endpoints = extractPathEndpoints(pathString);
+  if (!endpoints) return false;
+
+  // Simple distance check to line for now
+  const { start, end } = endpoints;
+  const lineLength = Math.sqrt((end.x - start.x) ** 2 + (end.y - start.y) ** 2);
+  
+  if (lineLength === 0) {
+    return Math.sqrt((point.x - start.x) ** 2 + (point.y - start.y) ** 2) <= tolerance;
+  }
+
+  // Distance from point to line formula
+  const t = Math.max(0, Math.min(1, ((point.x - start.x) * (end.x - start.x) + (point.y - start.y) * (end.y - start.y)) / (lineLength ** 2)));
+  const projectionX = start.x + t * (end.x - start.x);
+  const projectionY = start.y + t * (end.y - start.y);
+  const distance = Math.sqrt((point.x - projectionX) ** 2 + (point.y - projectionY) ** 2);
+  
+  return distance <= tolerance;
+};
+
+/**
+ * Get curve range settings from configuration
+ */
+export const getCurveRangeFromConfig = () => {
+  try {
+    const config = getLineStylesConfig();
+    return config.curveRange;
+  } catch (error) {
+    console.warn('Using default curve range due to config error:', error);
+    return { min: -400, max: 400, step: 10 };
+  }
+};
+
+/**
+ * Get trace curve range settings from configuration
+ */
+export const getTraceCurveRangeFromConfig = () => {
+  try {
+    const config = getTracesConfig();
+    return config.curveRange;
+  } catch (error) {
+    console.warn('Using default trace curve range due to config error:', error);
+    return { min: -400, max: 400, step: 10 };
+  }
 };
