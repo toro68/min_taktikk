@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Button } from '../ui/button';
 import {
-  Minus, Smile, ArrowRight, CornerDownRight, Palette, Waves, MoreHorizontal, TrendingUp, ArrowBigRight, ArrowUpRight, Move, Plus, X, Circle, Target, ArrowRightLeft
+  Minus, Smile, ArrowRight, CornerDownRight, Palette, Waves, MoreHorizontal, TrendingUp, ArrowBigRight, ArrowUpRight, Move, Plus, X, Circle, Target, ArrowRightLeft, RotateCcw, Spline
 } from 'lucide-react';
 import {
   Tooltip,
@@ -21,16 +21,26 @@ interface ContextualLineToolbarProps {
   isVisible: boolean;
 }
 
-const ContextualLineToolbar: React.FC<ContextualLineToolbarProps> = ({
+const ContextualLineToolbar: React.FC<ContextualLineToolbarProps> = React.memo(({
   line,
   updateElement,
   isVisible
 }) => {
+  // console.log('🛠️ ContextualLineToolbar render:', { 
+  //   isVisible, 
+  //   lineId: line?.id, 
+  //   lineStyle: line?.style,
+  //   lineCurveOffset: line?.curveOffset,
+  //   lineColor: line?.color
+  // });
+  
   const config = getConfig();
   const { theme } = useAppTheme();
   const [showColorPicker, setShowColorPicker] = useState(false);
 
-  if (!isVisible) return null;
+  if (!isVisible) {
+    return null;
+  }
 
   const contextualConfig = config.settings.toolbar.contextual?.line;
   const colors = config.settings.lineStyles.colors;
@@ -57,16 +67,16 @@ const ContextualLineToolbar: React.FC<ContextualLineToolbarProps> = ({
     icon: iconMap[marker.icon] || Minus
   }));
 
-  // Complete line styles from .aigenrc baseStyles and combinations
+  // Complete line styles with appropriate Lucide icons
   const lineStyles = [
     { key: 'solidStraight', icon: Minus, label: 'Hel rett linje', description: 'Rett linje mellom to punkter' },
-    { key: 'solidCurved', icon: Smile, label: 'Hel kurvet linje', description: 'Kurvet linje med justerbar kurvatur' },
+    { key: 'solidCurved', icon: Spline, label: 'Hel kurvet linje', description: 'Kurvet linje med justerbar kurvatur' },
     { key: 'straightArrow', icon: ArrowRight, label: 'Rett pil', description: 'Rett linje med pil på slutten' },
     { key: 'curvedArrow', icon: CornerDownRight, label: 'Kurvet pil', description: 'Kurvet linje med pil på slutten' },
-    { key: 'dashedStraight', icon: MoreHorizontal, label: 'Stiplet rett', description: 'Stiplet rett linje', dashed: true },
-    { key: 'dashedCurved', icon: TrendingUp, label: 'Stiplet kurvet', description: 'Stiplet kurvet linje', dashed: true },
+    { key: 'dashedStraight', icon: MoreHorizontal, label: 'Stiplet rett', description: 'Stiplet rett linje med pil', dashed: true },
+    { key: 'dashedCurved', icon: TrendingUp, label: 'Stiplet kurvet', description: 'Stiplet kurvet linje med pil', dashed: true },
     { key: 'sineWave', icon: Waves, label: 'Sinusbølge', description: 'Bølgeformet linje' },
-    { key: 'fishHook', icon: ArrowBigRight, label: 'Fiskekrok', description: 'Linje med krok på slutten' },
+    { key: 'fishHook', icon: RotateCcw, label: 'Fiskekrok', description: 'Linje med krok på slutten' },
     { key: 'hook', icon: ArrowUpRight, label: 'Krok', description: 'Linje med krok i start eller slutt' }
   ];
 
@@ -92,9 +102,36 @@ const ContextualLineToolbar: React.FC<ContextualLineToolbarProps> = ({
   };
 
   const handleCurveOffsetChange = (newOffset: number) => {
+    console.log('🔍 handleCurveOffsetChange:', {
+      lineStyle: line.style,
+      currentPath: line.path,
+      newOffset
+    });
+    
+    // Handle empty path case - this likely means we're dealing with a default/placeholder line
+    if (!line.path || line.path.trim() === '') {
+      console.warn('⚠️ Line has empty path, updating curveOffset only');
+      updateElement({ curveOffset: newOffset });
+      return;
+    }
+    
     const endpoints = extractPathEndpoints(line.path);
-    if (!endpoints) return;
+    if (!endpoints) {
+      console.error('❌ No endpoints found from path:', line.path);
+      // Try to update just the curveOffset for now
+      updateElement({ curveOffset: newOffset });
+      return;
+    }
+    
+    console.log('🔧 Calling updateLineEndpoints with:', {
+      style: line.style,
+      endpoints,
+      newOffset
+    });
+    
     const newPath = updateLineEndpoints(line.path, line.style, endpoints.start, endpoints.end, newOffset);
+    console.log('📐 Generated path:', { oldPath: line.path, newPath });
+    
     updateElement({ curveOffset: newOffset, path: newPath });
   };
 
@@ -152,31 +189,36 @@ const ContextualLineToolbar: React.FC<ContextualLineToolbarProps> = ({
           {contextualConfig?.controls?.includes('curve') && !nonCurvableStyles.includes(line.style) && (
             <>
               <div className="flex items-center gap-2 min-w-0 flex-shrink-0 bg-gray-50 rounded px-2 py-1">
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <div className="flex items-center gap-2 cursor-pointer">
-                      <Waves className="w-4 h-4 text-gray-600" />
-                      <label htmlFor="curve-slider" className="text-xs font-medium text-gray-600 whitespace-nowrap select-none">Kurve</label>
-                      <input
-                        id="curve-slider"
-                        type="range"
-                        min={curveRange.min}
-                        max={curveRange.max}
-                        step={curveRange.step}
-                        value={line.curveOffset || 0}
-                        onChange={(e) => handleCurveOffsetChange(Number(e.target.value))}
-                        className="w-24 h-3 bg-gray-200 rounded-lg cursor-pointer"
-                      />
-                      <span className="text-xs text-gray-700 w-8 text-center tabular-nums font-mono">{line.curveOffset || 0}</span>
-                    </div>
-                  </TooltipTrigger>
-                  <TooltipContent side="top" className="text-xs bg-black/90 text-white border-0">
-                    <div className="flex flex-col">
-                      <p className="font-medium">Juster kurvatur</p>
-                      <p className="text-gray-300 text-[10px]">Verdi: {line.curveOffset || 0} (Område: {curveRange.min} til {curveRange.max})</p>
-                    </div>
-                  </TooltipContent>
-                </Tooltip>
+                <div className="flex items-center gap-2">
+                  <Tooltip key="curve-tooltip">
+                    <TooltipTrigger asChild>
+                      <div className="flex items-center gap-1">
+                        <Waves className="w-4 h-4 text-gray-600" />
+                        <label htmlFor="curve-slider" className="text-xs font-medium text-gray-600 whitespace-nowrap select-none">Kurve</label>
+                      </div>
+                    </TooltipTrigger>
+                    <TooltipContent side="top" className="text-xs bg-black/90 text-white border-0">
+                      <div className="flex flex-col">
+                        <p className="font-medium">Juster kurvatur</p>
+                        <p className="text-gray-300 text-[10px]">Verdi: {line.curveOffset || 0} (Område: {curveRange.min} til {curveRange.max})</p>
+                      </div>
+                    </TooltipContent>
+                  </Tooltip>
+                  <input
+                    id="curve-slider"
+                    type="range"
+                    min={curveRange.min}
+                    max={curveRange.max}
+                    step={curveRange.step}
+                    value={line.curveOffset || 0}
+                    onChange={(e) => {
+                      console.log('🎯 Slider onChange triggered:', e.target.value);
+                      handleCurveOffsetChange(Number(e.target.value));
+                    }}
+                    className="w-24 h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer"
+                  />
+                  <span className="text-xs text-gray-700 w-8 text-center tabular-nums font-mono">{line.curveOffset || 0}</span>
+                </div>
               </div>
               <div className="w-px h-6 bg-gray-300 mx-1 flex-shrink-0" />
             </>
@@ -185,8 +227,8 @@ const ContextualLineToolbar: React.FC<ContextualLineToolbarProps> = ({
           {/* Color controls */}
           {contextualConfig?.controls?.includes('color') && (
             <div className="flex items-center gap-1 flex-shrink-0">
-              {colors.slice(0, 6).map((color: any) => (
-                <Tooltip key={color.name}>
+              {colors.slice(0, 6).map((color: any, index: number) => (
+                <Tooltip key={color.name || `color-${index}`}>
                   <TooltipTrigger asChild>
                     <button
                       onClick={() => handleColorChange(color.value === 'custom' ? line.color || '#000000' : color.value)}
@@ -200,7 +242,7 @@ const ContextualLineToolbar: React.FC<ContextualLineToolbarProps> = ({
                   <TooltipContent side="top" className="text-xs bg-black/90 text-white border-0">{color.name}</TooltipContent>
                 </Tooltip>
               ))}
-              <Tooltip>
+              <Tooltip key="color-picker-tooltip">
                 <TooltipTrigger asChild>
                   <Button
                     variant={showColorPicker ? 'default' : 'ghost'}
@@ -216,7 +258,7 @@ const ContextualLineToolbar: React.FC<ContextualLineToolbarProps> = ({
               {showColorPicker && (
                 <input
                   type="color"
-                  value={line.color || '#000000'}
+                  value={(line.color && line.color.startsWith('#')) ? line.color : '#000000'}
                   onChange={(e) => {
                     handleColorChange(e.target.value);
                     setShowColorPicker(false);
@@ -231,7 +273,7 @@ const ContextualLineToolbar: React.FC<ContextualLineToolbarProps> = ({
           {/* Marker controls */}
           {contextualConfig?.controls?.includes('marker') && (
             <div className="flex items-center gap-1 flex-shrink-0">
-              {endMarkerOptions.map((marker: { key: string | null; icon: React.ElementType; label: string; }) => {
+              {endMarkerOptions.map((marker: { key: string | null; icon: React.ElementType; label: string; }, index: number) => {
                 const IconComponent = marker.icon;
                 const isActive = line.marker === marker.key;
                 return (
@@ -261,6 +303,6 @@ const ContextualLineToolbar: React.FC<ContextualLineToolbarProps> = ({
       </div>
     </TooltipProvider>
   );
-};
+});
 
 export default ContextualLineToolbar;

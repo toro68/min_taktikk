@@ -27,7 +27,7 @@ interface ConfigurableTopToolbarProps {
   onRewind: () => void;
 }
 
-const ConfigurableTopToolbar: React.FC<ConfigurableTopToolbarProps> = ({
+const ConfigurableTopToolbar: React.FC<ConfigurableTopToolbarProps> = React.memo(({
   playbackSpeed,
   setPlaybackSpeed,
   onDuplicate,
@@ -112,7 +112,7 @@ const ConfigurableTopToolbar: React.FC<ConfigurableTopToolbarProps> = ({
                     const actualIcon = isPlayButton && isPlaying ? 'Pause' : button.icon;
                     const ActualIconComponent = getIconComponent(actualIcon);
                     
-                    console.log('🎯 Rendering button:', button.key, 'isPlaying:', isPlaying, 'icon:', actualIcon);
+                    // console.log('🎯 Rendering button:', button.key, 'isPlaying:', isPlaying, 'icon:', actualIcon);
                     
                     return (
                       <Tooltip key={button.key}>
@@ -198,6 +198,6 @@ const ConfigurableTopToolbar: React.FC<ConfigurableTopToolbarProps> = ({
       </div>
     </TooltipProvider>
   );
-};
+});
 
 export default ConfigurableTopToolbar;

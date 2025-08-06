@@ -20,7 +20,7 @@ interface ConfigurableBottomToolbarProps {
   selectedElement?: any | null;
 }
 
-const ConfigurableBottomToolbar: React.FC<ConfigurableBottomToolbarProps> = ({
+const ConfigurableBottomToolbar: React.FC<ConfigurableBottomToolbarProps> = React.memo(({
   selectedTool,
   setSelectedTool,
   pitch,
@@ -133,6 +133,6 @@ const ConfigurableBottomToolbar: React.FC<ConfigurableBottomToolbarProps> = ({
       </TooltipProvider>
     </div>
   );
-};
+});
 
 export default ConfigurableBottomToolbar;

@@ -6,7 +6,7 @@ import { getLinePropertiesFromStyle } from './lineStyleUtils';
 /**
  * Henter linjeegenskaper basert på ny LineStyleConfig
  */
-export const getLinePropertiesFromConfig = (config: LineStyleConfig, color: string = 'black', curveOffset: number = 0) => {
+export const getLinePropertiesFromConfig = (config: LineStyleConfig, color: string = '#000000', curveOffset: number = 0) => {
   const props = {
     curved: config.base === 'curved',
     dashed: config.modifiers.dashed || false,
@@ -37,7 +37,7 @@ export const getLinePropertiesFromConfig = (config: LineStyleConfig, color: stri
 /**
  * Henter linjeegenskaper basert på valgt linjestil
  */
-export const getLineProperties = (style: LineStyle, color: string = 'black', curveOffset: number = 0) => {
+export const getLineProperties = (style: LineStyle, color: string = '#000000', curveOffset: number = 0) => {
   // Use the new style utilities directly
   const properties = getLinePropertiesFromStyle(style);
   return {
@@ -67,6 +67,13 @@ export const createLinePath = (
   // Use config-based path generation
   const properties = getLinePropertiesFromStyle(actualStyle);
   
+  console.log('🎨 createLinePath called:', {
+    style: actualStyle,
+    properties,
+    offset,
+    willCreateCurved: properties.curved || Math.abs(offset) > 0
+  });
+  
   if (properties.sineWave) {
     return createSineWavePath(start, end, offset);
   }
@@ -79,7 +86,9 @@ export const createLinePath = (
     return createHookPath(start, end, offset, properties.hookEnd);
   }
   
-  if (properties.curved) {
+  // Create curved path if explicitly curved OR if offset is applied
+  // Exception: Don't apply curve to special line types that have their own path logic
+  if ((properties.curved || Math.abs(offset) > 0) && !properties.sineWave && !properties.fishHook && !properties.hookStart && !properties.hookEnd) {
     return createCurvedPath(start, end, offset);
   }
   

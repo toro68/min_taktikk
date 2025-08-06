@@ -13,7 +13,7 @@ export const useToolLogic = () => {
   // Line-specific states - oppdatert default til 'solidStraight' for konsistens
   const [selectedLineStyle, setSelectedLineStyleInternal] = useState<LineStyle>('solidStraight');
   const [curveOffset, setCurveOffset] = useState<number>(0);
-  const [lineColor, setLineColor] = useState<string>('black');
+  const [lineColor, setLineColor] = useState<string>('#000000');
   const [customColor, setCustomColor] = useState<string>('#ff0000');
   
   // Wrapper to log style changes

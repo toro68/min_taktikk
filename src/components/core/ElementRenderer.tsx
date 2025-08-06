@@ -8,6 +8,7 @@ import Cone from '../elements/Cone';
 // Line component removed - handled inline
 import Text from '../elements/Text';
 import Area from '../elements/Area';
+import LineEndpoints from '../elements/LineEndpoints';
 
 export interface ElementRendererProps {
   element: FootballElement;
@@ -123,13 +124,18 @@ const ElementRenderer: React.FC<ElementRendererProps> = ({
           <path
             d={(element as LineElement).path}
             stroke={(element as LineElement).color || '#000000'}
-            strokeWidth={2}
+            strokeWidth={1.5}
             fill="none"
             strokeDasharray={(element as LineElement).dashed ? '5,5' : 'none'}
             markerEnd={(element as LineElement).marker ? `url(#${(element as LineElement).marker})` : 'none'}
             onClick={(e: React.MouseEvent) => onElementClick(e, element)}
             onMouseDown={(e: React.MouseEvent) => onElementDragStart(e, element)}
             style={{ cursor: 'pointer' }}
+          />
+          <LineEndpoints
+            line={element as LineElement}
+            isSelected={isSelected}
+            onEndpointDrag={onLineEndpointDrag}
           />
         </g>
       );

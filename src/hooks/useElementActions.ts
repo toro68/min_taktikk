@@ -137,7 +137,7 @@ export const useElementActions = (
     if (isDrawing && lineStart) {
       const selectedLineStyle = lineStyleParams?.selectedLineStyle || 'straight';
       
-      const lineProperties = getLineProperties(selectedLineStyle, lineStyleParams?.lineColor || 'black', lineStyleParams?.curveOffset || 0);
+      const lineProperties = getLineProperties(selectedLineStyle, lineStyleParams?.lineColor || '#000000', lineStyleParams?.curveOffset || 0);
       
       const { curved, dashed, marker, strokeColor } = lineProperties;
       const path = createLinePath(lineStart, coords, selectedLineStyle, lineStyleParams?.curveOffset);
