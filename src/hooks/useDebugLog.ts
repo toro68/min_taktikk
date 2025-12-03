@@ -1,5 +1,6 @@
 import { useEffect } from 'react';
 import { FootballElement, Tool } from '../@types/elements';
+import { debugLog } from '../lib/debug';
 
 export const useDebugLog = (
   tool: Tool,
@@ -8,7 +9,7 @@ export const useDebugLog = (
   currentFrame: number
 ) => {
   useEffect(() => {
-    console.log('🔄 STATE CHANGE:', {
+    debugLog('🔄 STATE CHANGE:', {
       timestamp: new Date().toISOString(),
       tool,
       elementsCount: elements.length,
@@ -20,7 +21,7 @@ export const useDebugLog = (
 
   useEffect(() => {
     if (elements.length > 0) {
-      console.log('📋 ALL ELEMENTS:', elements.map(el => ({
+      debugLog('📋 ALL ELEMENTS:', elements.map(el => ({
         id: el.id,
         type: el.type,
         x: el.x,
@@ -33,7 +34,7 @@ export const useDebugLog = (
   // Log clicks globally
   useEffect(() => {
     const handleGlobalClick = (e: MouseEvent) => {
-      console.log('🌍 GLOBAL CLICK:', {
+      debugLog('🌍 GLOBAL CLICK:', {
         x: e.clientX,
         y: e.clientY,
         target: e.target,

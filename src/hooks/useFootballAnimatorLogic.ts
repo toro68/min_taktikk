@@ -1,13 +1,14 @@
 import { useAnimationLogic } from './useAnimationLogic';
 import { useToolLogic } from './useToolLogic';
 import { useInteractionLogic } from './useInteractionLogic';
+import { useInterpolation } from './useInterpolation';
 import { useAreaTool } from './useAreaTool';
 import { useElementActions } from './useElementActions';
 import { useEnhancedExportImport } from './useEnhancedExportImport';
 import { useElementLayout } from './useElementLayout';
 import { useFrameActions } from './useFrameActions';
 import { useToolbarActions } from './useToolbarActions';
-import { useCallback, useState, useRef, useMemo } from 'react';
+import { useCallback, useState, useRef, useMemo, useEffect } from 'react';
 import { FootballElement, Tool } from '../@types/elements';
 import { getSVGCoordinates, Coordinates } from '../lib/svg-utils';
 import debug from '../lib/debug';
@@ -21,6 +22,17 @@ export const useFootballAnimatorLogic = () => {
   // Core hooks
   const animationLogic = useAnimationLogic();
   const toolLogic = useToolLogic();
+  
+  // 🎬 KRITISK: Smooth interpolation hook - dette kobler animasjonsloopen til faktisk elementposisjonering
+  useInterpolation({
+    currentFrame: animationLogic.currentFrame,
+    progress: animationLogic.progress,
+    frames: animationLogic.frames,
+    setInterpolatedElements: animationLogic.setInterpolatedElements,
+    showTraces: animationLogic.showTraces,
+    traceCurveOffset: animationLogic.traceCurveOffset,
+    interpolationType: animationLogic.interpolationType
+  });
   
   // Create element actions with correct parameters
   const elementActions = useElementActions(
@@ -158,7 +170,12 @@ export const useFootballAnimatorLogic = () => {
     setShowTraces: animationLogic.setShowTraces,
     setTraceCurveOffset: animationLogic.setTraceCurveOffset,
     interpolatedElements: animationLogic.interpolatedElements,
-    setInterpolatedElements: animationLogic.setInterpolatedElements
+    setInterpolatedElements: animationLogic.setInterpolatedElements,
+    // 🎬 KRITISK: Nye avanserte animasjonsfunksjoner
+    interpolationType: animationLogic.interpolationType,
+    setInterpolationType: animationLogic.setInterpolationType,
+    enablePathFollowing: animationLogic.enablePathFollowing,
+    setEnablePathFollowing: animationLogic.setEnablePathFollowing
   }), [animationLogic]);
 
   const toolState = useMemo(() => ({

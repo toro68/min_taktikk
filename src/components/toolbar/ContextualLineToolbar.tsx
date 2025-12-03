@@ -13,7 +13,7 @@ import { getConfig } from '../../lib/config';
 import { LineStyle } from '../../types';
 import { useAppTheme } from '../../providers/AppThemeProvider';
 import { LineElement } from '../../@types/elements';
-import { extractPathEndpoints, createLinePath, updateLineEndpoints } from '../../lib/line-utils';
+import { extractPathEndpoints, createLinePathMemoized, updateLineEndpoints } from '../../lib/line-utils';
 
 interface ContextualLineToolbarProps {
   line: LineElement;
@@ -91,7 +91,7 @@ const ContextualLineToolbar: React.FC<ContextualLineToolbarProps> = React.memo((
     if (line && line.path) {
       const endpoints = extractPathEndpoints(line.path);
       if (endpoints) {
-        const newPath = createLinePath(endpoints.start, endpoints.end, newStyle, line.curveOffset || 0);
+        const newPath = createLinePathMemoized(endpoints.start, endpoints.end, newStyle, line.curveOffset || 0);
         updateElement({ style: newStyle, path: newPath });
         return;
       }

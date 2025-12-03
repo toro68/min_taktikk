@@ -44,10 +44,11 @@
     "ts-jest": "^29.3.4"
   },
   "scripts": {
-    "start": "react-scripts start",
+    "start": "PORT=3050 react-scripts start",
     "build": "react-scripts build",
     "predeploy": "npm run build",
     "deploy": "gh-pages -d build",
+    "sync-config": "cp .aigenrc public/.aigenrc",
     "test": "jest",
     "test:watch": "jest --watch",
     "test:coverage": "jest --coverage",

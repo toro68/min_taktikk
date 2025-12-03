@@ -3,6 +3,31 @@ import { getLineStylesConfig, getTracesConfig } from './config';
 import { legacyToNewStyle } from '../constants/lineStyles';
 import { getLinePropertiesFromStyle } from './lineStyleUtils';
 
+// Simple memoization cache for createLinePath
+const pathCache = new Map<string, string>();
+let cacheHits = 0;
+let cacheMisses = 0;
+
+/**
+ * Creates a cache key for path generation
+ */
+const createPathCacheKey = (
+  start: Coordinates,
+  end: Coordinates,
+  style: LineStyle | boolean,
+  offset: number
+): string => {
+  // Round coordinates to 2 decimal places to avoid cache misses from tiny floating point differences
+  const startX = Math.round(start.x * 100) / 100;
+  const startY = Math.round(start.y * 100) / 100;
+  const endX = Math.round(end.x * 100) / 100;
+  const endY = Math.round(end.y * 100) / 100;
+  const roundedOffset = Math.round(offset * 100) / 100;
+  
+  const styleStr = typeof style === 'boolean' ? (style ? 'curved' : 'straight') : style;
+  return `${startX},${startY}-${endX},${endY}-${styleStr}-${roundedOffset}`;
+};
+
 /**
  * Henter linjeegenskaper basert på ny LineStyleConfig
  */
@@ -50,6 +75,16 @@ export const getLineProperties = (style: LineStyle, color: string = '#000000', c
 /**
  * Oppretter SVG-sti for linje basert på stil og offset
  */
+const SHOULD_LOG = process.env.NODE_ENV === 'development';
+const logLinePath = (message: string, data?: any) => {
+  if (!SHOULD_LOG) return;
+  if (data) {
+    console.log(message, data);
+  } else {
+    console.log(message);
+  }
+};
+
 export const createLinePath = (
   start: Coordinates,
   end: Coordinates,
@@ -67,7 +102,7 @@ export const createLinePath = (
   // Use config-based path generation
   const properties = getLinePropertiesFromStyle(actualStyle);
   
-  console.log('🎨 createLinePath called:', {
+  logLinePath('🎨 createLinePath called:', {
     style: actualStyle,
     properties,
     offset,
@@ -93,6 +128,81 @@ export const createLinePath = (
   }
   
   return createStraightPath(start, end);
+};
+
+/**
+ * Memoized version of createLinePath for performance optimization
+ * Use this instead of createLinePath in frequently called contexts like traces and previews
+ */
+export const createLinePathMemoized = (
+  start: Coordinates,
+  end: Coordinates,
+  style: LineStyle | boolean,
+  offset: number = 0
+): string => {
+  const cacheKey = createPathCacheKey(start, end, style, offset);
+  
+  // Check cache first
+  if (pathCache.has(cacheKey)) {
+    cacheHits++;
+    logLinePath('🎨 createLinePathMemoized CACHE HIT:', { 
+      key: cacheKey,
+      cacheHits, 
+      cacheMisses, 
+      cacheSize: pathCache.size,
+      hitRate: `${((cacheHits / (cacheHits + cacheMisses)) * 100).toFixed(1)}%`
+    });
+    return pathCache.get(cacheKey)!;
+  }
+  
+  // Generate path if not cached
+  cacheMisses++;
+  logLinePath('🎨 createLinePathMemoized CACHE MISS:', { 
+    key: cacheKey,
+    start: `${start.x.toFixed(2)},${start.y.toFixed(2)}`,
+    end: `${end.x.toFixed(2)},${end.y.toFixed(2)}`,
+    style,
+    offset,
+    cacheHits, 
+    cacheMisses, 
+    cacheSize: pathCache.size 
+  });
+  const path = createLinePath(start, end, style, offset);
+  
+  // Cache the result (with size limit to prevent memory leaks)
+  if (pathCache.size > 1000) {
+    // Clear oldest entries when cache gets too large
+    const firstKey = pathCache.keys().next().value;
+    if (firstKey) {
+      pathCache.delete(firstKey);
+      logLinePath('🧹 Cache cleanup: removed oldest entry', firstKey);
+    }
+  }
+  
+  pathCache.set(cacheKey, path);
+  return path;
+};
+
+/**
+ * Get cache statistics for debugging performance
+ */
+export const getCacheStats = () => {
+  const hitRate = cacheHits + cacheMisses > 0 ? (cacheHits / (cacheHits + cacheMisses) * 100).toFixed(1) : '0';
+  return {
+    hits: cacheHits,
+    misses: cacheMisses,
+    size: pathCache.size,
+    hitRate: `${hitRate}%`
+  };
+};
+
+/**
+ * Clear the cache (useful for testing)
+ */
+export const clearPathCache = () => {
+  pathCache.clear();
+  cacheHits = 0;
+  cacheMisses = 0;
 };
 
 /**

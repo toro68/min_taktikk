@@ -2,6 +2,7 @@ import FootballAnimator from './football-animator';
 import { useAppConfig } from './hooks/useAppConfig';
 import { ThemeProvider } from './providers/ThemeProvider';
 import { ToastProvider } from './providers/ToastProvider';
+// Optional: dynamic imports for developer tooling can go here
 
 function App() {
   // Load app configuration

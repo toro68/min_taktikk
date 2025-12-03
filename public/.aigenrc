@@ -77,18 +77,6 @@
                 "icon": "Plus",
                 "label": "Ny keyframe",
                 "tooltip": "Legg til ny keyframe"
-              },
-              {
-                "key": "toggleTraces",
-                "icon": "Zap",
-                "label": "Traces",
-                "tooltip": "Vis/skjul bevegelseslinjer"
-              },
-              {
-                "key": "traceCurve",
-                "icon": "Waves",
-                "label": "Trace-kurve",
-                "tooltip": "Juster trace-kurvatur"
               }
             ]
           },
@@ -140,15 +128,10 @@
           "expanded": true,
           "compact": true,
           "showLabels": false,
-          "controls": [
-            "style",
-            "curve",
-            "color",
-            "marker"
-          ],
+          "controls": ["style", "curve", "color", "marker"],
           "styles": [
             "solidStraight",
-            "solidCurved",
+            "solidCurved", 
             "straightArrow",
             "curvedArrow",
             "dashedStraight",
@@ -162,30 +145,12 @@
     },
     "lineStyles": {
       "colors": [
-        {
-          "name": "Svart",
-          "value": "#000000"
-        },
-        {
-          "name": "Rød",
-          "value": "#ff0000"
-        },
-        {
-          "name": "Blå",
-          "value": "#0000ff"
-        },
-        {
-          "name": "Grønn",
-          "value": "#008000"
-        },
-        {
-          "name": "Gul",
-          "value": "#ffff00"
-        },
-        {
-          "name": "Oransje",
-          "value": "#ffa500"
-        }
+        {"name": "Svart", "value": "#000000"},
+        {"name": "Rød", "value": "#ff0000"},
+        {"name": "Blå", "value": "#0000ff"},
+        {"name": "Grønn", "value": "#008000"},
+        {"name": "Gul", "value": "#ffff00"},
+        {"name": "Oransje", "value": "#ffa500"}
       ],
       "curveRange": {
         "min": -400,
@@ -193,41 +158,13 @@
         "step": 10
       },
       "markers": [
-        {
-          "key": null,
-          "icon": "Minus",
-          "label": "Ingen markør"
-        },
-        {
-          "key": "arrow",
-          "icon": "ArrowRight",
-          "label": "Pil"
-        },
-        {
-          "key": "endline",
-          "icon": "Move",
-          "label": "Endestrek"
-        },
-        {
-          "key": "plus",
-          "icon": "Plus",
-          "label": "Pluss"
-        },
-        {
-          "key": "xmark",
-          "icon": "X",
-          "label": "Kryss"
-        },
-        {
-          "key": "target",
-          "icon": "Target",
-          "label": "Mål"
-        },
-        {
-          "key": "circle",
-          "icon": "Circle",
-          "label": "Sirkel"
-        }
+        { "key": null, "icon": "Minus", "label": "Ingen markør" },
+        { "key": "arrow", "icon": "ArrowRight", "label": "Pil" },
+        { "key": "endline", "icon": "Move", "label": "Endestrek" },
+        { "key": "plus", "icon": "Plus", "label": "Pluss" },
+        { "key": "xmark", "icon": "X", "label": "Kryss" },
+        { "key": "target", "icon": "Target", "label": "Mål" },
+        { "key": "circle", "icon": "Circle", "label": "Sirkel" }
       ],
       "professionalStyles": {
         "player": {
@@ -323,7 +260,7 @@
     },
     "pitchTypes": [
       "offensive",
-      "defensive",
+      "defensive", 
       "handball",
       "full",
       "fullLandscape",
@@ -331,11 +268,7 @@
       "blankLandscape"
     ],
     "guidelines": {
-      "modes": [
-        "lines",
-        "colors",
-        "full"
-      ]
+      "modes": ["lines", "colors", "full"]
     },
     "ui": {
       "theme": {

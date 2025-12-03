@@ -91,25 +91,7 @@ export interface TraceElement extends BaseElement {
   path: string;
   style?: LineStyle;
   dashed?: boolean;
-  curved?: boolean;
-  curveOffset?: number;
-  elementId: string;
-  elementType: 'player' | 'opponent' | 'ball';
-  opacity?: number;
-  quality?: 'low' | 'medium' | 'high';
-  duration?: number;
-  timestamp?: number;
-  frameStart?: number;
-  frameEnd?: number;
-  thickness?: number;
-  fadeType?: 'linear' | 'exponential' | 'none';
-}
-
-export interface TraceElement extends BaseElement {
-  type: 'trace';
-  path: string;
-  style?: LineStyle;
-  dashed?: boolean;
+  marker?: LineElement['marker'];
   curved?: boolean;
   curveOffset?: number;
   elementId: string;

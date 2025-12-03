@@ -1,6 +1,6 @@
 import { useState, useRef, useCallback } from 'react';
 import { FootballElement, PlayerElement, OpponentElement, TextElement, LineElement, Tool, Frame } from '../@types/elements';
-import { createLinePath, getLineProperties, isPointNearLine } from '../lib/line-utils';
+import { createLinePath, createLinePathMemoized, getLineProperties, isPointNearLine } from '../lib/line-utils';
 import { LineStyle } from '../types';
 
 // Updated interface to match the simple usage pattern
@@ -140,7 +140,7 @@ export const useElementActions = (
       const lineProperties = getLineProperties(selectedLineStyle, lineStyleParams?.lineColor || '#000000', lineStyleParams?.curveOffset || 0);
       
       const { curved, dashed, marker, strokeColor } = lineProperties;
-      const path = createLinePath(lineStart, coords, selectedLineStyle, lineStyleParams?.curveOffset);
+      const path = createLinePathMemoized(lineStart, coords, selectedLineStyle, lineStyleParams?.curveOffset);
       
       setPreviewLine({
         id: 'preview-line',
@@ -170,7 +170,7 @@ export const useElementActions = (
       const { selectedLineStyle, lineColor, curveOffset } = lineStyleParams;
       
       const { dashed, marker, strokeColor } = getLineProperties(selectedLineStyle, lineColor, curveOffset);
-      const finalizedPath = createLinePath(lineStart, coords, selectedLineStyle, curveOffset);
+      const finalizedPath = createLinePathMemoized(lineStart, coords, selectedLineStyle, curveOffset);
       
       const dx = coords.x - lineStart.x;
       const dy = coords.y - lineStart.y;
@@ -237,20 +237,23 @@ export const useElementActions = (
           newElement = {
             ...baseElement,
             type: tool,
-            number: currentNumber.toString()
+            number: currentNumber.toString(),
+            visible: true
           };
           incrementCurrentNumber();
           break;
         case 'ball':
           newElement = {
             ...baseElement,
-            type: 'ball'
+            type: 'ball',
+            visible: true
           };
           break;
         case 'cone':
           newElement = {
             ...baseElement,
-            type: 'cone'
+            type: 'cone',
+            visible: true
           };
           break;
         case 'text':
@@ -260,7 +263,8 @@ export const useElementActions = (
             ...baseElement,
             type: 'text',
             content,
-            fontSize: 16
+            fontSize: 16,
+            visible: true
           };
           break;
         default:
@@ -276,31 +280,37 @@ export const useElementActions = (
   }, [frames, currentFrame, getElementCoordinates, setFrames]);
 
   // Touch handlers
-  const handleTouchStart = useCallback((event: React.TouchEvent<SVGSVGElement>) => {
+  const handleTouchStart = useCallback((event: React.TouchEvent<SVGSVGElement>, tool: Tool, setSelectedElement: (el: FootballElement | null) => void, pitch: string) => {
     const touch = event.touches[0];
+    if (!touch) return;
+    
     const mouseEvent = {
       clientX: touch.clientX,
       clientY: touch.clientY,
-      preventDefault: () => {},
-      stopPropagation: () => {},
+      preventDefault: () => event.preventDefault(),
+      stopPropagation: () => event.stopPropagation(),
       currentTarget: event.currentTarget
     } as React.MouseEvent<SVGSVGElement>;
     
-    // Convert touch to mouse event and handle
-  }, []);
+    // Delegate to mouse down handler
+    handleMouseDown(mouseEvent, tool, setSelectedElement, pitch);
+  }, [handleMouseDown]);
 
-  const handleTouchEnd = useCallback((event: React.TouchEvent<SVGSVGElement>) => {
+  const handleTouchEnd = useCallback((event: React.TouchEvent<SVGSVGElement>, pitch: string) => {
     const touch = event.changedTouches[0];
+    if (!touch) return;
+    
     const mouseEvent = {
       clientX: touch.clientX,
       clientY: touch.clientY,
-      preventDefault: () => {},
-      stopPropagation: () => {},
+      preventDefault: () => event.preventDefault(),
+      stopPropagation: () => event.stopPropagation(),
       currentTarget: event.currentTarget
     } as React.MouseEvent<SVGSVGElement>;
     
-    // Convert touch to mouse event and handle
-  }, []);
+    // Delegate to mouse up handler
+    handleMouseUp(mouseEvent, pitch);
+  }, [handleMouseUp]);
 
   // Element click handler
   const handleElementClick = useCallback((event: React.MouseEvent, element: FootballElement) => {

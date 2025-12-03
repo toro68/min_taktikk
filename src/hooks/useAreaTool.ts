@@ -2,6 +2,7 @@ import { useState, useCallback } from 'react';
 import { AreaElement } from '../@types/elements';
 import { getSVGCoordinates } from '../lib/svg-utils';
 import { generateId } from '../lib/utils';
+import { debugLog } from '../lib/debug';
 
 interface UseAreaToolProps {
   addElementToCurrentFrame: (element: AreaElement) => void;
@@ -19,13 +20,13 @@ export const useAreaTool = (props: UseAreaToolProps) => {
   const handleAreaClick = useCallback((event: React.MouseEvent<SVGSVGElement>) => {
     const coordinates = getSVGCoordinates(event.clientX, event.clientY, event.currentTarget);
     
-    console.log('Area tool click:', { coordinates, areaStartPoint });
+    debugLog('Area tool click:', { coordinates, areaStartPoint });
     
     if (!areaStartPoint) {
       // Start nytt område
       setAreaStartPoint(coordinates);
       setAreaPreview(null);
-      console.log('Started new area at:', coordinates);
+      debugLog('Started new area at:', coordinates);
     } else {
       // Fullfør område
       const width = Math.abs(coordinates.x - areaStartPoint.x);
@@ -44,7 +45,7 @@ export const useAreaTool = (props: UseAreaToolProps) => {
         visible: true
       };
       
-      console.log('Completing area:', areaElement);
+      debugLog('Completing area:', areaElement);
       
       // Legg til område i current frame
       props.addElementToCurrentFrame(areaElement);

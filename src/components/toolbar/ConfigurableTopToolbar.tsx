@@ -9,6 +9,7 @@ import {
 } from "../ui/tooltip";
 import { getConfig } from '../../lib/config';
 import { getIconComponent } from '../../lib/iconMap';
+import { InterpolationType } from '../../lib/interpolation';
 
 interface ConfigurableTopToolbarProps {
   playbackSpeed: number;
@@ -25,6 +26,15 @@ interface ConfigurableTopToolbarProps {
   isPlaying: boolean;
   onPlayPause: () => void;
   onRewind: () => void;
+  // Advanced animation controls
+  interpolationType?: InterpolationType;
+  setInterpolationType?: (type: InterpolationType) => void;
+  enablePathFollowing?: boolean;
+  setEnablePathFollowing?: (enabled: boolean) => void;
+  showTraces?: boolean;
+  setShowTraces?: (value: boolean) => void;
+  traceCurveOffset?: number;
+  onTraceCurveChange?: (value: number) => void;
 }
 
 const ConfigurableTopToolbar: React.FC<ConfigurableTopToolbarProps> = React.memo(({
@@ -42,28 +52,53 @@ const ConfigurableTopToolbar: React.FC<ConfigurableTopToolbarProps> = React.memo
   isPlaying,
   onPlayPause,
   onRewind,
+  interpolationType = 'smooth',
+  setInterpolationType,
+  enablePathFollowing = false,
+  setEnablePathFollowing,
+  showTraces = true,
+  setShowTraces,
+  traceCurveOffset = 0,
+  onTraceCurveChange,
 }) => {
   const config = getConfig();
   const topToolbar = config.settings.toolbar.top;
+  const traceCurveRange = config.settings.traces?.curveRange || { min: -300, max: 300, step: 1 };
 
   if (!topToolbar) {
     return null;
   }
 
   const handleButtonClick = (buttonKey: string) => {
-    console.log('🎯 DEBUG [ConfigurableTopToolbar]: Button clicked:', buttonKey);
+    if (process.env.NODE_ENV === 'development') {
+      console.log('🎯 DEBUG [ConfigurableTopToolbar]: Button clicked:', buttonKey);
+    }
     
     switch (buttonKey) {
       case 'playPause':
-        console.log('🎯 Play/Pause button clicked, current isPlaying:', isPlaying);
+        if (process.env.NODE_ENV === 'development') {
+          console.log('🎯 Play/Pause button clicked, current isPlaying:', isPlaying);
+        }
         onPlayPause();
         break;
       case 'rewind':
-        console.log('🎯 Rewind button clicked');
+        if (process.env.NODE_ENV === 'development') {
+          console.log('🎯 Rewind button clicked');
+        }
         onRewind();
         break;
       case 'addKeyframe':
         onAddKeyframe();
+        break;
+      case 'toggleTraces':
+        setShowTraces?.(!showTraces);
+        break;
+      case 'traceCurve':
+        if (onTraceCurveChange && traceCurveOffset !== undefined) {
+          const range = config.settings.traces?.curveRange || { min: -300, max: 300, step: 1 };
+          const nextValue = traceCurveOffset >= range.max ? range.min : Math.min(traceCurveOffset + range.step, range.max);
+          onTraceCurveChange(nextValue);
+        }
         break;
       case 'downloadJson':
         onDownloadAnimation();
@@ -170,8 +205,105 @@ const ConfigurableTopToolbar: React.FC<ConfigurableTopToolbarProps> = React.memo
             )}
           </div>
 
-          {/* Right side - Playback speed control */}
-          <div className="flex items-center gap-2">
+          {/* Right side - Playback speed control and advanced animation settings */}
+          <div className="flex items-center gap-4">
+            {/* Advanced Animation Controls */}
+            {(setInterpolationType || setEnablePathFollowing || setShowTraces || onTraceCurveChange) && (
+              <div className="flex items-center gap-3">
+                {/* Interpolation Type */}
+                {setInterpolationType && (
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs text-gray-600">Interpolering:</span>
+                    <div className="flex gap-1">
+                      {[
+                        { value: 'linear' as InterpolationType, label: 'Lin', tooltip: 'Linear - konstant hastighet' },
+                        { value: 'smooth' as InterpolationType, label: 'Sm', tooltip: 'Smooth - jevn start/stopp' },
+                        { value: 'easeIn' as InterpolationType, label: 'In', tooltip: 'Ease In - langsom start' },
+                        { value: 'easeOut' as InterpolationType, label: 'Out', tooltip: 'Ease Out - langsom stopp' }
+                      ].map((option) => (
+                        <Tooltip key={option.value}>
+                          <TooltipTrigger asChild>
+                            <button
+                              onClick={() => setInterpolationType(option.value)}
+                              className={`px-2 py-1 text-xs rounded border transition-colors ${
+                                interpolationType === option.value
+                                  ? 'bg-blue-100 border-blue-300 text-blue-800'
+                                  : 'bg-gray-50 border-gray-200 text-gray-700 hover:bg-gray-100'
+                              }`}
+                            >
+                              {option.label}
+                            </button>
+                          </TooltipTrigger>
+                          <TooltipContent side="bottom" sideOffset={2} className="py-0.5 px-1.5 bg-black/90 text-white border-0">
+                            <p className="text-[10px] font-medium">{option.tooltip}</p>
+                          </TooltipContent>
+                        </Tooltip>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Path Following */}
+                {setEnablePathFollowing && (
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <label className="flex items-center space-x-2 cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={enablePathFollowing}
+                          onChange={(e) => setEnablePathFollowing(e.target.checked)}
+                          className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                        />
+                        <span className="text-xs text-gray-600">
+                          Bane-følging
+                        </span>
+                      </label>
+                    </TooltipTrigger>
+                    <TooltipContent side="bottom" sideOffset={2} className="py-0.5 px-1.5 bg-black/90 text-white border-0">
+                      <p className="text-[10px] font-medium">Elementer følger SVG-baner mellom keyframes</p>
+                    </TooltipContent>
+                  </Tooltip>
+                )}
+
+                {/* Traces toggle */}
+                {setShowTraces && (
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <label className="flex items-center space-x-2 cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={showTraces}
+                          onChange={(e) => setShowTraces?.(e.target.checked)}
+                          className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                        />
+                        <span className="text-xs text-gray-600">Traces</span>
+                      </label>
+                    </TooltipTrigger>
+                    <TooltipContent side="bottom" sideOffset={2} className="py-0.5 px-1.5 bg-black/90 text-white border-0">
+                      <p className="text-[10px] font-medium">Vis eller skjul bevegelseslinjer</p>
+                    </TooltipContent>
+                  </Tooltip>
+                )}
+
+                {/* Trace curve slider */}
+                {onTraceCurveChange && (
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs text-gray-600 whitespace-nowrap">Trace-kurve:</span>
+                    <Slider
+                      value={[traceCurveOffset]}
+                      onValueChange={([value]) => onTraceCurveChange?.(value)}
+                      min={traceCurveRange.min}
+                      max={traceCurveRange.max}
+                      step={traceCurveRange.step || 1}
+                      className="w-24"
+                    />
+                    <span className="text-[10px] tabular-nums w-10 text-gray-600">{traceCurveOffset}px</span>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Playback Speed Control */}
             <Tooltip>
               <TooltipTrigger asChild>
                 <div className="flex items-center gap-1">

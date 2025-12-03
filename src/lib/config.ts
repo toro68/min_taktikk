@@ -79,12 +79,24 @@ export interface KeyframeConfig {
   };
 }
 
+export interface TraceFeatureConfig {
+  enabled?: boolean;
+  opacity?: number;
+  style?: string;
+}
+
 export interface TracesConfig {
   enabled: boolean;
+  description?: string;
   curveRange: {
     min: number;
     max: number;
     step: number;
+  };
+  features?: {
+    playerTraces?: TraceFeatureConfig;
+    opponentTraces?: TraceFeatureConfig;
+    ballTraces?: TraceFeatureConfig;
   };
 }
 
@@ -884,7 +896,7 @@ export const loadConfig = async (): Promise<AppConfig> => {
 
   // Use the built-in .aigenrc configuration
   cachedConfig = aigenrcConfig;
-  console.log('✅ Loaded configuration from built-in .aigenrc');
+  // Config load message - only in development, controlled by DEBUG_MODE
   return aigenrcConfig;
 };
 

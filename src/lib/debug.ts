@@ -2,6 +2,17 @@
  * Debug utilities for the tactics application
  */
 
+// Global debug flag - set to false in production
+export const DEBUG_MODE = process.env.NODE_ENV === 'development' && 
+  (typeof window === 'undefined' || !window.location.search.includes('debug=false'));
+
+// Conditional console.log that respects DEBUG_MODE
+export const debugLog = (...args: any[]) => {
+  if (DEBUG_MODE) {
+    console.log(...args);
+  }
+};
+
 interface DebugConfig {
   enabled: boolean;
   level: 'error' | 'warn' | 'log' | 'info';
@@ -133,10 +144,8 @@ class Debug implements ThrottledLogger {
 
 const debug = new Debug();
 
-// Expose debug instance globally for BOTH development AND production for testing
-if (typeof window !== 'undefined') {
+if (typeof window !== 'undefined' && process.env.NODE_ENV === 'development') {
   (window as any).debug = debug;
-  console.log('Debug instance available globally as window.debug');
 }
 
 export default debug;

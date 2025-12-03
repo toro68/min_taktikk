@@ -1,5 +1,7 @@
 import { useState, useRef, useCallback, useEffect } from 'react';
 import { FootballElement, Frame } from '../@types/elements';
+import { InterpolationType } from '../lib/interpolation';
+import { debugLog } from '../lib/debug';
 
 export const useAnimationLogic = () => {
   const [frames, setFrames] = useState<Frame[]>([{ elements: [], duration: 3 }]);
@@ -12,6 +14,10 @@ export const useAnimationLogic = () => {
   // Trace state - viktig for spilleranimering
   const [showTraces, setShowTraces] = useState(true); // Enable traces by default
   const [traceCurveOffset, setTraceCurveOffset] = useState(0);
+
+  // Advanced animation settings
+  const [interpolationType, setInterpolationType] = useState<InterpolationType>('smooth'); // Use smooth interpolation by default
+  const [enablePathFollowing, setEnablePathFollowing] = useState(false);
 
   // Refs for animation
   const animationRef = useRef<number | null>(null);
@@ -64,17 +70,42 @@ export const useAnimationLogic = () => {
     const currentFrameDuration = framesRef.current[currentFrameRef.current]?.duration || 1;
     let newProgress = progressRef.current + (deltaTime * playbackSpeedRef.current) / (currentFrameDuration * 1000);
     
+    // If only one frame, just animate progress from 0 to 1 and loop
+    if (framesRef.current.length === 1) {
+      if (newProgress >= 1) {
+        newProgress = 0; // Loop back to start
+      }
+      progressRef.current = newProgress;
+      setProgress(newProgress);
+      
+      if (isPlayingRef.current) {
+        animationRef.current = requestAnimationFrame(animateFrames);
+      }
+      return;
+    }
+    
+    // Multi-frame animation logic
     if (currentFrameRef.current === framesRef.current.length - 1) {
       if (newProgress >= 1) {
-        newProgress = 1;
+        // On last frame, stop the animation instead of looping
+        newProgress = 1; // Stay at 100% of last frame
         progressRef.current = 1;
         setProgress(1);
         isPlayingRef.current = false;
         setIsPlaying(false);
+        debugLog('🏁 Animation completed - stopping at last frame');
+        return; // Stop the animation loop
       }
     } else if (newProgress >= 1) {
       newProgress = 0;
       const nextFrame = currentFrameRef.current + 1;
+      
+      debugLog('🎯 Frame transition:', {
+        from: currentFrameRef.current,
+        to: nextFrame,
+        totalFrames: framesRef.current.length,
+        newProgress
+      });
       
       if (nextFrame < framesRef.current.length) {
         currentFrameRef.current = nextFrame;
@@ -92,14 +123,14 @@ export const useAnimationLogic = () => {
 
   // useEffect to start/stop animation when isPlaying changes
   useEffect(() => {
-    console.log('🎬 DEBUG [useAnimationLogic]: isPlaying changed to:', isPlaying);
+    debugLog('🎬 DEBUG [useAnimationLogic]: isPlaying changed to:', isPlaying);
     
     if (isPlaying) {
-      console.log('🎬 Starting animation...');
+      debugLog('🎬 Starting animation...');
       lastTimeRef.current = performance.now();
       animationRef.current = requestAnimationFrame(animateFrames);
     } else {
-      console.log('🎬 Stopping animation...');
+      debugLog('🎬 Stopping animation...');
       if (animationRef.current) {
         cancelAnimationFrame(animationRef.current);
         animationRef.current = null;
@@ -113,7 +144,7 @@ export const useAnimationLogic = () => {
         animationRef.current = null;
       }
     };
-  }, [isPlaying, animateFrames]);
+  }, [isPlaying]); // Removed animateFrames from dependencies to prevent infinite loop
 
   return {
     frames,
@@ -139,6 +170,11 @@ export const useAnimationLogic = () => {
     setShowTraces,
     traceCurveOffset,
     setTraceCurveOffset,
+    // New advanced animation features
+    interpolationType,
+    setInterpolationType,
+    enablePathFollowing,
+    setEnablePathFollowing,
   };
 };
 

@@ -9,7 +9,7 @@ import ConfigurableBottomToolbar from './components/toolbar/ConfigurableBottomTo
 import AnimationSection from './components/layout/AnimationSection';
 import AreaProperties from './components/properties/AreaProperties';
 import LineProperties from './components/properties/LineProperties';
-import { AreaElement, GuidelineMode, Frame, FootballElement, LineElement } from './@types/elements';
+import { AreaElement, GuidelineMode, Frame, FootballElement, LineElement, TraceElement } from './@types/elements';
 import { Button } from './components/ui/button';
 import SVGMarkers from './components/core/SVGMarkers';
 import ErrorBoundary from './components/core/ErrorBoundary';
@@ -36,12 +36,14 @@ const FootballAnimator: React.FC = () => {
     curveOffset: animationLogic.traceCurveOffset
   });
 
-  // Update traces when frame changes
+  // Update traces when frame changes - use original keyframe elements, NOT interpolated ones
   useEffect(() => {
-    if (animationLogic.showTraces && layoutLogic.elementsToRender.length > 0) {
-      traceManager.updateTraces(layoutLogic.elementsToRender, animationLogic.currentFrame);
+    if (animationLogic.showTraces) {
+      // Get original keyframe elements (not interpolated ones) for trace calculation
+      const originalElements = animationLogic.frames[animationLogic.currentFrame]?.elements || [];
+      traceManager.updateTraces(originalElements, animationLogic.currentFrame);
     }
-  }, [animationLogic.currentFrame, layoutLogic.elementsToRender, animationLogic.showTraces, traceManager]);
+  }, [animationLogic.currentFrame, animationLogic.frames, animationLogic.showTraces, traceManager]);
 
   // Clear traces when showTraces is disabled
   useEffect(() => {
@@ -57,7 +59,10 @@ const FootballAnimator: React.FC = () => {
     pitch: toolLogic.pitch,
     zoomLevel: toolLogic.zoomLevel,
     showGuidelines: toolLogic.showGuidelines,
-    elements: layoutLogic.elementsToRender,
+    // 🎬 KRITISK FIX: Bruk interpolated elements for smooth animasjon!
+    elements: animationLogic.interpolatedElements.length > 0 
+      ? animationLogic.interpolatedElements 
+      : layoutLogic.elementsToRender,
     selectedElement: toolLogic.selectedElement,
     tool: toolLogic.tool,
     previewLine: interactionLogic.previewLine,
@@ -70,8 +75,10 @@ const FootballAnimator: React.FC = () => {
       elementActions.handleMouseMove(event as React.MouseEvent<SVGSVGElement>, toolLogic.pitch),
     onClick: (event: React.MouseEvent<SVGSVGElement>) => 
       elementActions.handleClick(event, toolLogic.tool, Number(toolLogic.currentNumber), toolLogic.incrementCurrentNumber, toolLogic.setSelectedElement, toolLogic.pitch),
-    onTouchStart: elementActions.handleTouchStart,
-    onTouchEnd: elementActions.handleTouchEnd,
+    onTouchStart: (event: React.TouchEvent<SVGSVGElement>) => 
+      elementActions.handleTouchStart(event, toolLogic.tool, toolLogic.setSelectedElement, toolLogic.pitch),
+    onTouchEnd: (event: React.TouchEvent<SVGSVGElement>) => 
+      elementActions.handleTouchEnd(event, toolLogic.pitch),
     onElementClick: (event: React.MouseEvent, element: FootballElement) => {
       elementActions.handleElementClick(event, element);
       toolLogic.setSelectedElement(element);
@@ -95,7 +102,8 @@ const FootballAnimator: React.FC = () => {
       const newPath = updateLineEndpoints(line.path, line.style, newStart, newEnd, line.curveOffset || 0);
       
       elementActions.updateFrameElement(animationLogic.currentFrame, lineId, { path: newPath });
-    }
+    },
+    traces: traceManager.traces
   };
 
   // Logikk for å håndtere standard linjeegenskaper når verktøyet er valgt
@@ -195,6 +203,15 @@ const FootballAnimator: React.FC = () => {
             animationLogic.setCurrentFrame(0);
             animationLogic.setProgress(0);
           }}
+          // Advanced animation controls
+          interpolationType={animationLogic.interpolationType}
+          setInterpolationType={animationLogic.setInterpolationType}
+          enablePathFollowing={animationLogic.enablePathFollowing}
+          setEnablePathFollowing={animationLogic.setEnablePathFollowing}
+          showTraces={animationLogic.showTraces}
+          setShowTraces={animationLogic.setShowTraces}
+          traceCurveOffset={animationLogic.traceCurveOffset}
+          onTraceCurveChange={animationLogic.setTraceCurveOffset}
         />
         
         <div className="flex flex-1 overflow-hidden min-h-0">

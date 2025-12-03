@@ -9,7 +9,7 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "../ui/tooltip";
-import { getLineProperties, createLinePath, updateLineEndpoints, extractPathEndpoints, getCurveRangeFromConfig } from '../../lib/line-utils';
+import { getLineProperties, createLinePathMemoized, updateLineEndpoints, extractPathEndpoints, getCurveRangeFromConfig } from '../../lib/line-utils';
 import { getLineStylesConfig } from '../../lib/config';
 
 interface LinePropertiesProps {
@@ -105,7 +105,7 @@ const LineProperties: React.FC<LinePropertiesProps> = ({ line, updateElement }) 
     const endpoints = extractPathEndpoints(line.path);
     if (!endpoints) return;
 
-    const newPath = createLinePath(endpoints.start, endpoints.end, newStyle, curveOffset);
+    const newPath = createLinePathMemoized(endpoints.start, endpoints.end, newStyle, curveOffset);
     updateElement({ 
       style: newStyle, 
       path: newPath 

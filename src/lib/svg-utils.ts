@@ -13,7 +13,8 @@ export interface PitchDimensions {
 
 // Add coordinate caching for performance during drag operations
 const coordinateCache = new Map<string, { coords: Coordinates; timestamp: number }>();
-const CACHE_DURATION = 16; // Cache for 16ms (one frame at 60fps)
+const CACHE_DURATION = 100; // Cache for 100ms for better cache hits during rapid mouse movements
+const SHOULD_CACHE_COORDINATES = process.env.NODE_ENV !== 'test';
 
 /**
  * Helper to validate SVG coordinates
@@ -42,14 +43,19 @@ export function getSVGCoordinates(
   }
 
   // Create cache key for this calculation - handle missing getAttribute safely
+  // Round coordinates more aggressively for better cache hits
+  const roundedClientX = Math.round(clientX * 4) / 4; // Round to nearest 0.25
+  const roundedClientY = Math.round(clientY * 4) / 4; // Round to nearest 0.25
   const viewBoxForCache = (svgElement.getAttribute && svgElement.getAttribute('viewBox')) || 'default';
-  const cacheKey = `${clientX.toFixed(1)}-${clientY.toFixed(1)}-${viewBoxForCache}`;
-  const now = Date.now();
-  
-  // Check cache first
-  const cached = coordinateCache.get(cacheKey);
-  if (cached && (now - cached.timestamp) < CACHE_DURATION) {
-    return cached.coords;
+  const cacheKey = `${roundedClientX}-${roundedClientY}-${viewBoxForCache}`;
+  let now: number | null = null;
+
+  if (SHOULD_CACHE_COORDINATES) {
+    now = Date.now();
+    const cached = coordinateCache.get(cacheKey);
+    if (cached && (now - cached.timestamp) < CACHE_DURATION) {
+      return cached.coords;
+    }
   }
   
   const rect = svgElement.getBoundingClientRect && svgElement.getBoundingClientRect();
@@ -73,13 +79,17 @@ export function getSVGCoordinates(
       
       const ctm = svgElement.getScreenCTM();
       if (ctm) {
-        const transformedPoint = point.matrixTransform(ctm.inverse());          // Validate the result
+        const transformedPoint = point.matrixTransform(ctm.inverse());          // Validate the result and round for better cache hits
           if (isFinite(transformedPoint.x) && isFinite(transformedPoint.y)) {
-            const result = { x: transformedPoint.x, y: transformedPoint.y };
-            
-            // Cache the result
-            coordinateCache.set(cacheKey, { coords: result, timestamp: now });
-            
+            const result = { 
+              x: Math.round(transformedPoint.x * 100) / 100, // Round to 2 decimal places
+              y: Math.round(transformedPoint.y * 100) / 100  // Round to 2 decimal places
+            };
+
+            if (SHOULD_CACHE_COORDINATES) {
+              coordinateCache.set(cacheKey, { coords: result, timestamp: now ?? Date.now() });
+            }
+
             return result;
           }
       }
@@ -127,24 +137,26 @@ export function getSVGCoordinates(
   const transformedX = viewBoxX + (relativeX * scaleX);
   const transformedY = viewBoxY + (relativeY * scaleY);
   
-  // Final validation and result
+  // Final validation and result with rounding for better cache hits
   const result = {
-    x: isFinite(transformedX) ? transformedX : 0,
-    y: isFinite(transformedY) ? transformedY : 0
+    x: isFinite(transformedX) ? Math.round(transformedX * 100) / 100 : 0,
+    y: isFinite(transformedY) ? Math.round(transformedY * 100) / 100 : 0
   };
   
-  // Cache the result
-  coordinateCache.set(cacheKey, { coords: result, timestamp: now });
-  
-  // Clean up old cache entries periodically
-  if (coordinateCache.size > 100) {
-    coordinateCache.forEach((value, key) => {
-      if (now - value.timestamp > 1000) { // Remove entries older than 1 second
-        coordinateCache.delete(key);
-      }
-    });
+  if (SHOULD_CACHE_COORDINATES) {
+    coordinateCache.set(cacheKey, { coords: result, timestamp: now ?? Date.now() });
+
+    // Clean up old cache entries periodically
+    if (coordinateCache.size > 100) {
+      const cleanupTimestamp = Date.now();
+      coordinateCache.forEach((value, key) => {
+        if (cleanupTimestamp - value.timestamp > 1000) { // Remove entries older than 1 second
+          coordinateCache.delete(key);
+        }
+      });
+    }
   }
-  
+
   return result;
 };
 

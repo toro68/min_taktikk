@@ -1,9 +1,10 @@
 import { useState, useCallback, useRef } from 'react';
 import { LineElement } from '../@types/elements';
 import { LineStyle } from '../types';
-import { getLineProperties, createLinePath } from '../lib/line-utils';
+import { getLineProperties, createLinePathMemoized } from '../lib/line-utils';
 import { getSVGCoordinates } from '../lib/svg-utils';
 import { generateId } from '../lib/utils';
+import { debugLog } from '../lib/debug';
 
 interface UseInteractionLogicProps {
   addElementToCurrentFrame: (element: LineElement) => void;
@@ -34,12 +35,12 @@ export const useInteractionLogic = (props: UseInteractionLogicProps) => {
       setCurrentLineStart(coordinates);
       setPreviewLine(null);
     } else {
-      console.log('🖱️ Line tool creating line with style:', selectedLineStyle);
+      debugLog('🖱️ Line tool creating line with style:', selectedLineStyle);
       
       const lineProperties = getLineProperties(selectedLineStyle, lineColor, curveOffset);
-      const path = createLinePath(currentLineStart, coordinates, selectedLineStyle, curveOffset);
+      const path = createLinePathMemoized(currentLineStart, coordinates, selectedLineStyle, curveOffset);
       
-      console.log('✏️ Created line element:', {
+      debugLog('✏️ Created line element:', {
         style: selectedLineStyle,
         properties: lineProperties,
         path,
@@ -71,7 +72,7 @@ export const useInteractionLogic = (props: UseInteractionLogicProps) => {
   const handleLineMouseMove = useCallback((event: React.MouseEvent<SVGSVGElement>) => {
     if (currentLineStart) {
       const coordinates = getSVGCoordinates(event.clientX, event.clientY, event.currentTarget);
-      const previewPath = createLinePath(currentLineStart, coordinates, selectedLineStyle, curveOffset);
+      const previewPath = createLinePathMemoized(currentLineStart, coordinates, selectedLineStyle, curveOffset);
       
       setPreviewLine({
         id: 'line-preview',

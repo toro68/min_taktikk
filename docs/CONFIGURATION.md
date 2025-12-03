@@ -19,11 +19,12 @@ Konfigurasjonssystemet leser innstillinger fra `.aigenrc` filen og anvender dem 
    - `public/.aigenrc` - Kopi som kan lastes av browseren
 
 2. **Automatisk lasting**:
-   - Appen laster konfigurasjonen automatisk ved oppstart
-   - Fallback til standardverdier hvis konfig ikke kan lastes
+   - `useAppConfig` forsøker å hente `public/.aigenrc` ved oppstart
+   - Hvis filen mangler eller JSON er ugyldig, logges en warning og appen bruker innebygde standarder (se `docs/CONFIG_SNAPSHOT.md`)
 
 3. **Live reload**:
    - Endringer i `public/.aigenrc` kan tas i bruk ved å refreshe siden
+   - Automatisk hot reload planlegges via `npm run sync-config`
 
 ## Konfigurasjonsfil (.aigenrc)
 
@@ -44,9 +45,29 @@ Konfigurasjonssystemet leser innstillinger fra `.aigenrc` filen og anvender dem 
 }
 ```
 
+> Tips: Hvis du har slettet `.aigenrc`, kopier strukturen fra `docs/CONFIG_SNAPSHOT.md` og lim inn i både roten og `public/`.
+
+### Referanse fra dagens `.aigenrc`
+
+| Seksjon | Hovedinnhold |
+| --- | --- |
+| `version` | `1.1` |
+| `toolbar.layout` | `split` (bunn + top-panel) |
+| `toolbar.bottom.buttons` | `select`, `player`, `opponent`, `ball`, `cone`, `line`, `text`, `area`, `togglePitch` |
+| `toolbar.top.groups.animation` | `playPause`, `rewind`, `addKeyframe` |
+| `toolbar.top.groups.export` | `downloadJson`, `downloadPng`, `downloadFilm`, `downloadGif`, `loadAnimation`, `loadExample` |
+| `toolbar.contextual.line.styles` | `solidStraight`, `solidCurved`, `straightArrow`, `curvedArrow`, `dashedStraight`, `dashedCurved`, `sineWave`, `fishHook`, `hook` |
+| `lineStyles.colors` | `Svart`, `Rød`, `Blå`, `Grønn`, `Gul`, `Oransje` |
+| `lineStyles.markers` | `none`, `arrow`, `endline`, `plus`, `xmark`, `target`, `circle` |
+| `lineStyles.curveRange` | min `-400`, max `400`, step `10` |
+| `traces.features.playerTraces` | `enabled`, opacity `0.7`, style `dashedStraightArrow` |
+| `traces.features.ballTraces` | `enabled`, opacity `0.8`, style `solidStraight` |
+| `pitchTypes` | `offensive`, `defensive`, `handball`, `full`, `fullLandscape`, `blankPortrait`, `blankLandscape` |
+| `guidelines.modes` | `lines`, `colors`, `full` |
+| `ui.theme` | primary `#3b82f6`, secondary `#64748b`, success `#10b981`, warning `#f59e0b`, error `#ef4444` |
+
 ### Toolbar-konfigurasjon
 
-```json
 "toolbar": {
   "position": "below",
   "layout": "single-line",
@@ -257,6 +278,7 @@ Hvis konfigurasjonen ikke kan lastes:
 1. Sjekk at `public/.aigenrc` eksisterer
 2. Valider JSON-syntaks med en validator
 3. Sjekk nettverksfanen i DevTools for 404-feil
+4. Se `useAppConfig` warnings i konsollen — faller tilbake til innebygd standard dersom fila ikke finnes
 
 ### TypeScript-feil
 1. Sjekk at alle påkrevde felter er med
@@ -277,6 +299,8 @@ Dette systemet kan enkelt utvides med:
 - GUI for redigering av innstillinger
 - Språk-lokalisering
 - Plugin-system for tilleggsfunksjoner
+- Automatisk synk-kommando (`npm run sync-config`) som kopierer `.aigenrc` til `public/.aigenrc`
+- JSON Schema-validering som kjører i CI og på `prepush`
 
 ## Konklusjon
 
