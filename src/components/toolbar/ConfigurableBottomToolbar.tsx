@@ -69,12 +69,28 @@ const ConfigurableBottomToolbar: React.FC<ConfigurableBottomToolbarProps> = Reac
     }
   };
 
+  const modeLabelByTool: Record<Tool, string> = {
+    select: 'Velg',
+    player: 'Plasser',
+    opponent: 'Plasser',
+    ball: 'Plasser',
+    cone: 'Plasser',
+    line: 'Tegn',
+    text: 'Merk',
+    area: 'Tegn'
+  };
+
   // Style for active button
-  const activeButtonStyle = "bg-blue-600 text-white font-bold border-2 border-blue-700 shadow-md shadow-blue-300";
+  const activeButtonStyle = "bg-blue-600 text-white font-semibold border-blue-700 ring-2 ring-blue-200";
 
   return (
-    <div className="flex items-center justify-center gap-2 p-2 border-t bg-white sticky bottom-0 z-10 w-full">
+    <div className="flex items-center justify-between gap-2 p-2 border-t bg-white sticky bottom-0 z-10 w-full">
       <TooltipProvider delayDuration={0}>
+        <div className="hidden md:flex items-center">
+          <span className="text-xs text-gray-500">Modus:</span>
+          <span className="ml-1.5 text-xs font-medium text-gray-700">{modeLabelByTool[selectedTool]}</span>
+        </div>
+
         {/* Main toolbar buttons */}
         <div className="flex items-center gap-2">
           {bottomToolbar.buttons?.map((button) => {
@@ -88,6 +104,7 @@ const ConfigurableBottomToolbar: React.FC<ConfigurableBottomToolbarProps> = Reac
                   <Button
                     variant="outline"
                     size="sm"
+                    aria-label={button.label || button.tooltip || button.key}
                     onClick={() => handleButtonClick(button.key)}
                     className={`flex items-center gap-1 ${isActive ? activeButtonStyle : ""}`}
                   >

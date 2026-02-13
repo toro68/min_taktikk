@@ -2,11 +2,13 @@ import { useState, useCallback } from 'react';
 import { Frame } from '../@types/elements';
 import { exporter } from '../lib/exportUtils';
 import { useToast } from '../providers/ToastProvider';
+import { getExportPresets } from '../lib/config';
 
 export const useEnhancedExportImport = () => {
   const [isProcessing, setIsProcessing] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
   const { showToast } = useToast();
+  const exportPresets = getExportPresets();
 
   // JSON Export
   const handleDownloadAnimation = useCallback(async (frames: Frame[]) => {
@@ -36,6 +38,39 @@ export const useEnhancedExportImport = () => {
     }
   }, [showToast]);
 
+  // SVG Export
+  const handleDownloadSvg = useCallback(async (svgElement?: SVGSVGElement) => {
+    if (!svgElement) {
+      // Try to find the SVG element in the DOM
+      const svg = document.querySelector('svg.pitch-svg') as SVGSVGElement;
+      if (!svg) {
+        const errorMsg = 'Fant ikke SVG-element å eksportere';
+        setError(errorMsg);
+        showToast({ type: 'error', title: 'Eksportfeil', message: errorMsg });
+        return;
+      }
+      svgElement = svg;
+    }
+
+    setIsProcessing(true);
+    setError(null);
+
+    try {
+      await exporter.exportAsSVG(svgElement);
+      showToast({
+        type: 'success',
+        title: 'SVG eksportert',
+        message: 'SVG-filen er lastet ned'
+      });
+    } catch (error) {
+      const errorMsg = 'Feil ved SVG eksport';
+      setError(errorMsg);
+      showToast({ type: 'error', title: 'Eksportfeil', message: errorMsg });
+    } finally {
+      setIsProcessing(false);
+    }
+  }, [showToast]);
+
   // PNG Export
   const handleDownloadPng = useCallback(async (svgElement?: SVGSVGElement) => {
     if (!svgElement) {
@@ -54,7 +89,10 @@ export const useEnhancedExportImport = () => {
     setError(null);
 
     try {
-      await exporter.exportAsPNG(svgElement);
+      await exporter.exportAsPNG(svgElement, undefined, {
+        scale: exportPresets?.png?.scale,
+        background: exportPresets?.png?.background
+      });
       showToast({ 
         type: 'success', 
         title: 'PNG eksportert', 
@@ -99,7 +137,10 @@ export const useEnhancedExportImport = () => {
         message: 'Dette kan ta noen sekunder...' 
       });
       
-      await exporter.exportAsGIF(frames, svgElement);
+      await exporter.exportAsGIF(frames, svgElement, undefined, {
+        frameDuration: exportPresets?.gif?.frameDuration,
+        quality: exportPresets?.gif?.quality
+      });
       
       showToast({ 
         type: 'success', 
@@ -116,25 +157,59 @@ export const useEnhancedExportImport = () => {
   }, [showToast]);
 
   // Video Export (placeholder)
-  const handleDownloadFilm = useCallback(async (frames: Frame[], svgElement?: SVGSVGElement) => {
+  const handleDownloadFilm = useCallback(async (
+    frames: Frame[],
+    svgElement?: SVGSVGElement,
+    options?: {
+      seekFrame?: (frameIndex: number, frameProgress: number) => Promise<void> | void;
+      restoreFrame?: () => void;
+    }
+  ) => {
+    if (!svgElement) {
+      const svg = document.querySelector('svg.pitch-svg') as SVGSVGElement;
+      if (!svg) {
+        const errorMsg = 'Fant ikke SVG-element å eksportere';
+        setError(errorMsg);
+        showToast({ type: 'error', title: 'Eksportfeil', message: errorMsg });
+        return;
+      }
+      svgElement = svg;
+    }
+
     setIsProcessing(true);
+    setError(null);
     
     try {
-      if (!svgElement) {
-        const svg = document.querySelector('svg.pitch-svg') as SVGSVGElement;
-        if (svg) {
-          svgElement = svg;
-        }
-      }
-      
-      await exporter.exportAsVideo(frames || [], svgElement!);
-    } catch (error) {
       showToast({ 
         type: 'info', 
-        title: 'Video eksport', 
-        message: 'Video eksport kommer snart! Bruk GIF eksport som alternativ.' 
+        title: 'MP4 eksport startet', 
+        message: 'Encoder video (H.264/AAC). Dette kan ta litt tid...' 
+      });
+      
+      await exporter.exportAsVideo(frames || [], svgElement!, undefined, {
+        frameDuration: exportPresets?.mp4?.frameDuration,
+        fps: exportPresets?.mp4?.fps,
+        crf: exportPresets?.mp4?.crf,
+        preset: exportPresets?.mp4?.preset,
+        audioBitrate: exportPresets?.mp4?.audioBitrate,
+        seekFrame: options?.seekFrame
+      });
+
+      showToast({
+        type: 'success',
+        title: 'MP4 eksportert',
+        message: 'Video er lastet ned'
+      });
+    } catch (error) {
+      const errorMsg = (error as Error)?.message || 'Feil ved MP4 eksport';
+      setError(errorMsg);
+      showToast({ 
+        type: 'error', 
+        title: 'MP4 eksportfeil', 
+        message: errorMsg
       });
     } finally {
+      options?.restoreFrame?.();
       setIsProcessing(false);
     }
   }, [showToast]);
@@ -204,6 +279,7 @@ export const useEnhancedExportImport = () => {
     error,
     handleDownloadAnimation,
     handleDownloadPng,
+    handleDownloadSvg,
     handleDownloadGif,
     handleDownloadFilm,
     handleLoadAnimation,

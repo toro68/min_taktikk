@@ -52,6 +52,7 @@ const LineEndpoints: React.FC<LineEndpointsProps> = ({
         stroke="white"
         strokeWidth="2"
         style={{ cursor: 'grab' }}
+        data-testid="line-endpoint-start"
         onMouseDown={(e) => handleMouseDown('start', e)}
       />
       
@@ -64,6 +65,7 @@ const LineEndpoints: React.FC<LineEndpointsProps> = ({
         stroke="white"
         strokeWidth="2"
         style={{ cursor: 'grab' }}
+        data-testid="line-endpoint-end"
         onMouseDown={(e) => handleMouseDown('end', e)}
       />
     </g>

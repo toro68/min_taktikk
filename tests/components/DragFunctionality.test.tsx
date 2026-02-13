@@ -63,8 +63,8 @@ describe('Drag Functionality', () => {
     const props = createMockProps();
     render(<TacticsBoard {...props} />);
     
-    // Find the player element (should be a circle with r="15")
-    const playerElement = screen.getByRole('img').querySelector('circle[r="15"]');
+    // Find the player element container
+    const playerElement = screen.getByRole('img').querySelector('[data-testid="player-element"]');
     expect(playerElement).toBeInTheDocument();
     
     if (playerElement) {
@@ -87,7 +87,7 @@ describe('Drag Functionality', () => {
     // Find draggable element containers (g elements with data-testid or with cursor: move/pointer)
     const svg = screen.getByRole('img');
     const playerElement = svg.querySelector('[data-testid="player-element"]');
-    const opponentElement = svg.querySelector('g[style*="cursor: pointer"]');
+    const opponentElement = svg.querySelector('[data-testid="opponent-element"]');
     const ballElement = svg.querySelector('[data-testid="ball-element"]');
     
     const draggableElements = [playerElement, opponentElement, ballElement].filter(Boolean) as Element[];
@@ -111,7 +111,7 @@ describe('Drag Functionality', () => {
     render(<TacticsBoard {...props} />);
     
     const svg = screen.getByRole('img');
-    const playerElement = svg.querySelector('circle[r="15"]');
+    const playerElement = svg.querySelector('[data-testid="player-element"]');
     
     if (playerElement) {
       // Start drag

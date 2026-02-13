@@ -82,6 +82,30 @@ describe('FootballPitch component', () => {
         const guidelines = container.querySelectorAll('line[stroke-dasharray="5,5"]');
         expect(guidelines.length).toBe(0);
     });
+
+    test('renders penalty arc outside 16m on offensive half (goal up)', () => {
+      const { container } = render(
+        <svg>
+          <FootballPitch pitchType="offensive" />
+        </svg>
+      );
+
+      // Expect a path using the 9.15m arc radius (scaled: 91.5)
+      const arc = container.querySelector('path[d*="A 91.5 91.5"]');
+      expect(arc).toBeInTheDocument();
+    });
+
+    test('renders penalty arc outside 16m on defensive half (goal down)', () => {
+      const { container } = render(
+        <svg>
+          <FootballPitch pitchType="defensive" />
+        </svg>
+      );
+
+      // Expect a path using the 9.15m arc radius (scaled: 91.5)
+      const arc = container.querySelector('path[d*="A 91.5 91.5"]');
+      expect(arc).toBeInTheDocument();
+    });
 });
 
 describe('Zoom Level', () => {

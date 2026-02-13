@@ -1,13 +1,11 @@
 module.exports = {
-  preset: 'ts-jest',
   testEnvironment: 'jsdom',
   setupFilesAfterEnv: ['<rootDir>/tests/setupTests.ts'],
   moduleNameMapper: {
     '\\.(css|less|scss|sass)$': 'identity-obj-proxy',
   },
   transform: {
-    '^.+\\.tsx?$': 'ts-jest',
-    '^.+\\.jsx?$': 'babel-jest',
+    '^.+\\.(ts|tsx|js|jsx)$': 'babel-jest',
   },
   transformIgnorePatterns: [
     'node_modules/(?!(.*\\.mjs$))'
@@ -15,6 +13,9 @@ module.exports = {
   moduleFileExtensions: ['ts', 'tsx', 'js', 'jsx', 'json', 'node'],
   testMatch: [
     '<rootDir>/tests/**/*.(test|spec).(ts|tsx|js)',
+  ],
+  testPathIgnorePatterns: [
+    '<rootDir>/tests/e2e/',
   ],
   collectCoverageFrom: [
     'src/**/*.{ts,tsx}',

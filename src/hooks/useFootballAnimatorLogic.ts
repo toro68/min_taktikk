@@ -1,7 +1,6 @@
 import { useAnimationLogic } from './useAnimationLogic';
 import { useToolLogic } from './useToolLogic';
 import { useInteractionLogic } from './useInteractionLogic';
-import { useInterpolation } from './useInterpolation';
 import { useAreaTool } from './useAreaTool';
 import { useElementActions } from './useElementActions';
 import { useEnhancedExportImport } from './useEnhancedExportImport';
@@ -22,17 +21,6 @@ export const useFootballAnimatorLogic = () => {
   // Core hooks
   const animationLogic = useAnimationLogic();
   const toolLogic = useToolLogic();
-  
-  // 🎬 KRITISK: Smooth interpolation hook - dette kobler animasjonsloopen til faktisk elementposisjonering
-  useInterpolation({
-    currentFrame: animationLogic.currentFrame,
-    progress: animationLogic.progress,
-    frames: animationLogic.frames,
-    setInterpolatedElements: animationLogic.setInterpolatedElements,
-    showTraces: animationLogic.showTraces,
-    traceCurveOffset: animationLogic.traceCurveOffset,
-    interpolationType: animationLogic.interpolationType
-  });
   
   // Create element actions with correct parameters
   const elementActions = useElementActions(
@@ -183,6 +171,8 @@ export const useFootballAnimatorLogic = () => {
     // Add missing properties
     setTool: toolLogic.setTool,
     pitch: toolLogic.pitch,
+    pitchTemplateSvg: toolLogic.pitchTemplateSvg,
+    setPitchTemplateSvg: toolLogic.setPitchTemplateSvg,
     zoomLevel: toolLogic.zoomLevel,
     showGuidelines: toolLogic.showGuidelines,
     selectedElement: toolLogic.selectedElement,
@@ -232,6 +222,7 @@ export const useFootballAnimatorLogic = () => {
     handleLoadExampleAnimation: exportImport.handleLoadExampleAnimation,
     handleDownloadFilm: exportImport.handleDownloadFilm,
     handleDownloadPng: exportImport.handleDownloadPng,
+    handleDownloadSvg: exportImport.handleDownloadSvg,
     handleDownloadGif: exportImport.handleDownloadGif
   }), [exportImport]);
 

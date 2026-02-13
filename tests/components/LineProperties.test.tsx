@@ -39,10 +39,12 @@ describe('LineProperties', () => {
     const curvedStyleButton = screen.getByText('Kurvet linje');
     fireEvent.click(curvedStyleButton);
     
-    expect(mockUpdateElement).toHaveBeenCalledWith({
-      style: 'curved',
+    expect(mockUpdateElement).toHaveBeenCalledWith(expect.objectContaining({
+      style: 'solidCurved',
+      dashed: false,
+      marker: null,
       path: expect.any(String)
-    });
+    }));
   });
 
   test('handles color change', () => {

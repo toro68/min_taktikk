@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { memo } from 'react';
 import { SVG_ATTRIBUTES, SVG_STYLES } from '../../constants/svg';
 
 interface HandballPitchProps {
@@ -87,4 +87,4 @@ const HandballPitch: React.FC<HandballPitchProps> = () => {
   );
 };
 
-export default HandballPitch;
+export default memo(HandballPitch);

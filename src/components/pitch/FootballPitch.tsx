@@ -1,4 +1,4 @@
-import { forwardRef } from 'react';
+import React, { forwardRef, memo } from 'react';
 import { PitchType, GuidelineMode } from '../../@types/elements';
 import { SVG_ATTRIBUTES, SVG_STYLES } from '../../constants/svg';
 
@@ -15,7 +15,7 @@ interface FootballPitchProps {
   role?: string;
 }
 
-const FootballPitch = forwardRef<SVGSVGElement, FootballPitchProps>(({
+const FootballPitch = memo(forwardRef<SVGSVGElement, FootballPitchProps>(({
   pitchType,
   type,
   guidelineMode,
@@ -428,6 +428,15 @@ const FootballPitch = forwardRef<SVGSVGElement, FootballPitchProps>(({
   }
 
   if (actualType === 'offensive') {
+    // Half pitch, goal at top. Scale is 10px per meter.
+    // Penalty arc is part of circle (r=9.15m) around the penalty spot that lies outside the 16.5m line.
+    const penaltySpotX = 340;
+    const penaltySpotY = 110;
+    const penaltyArcRadius = 91.5;
+    const dxToSixteen = 55; // 16.5m - 11m = 5.5m
+    const dyOnSixteen = Math.sqrt(penaltyArcRadius * penaltyArcRadius - dxToSixteen * dxToSixteen);
+    const sixteenY = 165;
+
     return (
       <g>
         {/* Hvit bakgrunn for hele baneområdet */}
@@ -436,7 +445,12 @@ const FootballPitch = forwardRef<SVGSVGElement, FootballPitchProps>(({
         <rect x="0" y="0" width="680" height="525" {...SVG_STYLES.pitchLine}/>
         <rect x="139.84" y="0" width="400.32" height="165" {...SVG_STYLES.pitchLine}/>
         <rect x="230.84" y="0" width="218.32" height="55" {...SVG_STYLES.pitchLine}/>
-        <circle cx="340" cy="110" r="2" fill={SVG_ATTRIBUTES.fill.black}/>
+        <circle cx={penaltySpotX} cy={penaltySpotY} r="2" fill={SVG_ATTRIBUTES.fill.black}/>
+        <path
+          d={`M ${penaltySpotX - dyOnSixteen} ${sixteenY} A ${penaltyArcRadius} ${penaltyArcRadius} 0 0 0 ${penaltySpotX + dyOnSixteen} ${sixteenY}`}
+          {...SVG_STYLES.pitchLine}
+          fill={SVG_ATTRIBUTES.fill.none}
+        />
         <line x1="0" y1="525" x2="680" y2="525" {...SVG_STYLES.pitchLine}/>
         <circle cx="340" cy="525" r="91.5" {...SVG_STYLES.pitchLine}/>
         <circle cx="340" cy="525" r="2" fill={SVG_ATTRIBUTES.fill.black}/>
@@ -445,6 +459,14 @@ const FootballPitch = forwardRef<SVGSVGElement, FootballPitchProps>(({
   }
 
   // Defensive pitch (default)
+  // Half pitch, goal at bottom. Scale is 10px per meter.
+  const penaltySpotX = 340;
+  const penaltySpotY = 415;
+  const penaltyArcRadius = 91.5;
+  const dxToSixteen = 55; // 16.5m - 11m = 5.5m
+  const dyOnSixteen = Math.sqrt(penaltyArcRadius * penaltyArcRadius - dxToSixteen * dxToSixteen);
+  const sixteenY = 360;
+
   return (
     <g>
       {/* Hvit bakgrunn for hele baneområdet */}
@@ -453,13 +475,19 @@ const FootballPitch = forwardRef<SVGSVGElement, FootballPitchProps>(({
       <rect x="0" y="0" width="680" height="525" {...SVG_STYLES.pitchLine}/>
       <rect x="139.84" y="360" width="400.32" height="165" {...SVG_STYLES.pitchLine}/>
       <rect x="230.84" y="470" width="218.32" height="55" {...SVG_STYLES.pitchLine}/>
-      <circle cx="340" cy="415" r="2" fill={SVG_ATTRIBUTES.fill.black}/>
+      <circle cx={penaltySpotX} cy={penaltySpotY} r="2" fill={SVG_ATTRIBUTES.fill.black}/>
+      <path
+        d={`M ${penaltySpotX - dyOnSixteen} ${sixteenY} A ${penaltyArcRadius} ${penaltyArcRadius} 0 0 1 ${penaltySpotX + dyOnSixteen} ${sixteenY}`}
+        {...SVG_STYLES.pitchLine}
+      />
       <line x1="0" y1="0" x2="680" y2="0" {...SVG_STYLES.pitchLine}/>
       <circle cx="340" cy="0" r="91.5" {...SVG_STYLES.pitchLine}/>
       <circle cx="340" cy="0" r="2" fill={SVG_ATTRIBUTES.fill.black}/>
     </g>
   );
-});
+}));
+
+FootballPitch.displayName = 'FootballPitch';
 
 FootballPitch.displayName = 'FootballPitch';
 

@@ -186,7 +186,7 @@ export const getStylesForCategory = (category: 'basic' | 'player' | 'ball' | 'ta
     }
     
     // Fallback to default basic styles
-    return ['straight', 'curved', 'straightArrow', 'curvedArrow', 'sineWave', 'sineWaveArrow'] as LineStyle[];
+    return ['solidStraight', 'solidCurved', 'straightArrow', 'curvedArrow', 'dashedStraight', 'dashedCurved', 'sineWave'] as LineStyle[];
   }
 
   // Check for professional styles
@@ -214,7 +214,7 @@ export const isValidLineStyle = (style: string): style is LineStyle => {
   }
 
   // Check basic styles
-  const basicStyles = ['straight', 'curved', 'straightArrow', 'curvedArrow', 'solidStraight', 'solidCurved'];
+  const basicStyles = ['straightArrow', 'curvedArrow', 'solidStraight', 'solidCurved', 'dashedStraight', 'dashedCurved'];
   if (basicStyles.includes(style)) return true;
 
   // Check professional styles
@@ -229,7 +229,7 @@ export const isValidLineStyle = (style: string): style is LineStyle => {
 
   // Check legacy styles
   const legacyStyles = [
-    'dashedCurved', 'dashedStraight', 'curvedArrow', 'straightArrow',
+    'straight', 'curved', 'dashedCurved', 'dashedStraight', 'curvedArrow', 'straightArrow',
     'endMark', 'plusEnd', 'xEnd', 'dashedCurvedArrow', 'dashedStraightArrow',
     'sineWave', 'sineWaveArrow', 'fishHook', 'fishHookArrow',
     'hookStart', 'hookStartArrow', 'hookEnd', 'hookEndArrow'

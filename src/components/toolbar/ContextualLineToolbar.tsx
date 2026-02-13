@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Button } from '../ui/button';
 import {
-  Minus, Smile, ArrowRight, CornerDownRight, Palette, Waves, MoreHorizontal, TrendingUp, ArrowBigRight, ArrowUpRight, Move, Plus, X, Circle, Target, ArrowRightLeft, RotateCcw, Spline
+  Minus, ArrowRight, CornerDownRight, Palette, Waves, MoreHorizontal, TrendingUp, ArrowUpRight, Move, Plus, X, Circle, Target, RotateCcw, Spline
 } from 'lucide-react';
 import {
   Tooltip,
@@ -13,7 +13,8 @@ import { getConfig } from '../../lib/config';
 import { LineStyle } from '../../types';
 import { useAppTheme } from '../../providers/AppThemeProvider';
 import { LineElement } from '../../@types/elements';
-import { extractPathEndpoints, createLinePathMemoized, updateLineEndpoints } from '../../lib/line-utils';
+import { extractPathEndpoints, createLinePathMemoized, updateLineEndpoints, getLineProperties } from '../../lib/line-utils';
+import { debugLog } from '../../lib/debug';
 
 interface ContextualLineToolbarProps {
   line: LineElement;
@@ -87,31 +88,43 @@ const ContextualLineToolbar: React.FC<ContextualLineToolbarProps> = React.memo((
 
   // Handlers for property changes
   const handleStyleChange = (newStyle: LineStyle) => {
+    const styleProperties = getLineProperties(newStyle, line.color || '#000000', line.curveOffset || 0);
+
     // If we are updating an existing line with a valid path, recalculate it
     if (line && line.path) {
       const endpoints = extractPathEndpoints(line.path);
       if (endpoints) {
         const newPath = createLinePathMemoized(endpoints.start, endpoints.end, newStyle, line.curveOffset || 0);
-        updateElement({ style: newStyle, path: newPath });
+        updateElement({
+          style: newStyle,
+          path: newPath,
+          dashed: styleProperties.dashed,
+          marker: styleProperties.marker,
+        });
         return;
       }
     }
     
     // If no line is selected or the path is invalid, just update the style (setting the default)
-    updateElement({ style: newStyle });
+    updateElement({
+      style: newStyle,
+      dashed: styleProperties.dashed,
+      marker: styleProperties.marker,
+    });
   };
 
   const handleCurveOffsetChange = (newOffset: number) => {
-    console.log('🔍 handleCurveOffsetChange:', {
+    const clampedOffset = Math.max(curveRange.min, Math.min(curveRange.max, newOffset));
+    debugLog('🔍 handleCurveOffsetChange:', {
       lineStyle: line.style,
       currentPath: line.path,
-      newOffset
+      newOffset: clampedOffset
     });
     
     // Handle empty path case - this likely means we're dealing with a default/placeholder line
     if (!line.path || line.path.trim() === '') {
       console.warn('⚠️ Line has empty path, updating curveOffset only');
-      updateElement({ curveOffset: newOffset });
+      updateElement({ curveOffset: clampedOffset });
       return;
     }
     
@@ -119,20 +132,20 @@ const ContextualLineToolbar: React.FC<ContextualLineToolbarProps> = React.memo((
     if (!endpoints) {
       console.error('❌ No endpoints found from path:', line.path);
       // Try to update just the curveOffset for now
-      updateElement({ curveOffset: newOffset });
+      updateElement({ curveOffset: clampedOffset });
       return;
     }
     
-    console.log('🔧 Calling updateLineEndpoints with:', {
+    debugLog('🔧 Calling updateLineEndpoints with:', {
       style: line.style,
       endpoints,
-      newOffset
+      newOffset: clampedOffset
     });
     
-    const newPath = updateLineEndpoints(line.path, line.style, endpoints.start, endpoints.end, newOffset);
-    console.log('📐 Generated path:', { oldPath: line.path, newPath });
+    const newPath = updateLineEndpoints(line.path, line.style, endpoints.start, endpoints.end, clampedOffset);
+    debugLog('📐 Generated path:', { oldPath: line.path, newPath });
     
-    updateElement({ curveOffset: newOffset, path: newPath });
+    updateElement({ curveOffset: clampedOffset, path: newPath });
   };
 
   const handleColorChange = (color: string) => {
@@ -161,6 +174,7 @@ const ContextualLineToolbar: React.FC<ContextualLineToolbarProps> = React.memo((
                         <Button
                           variant={isActive ? 'default' : 'ghost'}
                           size="sm"
+                          aria-label={style.label}
                           onClick={() => handleStyleChange(style.key as LineStyle)}
                           className="h-8 w-8 p-0"
                           style={{ backgroundColor: isActive ? theme.primaryColor : undefined, color: isActive ? 'white' : undefined }}
@@ -201,6 +215,7 @@ const ContextualLineToolbar: React.FC<ContextualLineToolbarProps> = React.memo((
                       <div className="flex flex-col">
                         <p className="font-medium">Juster kurvatur</p>
                         <p className="text-gray-300 text-[10px]">Verdi: {line.curveOffset || 0} (Område: {curveRange.min} til {curveRange.max})</p>
+                        <p className="text-gray-300 text-[10px]">Snarvei: ← / → (Shift = større steg, 0 = nullstill)</p>
                       </div>
                     </TooltipContent>
                   </Tooltip>
@@ -212,12 +227,40 @@ const ContextualLineToolbar: React.FC<ContextualLineToolbarProps> = React.memo((
                     step={curveRange.step}
                     value={line.curveOffset || 0}
                     onChange={(e) => {
-                      console.log('🎯 Slider onChange triggered:', e.target.value);
+                      debugLog('🎯 Slider onChange triggered:', e.target.value);
                       handleCurveOffsetChange(Number(e.target.value));
                     }}
                     className="w-24 h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer"
                   />
-                  <span className="text-xs text-gray-700 w-8 text-center tabular-nums font-mono">{line.curveOffset || 0}</span>
+                  <div className="flex items-center gap-1">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      aria-label="Reduser kurve"
+                      className="h-6 w-6 p-0"
+                      onClick={() => handleCurveOffsetChange((line.curveOffset || 0) - (curveRange.step || 1))}
+                    >
+                      <Minus className="w-3 h-3" />
+                    </Button>
+                    <button
+                      type="button"
+                      aria-label="Nullstill kurve"
+                      onClick={() => handleCurveOffsetChange(0)}
+                      className="text-xs text-gray-700 w-10 text-center tabular-nums font-mono rounded hover:bg-gray-100"
+                      title="Klikk for å nullstille"
+                    >
+                      {line.curveOffset || 0}
+                    </button>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      aria-label="Øk kurve"
+                      className="h-6 w-6 p-0"
+                      onClick={() => handleCurveOffsetChange((line.curveOffset || 0) + (curveRange.step || 1))}
+                    >
+                      <Plus className="w-3 h-3" />
+                    </Button>
+                  </div>
                 </div>
               </div>
               <div className="w-px h-6 bg-gray-300 mx-1 flex-shrink-0" />
@@ -231,6 +274,7 @@ const ContextualLineToolbar: React.FC<ContextualLineToolbarProps> = React.memo((
                 <Tooltip key={color.name || `color-${index}`}>
                   <TooltipTrigger asChild>
                     <button
+                      aria-label={color.name || `color-${index}`}
                       onClick={() => handleColorChange(color.value === 'custom' ? line.color || '#000000' : color.value)}
                       className="w-6 h-6 rounded-full border-2 transition-all hover:border-gray-400"
                       style={{
@@ -282,6 +326,7 @@ const ContextualLineToolbar: React.FC<ContextualLineToolbarProps> = React.memo((
                       <Button
                         variant={isActive ? 'default' : 'ghost'}
                         size="sm"
+                        aria-label={marker.label}
                         onClick={() => handleMarkerChange(marker.key as LineElement['marker'])}
                         className="h-8 w-8 p-0"
                         style={{ backgroundColor: isActive ? theme.primaryColor : undefined, color: isActive ? 'white' : undefined }}

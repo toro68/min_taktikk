@@ -32,7 +32,7 @@ const LineProperties: React.FC<LinePropertiesProps> = ({ line, updateElement }) 
   // Get available line styles from config
   const availableStyles: Array<{key: LineStyle, label: string, preview: React.ReactElement}> = [
     {
-      key: 'straight',
+      key: 'solidStraight',
       label: 'Rett linje',
       preview: (
         <svg width="30" height="20" viewBox="0 0 30 20">
@@ -41,11 +41,49 @@ const LineProperties: React.FC<LinePropertiesProps> = ({ line, updateElement }) 
       )
     },
     {
-      key: 'curved',
+      key: 'solidCurved',
       label: 'Kurvet linje',
       preview: (
         <svg width="30" height="20" viewBox="0 0 30 20">
           <path d="M 5 15 Q 15 5, 25 15" stroke="black" fill="none" strokeWidth="2" />
+        </svg>
+      )
+    },
+    {
+      key: 'straightArrow',
+      label: 'Rett pil',
+      preview: (
+        <svg width="30" height="20" viewBox="0 0 30 20">
+          <path d="M 5 10 L 25 10" stroke="black" fill="none" strokeWidth="2" />
+          <path d="M 20 7 L 25 10 L 20 13" stroke="black" fill="none" strokeWidth="2" />
+        </svg>
+      )
+    },
+    {
+      key: 'curvedArrow',
+      label: 'Kurvet pil',
+      preview: (
+        <svg width="30" height="20" viewBox="0 0 30 20">
+          <path d="M 5 14 Q 15 4, 24 11" stroke="black" fill="none" strokeWidth="2" />
+          <path d="M 19 8 L 24 11 L 20 14" stroke="black" fill="none" strokeWidth="2" />
+        </svg>
+      )
+    },
+    {
+      key: 'dashedStraight',
+      label: 'Stiplet rett',
+      preview: (
+        <svg width="30" height="20" viewBox="0 0 30 20">
+          <path d="M 5 10 L 25 10" stroke="black" fill="none" strokeWidth="2" strokeDasharray="3 2" />
+        </svg>
+      )
+    },
+    {
+      key: 'dashedCurved',
+      label: 'Stiplet kurvet',
+      preview: (
+        <svg width="30" height="20" viewBox="0 0 30 20">
+          <path d="M 5 15 Q 15 5, 25 15" stroke="black" fill="none" strokeWidth="2" strokeDasharray="3 2" />
         </svg>
       )
     },
@@ -105,10 +143,14 @@ const LineProperties: React.FC<LinePropertiesProps> = ({ line, updateElement }) 
     const endpoints = extractPathEndpoints(line.path);
     if (!endpoints) return;
 
+    const styleProperties = getLineProperties(newStyle, color, curveOffset);
+
     const newPath = createLinePathMemoized(endpoints.start, endpoints.end, newStyle, curveOffset);
     updateElement({ 
       style: newStyle, 
-      path: newPath 
+      path: newPath,
+      dashed: styleProperties.dashed,
+      marker: styleProperties.marker,
     });
   };
 
@@ -136,7 +178,7 @@ const LineProperties: React.FC<LinePropertiesProps> = ({ line, updateElement }) 
           {/* Line Style Selector - Compact design from .aigenrc */}
           <div>
             <label className="text-sm mb-2 block font-medium">Linjestil</label>
-            <div className="grid grid-cols-2 gap-2">
+            <div className="grid grid-cols-3 gap-2">
               {availableStyles.map(styleOption => (
                 <Tooltip key={styleOption.key}>
                   <TooltipTrigger asChild>
@@ -168,7 +210,17 @@ const LineProperties: React.FC<LinePropertiesProps> = ({ line, updateElement }) 
             <div>
               <div className="flex items-center justify-between">
                 <label className="text-sm font-medium">Kurvatur</label>
-                <span className="text-xs tabular-nums">{curveOffset}px</span>
+                <div className="flex items-center gap-2">
+                  <span className="text-xs tabular-nums">{curveOffset}px</span>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-6 px-2 text-xs"
+                    onClick={() => handleCurveOffsetChange(0)}
+                  >
+                    Nullstill
+                  </Button>
+                </div>
               </div>
               <Tooltip>
                 <TooltipTrigger asChild>

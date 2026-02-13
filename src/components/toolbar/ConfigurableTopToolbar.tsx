@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useMemo, useState } from 'react';
 import { Button } from '../ui/button';
 import { Slider } from '../ui/slider';
 import {
@@ -22,6 +22,7 @@ interface ConfigurableTopToolbarProps {
   onLoadExampleAnimation: () => void;
   onDownloadFilm: () => void;
   onDownloadPng: () => void;
+  onDownloadSvg: () => void;
   onDownloadGif: () => void;
   isPlaying: boolean;
   onPlayPause: () => void;
@@ -35,6 +36,7 @@ interface ConfigurableTopToolbarProps {
   setShowTraces?: (value: boolean) => void;
   traceCurveOffset?: number;
   onTraceCurveChange?: (value: number) => void;
+  onLoadSvgTemplate?: () => void;
 }
 
 const ConfigurableTopToolbar: React.FC<ConfigurableTopToolbarProps> = React.memo(({
@@ -48,6 +50,7 @@ const ConfigurableTopToolbar: React.FC<ConfigurableTopToolbarProps> = React.memo
   onLoadExampleAnimation,
   onDownloadFilm,
   onDownloadPng,
+  onDownloadSvg,
   onDownloadGif,
   isPlaying,
   onPlayPause,
@@ -60,14 +63,46 @@ const ConfigurableTopToolbar: React.FC<ConfigurableTopToolbarProps> = React.memo
   setShowTraces,
   traceCurveOffset = 0,
   onTraceCurveChange,
+  onLoadSvgTemplate,
 }) => {
+  const [isMoreOpen, setIsMoreOpen] = useState(false);
   const config = getConfig();
   const topToolbar = config.settings.toolbar.top;
   const traceCurveRange = config.settings.traces?.curveRange || { min: -300, max: 300, step: 1 };
 
+  const secondaryActionKeys = useMemo(
+    () => new Set(['downloadPng', 'downloadSvg', 'downloadFilm', 'downloadGif', 'loadExample', 'loadSvgTemplate']),
+    []
+  );
+
+  const groupedButtons = useMemo(() => {
+    if (!topToolbar?.groups) return [] as Array<{ groupKey: string; group: any; buttons: any[] }>;
+
+    return Object.entries(topToolbar.groups)
+      .map(([groupKey, group]) => ({
+        groupKey,
+        group,
+        buttons: (group.buttons || []).filter((button: any) => !secondaryActionKeys.has(button.key))
+      }))
+      .filter((entry) => entry.buttons.length > 0);
+  }, [topToolbar?.groups, secondaryActionKeys]);
+
+  const secondaryButtons = useMemo(() => {
+    if (topToolbar?.grouped && topToolbar?.groups) {
+      return Object.values(topToolbar.groups)
+        .flatMap((group: any) => group.buttons || [])
+        .filter((button: any) => secondaryActionKeys.has(button.key));
+    }
+
+    return (topToolbar?.buttons || []).filter((button: any) => secondaryActionKeys.has(button.key));
+  }, [topToolbar, secondaryActionKeys]);
+
   if (!topToolbar) {
     return null;
   }
+
+  const isPrimaryAction = (buttonKey: string) =>
+    buttonKey === 'playPause' || buttonKey === 'addKeyframe' || buttonKey === 'downloadJson';
 
   const handleButtonClick = (buttonKey: string) => {
     if (process.env.NODE_ENV === 'development') {
@@ -106,6 +141,9 @@ const ConfigurableTopToolbar: React.FC<ConfigurableTopToolbarProps> = React.memo
       case 'downloadPng':
         onDownloadPng();
         break;
+      case 'downloadSvg':
+        onDownloadSvg();
+        break;
       case 'downloadFilm':
         onDownloadFilm();
         break;
@@ -117,6 +155,9 @@ const ConfigurableTopToolbar: React.FC<ConfigurableTopToolbarProps> = React.memo
         break;
       case 'loadExample':
         onLoadExampleAnimation();
+        break;
+      case 'loadSvgTemplate':
+        onLoadSvgTemplate?.();
         break;
       case 'duplicate':
         onDuplicate();
@@ -134,18 +175,22 @@ const ConfigurableTopToolbar: React.FC<ConfigurableTopToolbarProps> = React.memo
       <div className="sticky top-0 z-50 bg-white border-b">
         <div className="flex items-center justify-between gap-2 h-10 px-2">
           {/* Left side - Grouped buttons */}
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-3">
             {topToolbar.grouped && topToolbar.groups ? (
-              Object.entries(topToolbar.groups).map(([groupKey, group]) => (
+              groupedButtons.map(({ groupKey, group, buttons }, groupIndex) => (
                 <div key={groupKey} className="flex items-center gap-1">
+                  {groupIndex > 0 && <div className="h-6 border-l border-gray-200 mx-1" />}
                   {group.label && (
-                    <span className="text-sm text-gray-600 mr-2">{group.label}:</span>
+                    <span className="text-xs text-gray-600 mr-1">{group.label}:</span>
                   )}
-                  {group.buttons.map((button) => {
-                    const IconComponent = getIconComponent(button.icon);
+                  {buttons.map((button) => {
                     const isPlayButton = button.key === 'playPause';
                     const actualIcon = isPlayButton && isPlaying ? 'Pause' : button.icon;
                     const ActualIconComponent = getIconComponent(actualIcon);
+                    const fallbackLabel = button.label || button.tooltip || button.key;
+                    const ariaLabel = button.label && button.tooltip
+                      ? `${button.label} - ${button.tooltip}`
+                      : fallbackLabel;
                     
                     // console.log('🎯 Rendering button:', button.key, 'isPlaying:', isPlaying, 'icon:', actualIcon);
                     
@@ -153,10 +198,15 @@ const ConfigurableTopToolbar: React.FC<ConfigurableTopToolbarProps> = React.memo
                       <Tooltip key={button.key}>
                         <TooltipTrigger asChild>
                           <Button
-                            variant="outline"
+                            variant={isPrimaryAction(button.key) ? 'default' : 'outline'}
                             size="sm"
+                            aria-label={
+                              isPlayButton
+                                ? (isPlaying ? 'Pause animasjonen' : 'Start animasjonen')
+                                : ariaLabel
+                            }
                             onClick={() => handleButtonClick(button.key)}
-                            className="flex items-center gap-1"
+                            className="flex items-center gap-1 h-8"
                           >
                             <ActualIconComponent className="w-4 h-4" />
                             {button.label && (
@@ -180,15 +230,23 @@ const ConfigurableTopToolbar: React.FC<ConfigurableTopToolbarProps> = React.memo
             ) : (
               // Fallback to flat buttons if not grouped
               topToolbar.buttons?.map((button) => {
+                if (secondaryActionKeys.has(button.key)) {
+                  return null;
+                }
                 const IconComponent = getIconComponent(button.icon);
+                const fallbackLabel = button.label || button.tooltip || button.key;
+                const ariaLabel = button.label && button.tooltip
+                  ? `${button.label} - ${button.tooltip}`
+                  : fallbackLabel;
                 return (
                   <Tooltip key={button.key}>
                     <TooltipTrigger asChild>
                       <Button
-                        variant="outline"
+                        variant={isPrimaryAction(button.key) ? 'default' : 'outline'}
                         size="sm"
+                        aria-label={ariaLabel}
                         onClick={() => handleButtonClick(button.key)}
-                        className="flex items-center gap-1"
+                        className="flex items-center gap-1 h-8"
                       >
                         <IconComponent className="w-4 h-4" />
                         {button.label && (
@@ -202,6 +260,44 @@ const ConfigurableTopToolbar: React.FC<ConfigurableTopToolbarProps> = React.memo
                   </Tooltip>
                 );
               })
+            )}
+
+            {secondaryButtons.length > 0 && (
+              <div className="relative">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setIsMoreOpen((prev) => !prev)}
+                  aria-expanded={isMoreOpen}
+                  aria-label="Vis flere handlinger"
+                  className="h-8"
+                >
+                  Mer
+                </Button>
+
+                {isMoreOpen && (
+                  <div className="absolute left-0 mt-1 w-44 rounded-md border bg-white shadow-lg z-50 p-1">
+                    {secondaryButtons.map((button: any) => {
+                      const IconComponent = getIconComponent(button.icon);
+
+                      return (
+                        <button
+                          key={button.key}
+                          type="button"
+                          onClick={() => {
+                            handleButtonClick(button.key);
+                            setIsMoreOpen(false);
+                          }}
+                          className="w-full flex items-center gap-2 px-2 py-1.5 text-xs text-left rounded hover:bg-gray-100"
+                        >
+                          <IconComponent className="w-3.5 h-3.5" />
+                          <span>{button.label || button.tooltip || button.key}</span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
             )}
           </div>
 
@@ -254,7 +350,7 @@ const ConfigurableTopToolbar: React.FC<ConfigurableTopToolbarProps> = React.memo
                           onChange={(e) => setEnablePathFollowing(e.target.checked)}
                           className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
                         />
-                        <span className="text-xs text-gray-600">
+                        <span className="text-xs font-medium text-gray-700">
                           Bane-følging
                         </span>
                       </label>
@@ -276,7 +372,7 @@ const ConfigurableTopToolbar: React.FC<ConfigurableTopToolbarProps> = React.memo
                           onChange={(e) => setShowTraces?.(e.target.checked)}
                           className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
                         />
-                        <span className="text-xs text-gray-600">Traces</span>
+                        <span className="text-xs font-medium text-gray-700">Traces</span>
                       </label>
                     </TooltipTrigger>
                     <TooltipContent side="bottom" sideOffset={2} className="py-0.5 px-1.5 bg-black/90 text-white border-0">
@@ -294,12 +390,18 @@ const ConfigurableTopToolbar: React.FC<ConfigurableTopToolbarProps> = React.memo
                       onValueChange={([value]) => onTraceCurveChange?.(value)}
                       min={traceCurveRange.min}
                       max={traceCurveRange.max}
-                      step={traceCurveRange.step || 1}
-                      className="w-24"
+                      step={traceCurveRange.step || 0.5}
+                      className="w-40"
                     />
                     <span className="text-[10px] tabular-nums w-10 text-gray-600">{traceCurveOffset}px</span>
                   </div>
                 )}
+
+                <div className="hidden lg:flex items-center gap-1 text-[10px] text-gray-500">
+                  <span className={`px-1.5 py-0.5 rounded border ${isPlaying ? 'bg-green-50 text-green-700 border-green-200' : 'bg-gray-50 text-gray-600 border-gray-200'}`}>
+                    {isPlaying ? 'Spiller' : 'Pause'}
+                  </span>
+                </div>
               </div>
             )}
 
@@ -315,7 +417,7 @@ const ConfigurableTopToolbar: React.FC<ConfigurableTopToolbarProps> = React.memo
                     step={0.5}
                     className="w-16"
                   />
-                  <span className="text-[10px] tabular-nums w-8">{playbackSpeed}x</span>
+                  <span data-testid="playback-speed-value" className="text-[10px] tabular-nums w-8">{playbackSpeed}x</span>
                 </div>
               </TooltipTrigger>
               <TooltipContent side="bottom" sideOffset={2} className="py-0.5 px-1.5 bg-black/90 text-white border-0">

@@ -11,5 +11,5 @@ export { useInterpolation } from './useInterpolation';
 export { useToolbarActions } from './useToolbarActions';
 export { useFootballAnimatorLogic } from './useFootballAnimatorLogic';
 export { useElementLayout } from './useElementLayout';
-export { useTraceManager } from './useTraceManager';
+export { useTraceManager, getEffectiveCurveOffset } from './useTraceManager';
 export { useAppConfig } from './useAppConfig';

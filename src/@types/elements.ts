@@ -6,6 +6,9 @@ export type { Tool } from "../types";
 // Eksporter PitchType hvis den brukes andre steder
 export type PitchType = 'offensive' | 'defensive' | 'handball' | 'full' | 'fullLandscape' | 'blankPortrait' | 'blankLandscape';
 
+// Trace curve presets - MVP for per-trace kurvekontroll
+export type TraceCurveType = 'straight' | 'arc-left' | 'arc-right' | 's-curve';
+
 // Standardiser GuidelineMode til det som faktisk brukes i koden
 export type GuidelineMode = false | 'lines' | 'colors' | 'full';
 
@@ -94,6 +97,8 @@ export interface TraceElement extends BaseElement {
   marker?: LineElement['marker'];
   curved?: boolean;
   curveOffset?: number;
+  /** Per-trace kurve-preset (MVP). Erstatter globalt curveOffset når satt. */
+  curveType?: TraceCurveType;
   elementId: string;
   elementType: 'player' | 'opponent' | 'ball';
   opacity?: number;
@@ -124,7 +129,7 @@ export interface Frame {
   duration: number;
 }
 
-export const PLAYER_RADIUS = 15;
-export const BALL_RADIUS = 8;
+export const PLAYER_RADIUS = 12;
+export const BALL_RADIUS = 6;
 export const CONE_WIDTH = 10;
 export const CONE_HEIGHT = 16;

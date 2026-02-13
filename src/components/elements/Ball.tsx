@@ -1,6 +1,6 @@
 import React from 'react';
 import { SVG_ATTRIBUTES } from '../../constants/svg';
-import { BallElement } from '../../@types/elements';
+import { BallElement, BALL_RADIUS } from '../../@types/elements';
 
 interface BallProps {
   element: BallElement;
@@ -12,6 +12,8 @@ interface BallProps {
 
 const Ball: React.FC<BallProps> = ({ element, isSelected, onClick, onMouseDown, onTouchStart }) => {
   const { x, y, visible = true } = element;
+  const seamStroke = SVG_ATTRIBUTES.stroke.black;
+  const seamOpacity = 0.65;
   
   if (!visible) return null;
 
@@ -24,25 +26,45 @@ const Ball: React.FC<BallProps> = ({ element, isSelected, onClick, onMouseDown, 
       onTouchStart={onTouchStart}
       style={{ cursor: 'move' }}
     >
-      {/* Ball circle with white base */}
+      {isSelected && (
+        <circle
+          r={BALL_RADIUS + 2}
+          fill={SVG_ATTRIBUTES.fill.none}
+          stroke={SVG_ATTRIBUTES.stroke.blue}
+          strokeWidth={SVG_ATTRIBUTES.strokeWidth.thin}
+          strokeDasharray="2,2"
+          opacity="0.85"
+        />
+      )}
+
       <circle
-        r="8"
-        fill="#ffffff"
-        stroke={isSelected ? SVG_ATTRIBUTES.stroke.blue : '#333333'}
+        data-testid="ball-main-circle"
+        r={BALL_RADIUS}
+        fill={SVG_ATTRIBUTES.fill.white}
+        stroke={isSelected ? SVG_ATTRIBUTES.stroke.blue : seamStroke}
         strokeWidth={isSelected ? SVG_ATTRIBUTES.strokeWidth.thick : 1.5}
       />
-      
-      {/* Football pattern - black pentagons */}
+
       <path
-        d="M 0,-4 L -2,-1 L -1,2 L 1,2 L 2,-1 Z"
-        fill="#000000"
+        data-testid="ball-center-panel"
+        d="M 0,-3 L -1.5,-0.75 L -0.75,1.5 L 0.75,1.5 L 1.5,-0.75 Z"
+        fill={seamStroke}
         opacity="0.8"
       />
-      
-      {/* Smaller pentagon patterns */}
-      <circle cx="-3" cy="0" r="1.5" fill="#000000" opacity="0.6" />
-      <circle cx="3" cy="0" r="1.5" fill="#000000" opacity="0.6" />
-      <circle cx="0" cy="4" r="1.2" fill="#000000" opacity="0.5" />
+
+      <path
+        d="M -1.4 -0.6 L -3.9 -2.1 M 1.4 -0.6 L 3.9 -2.1 M -0.7 1.4 L -2.9 3.6 M 0.7 1.4 L 2.9 3.6 M -3.9 -2.1 Q 0 -4.6 3.9 -2.1 M -2.9 3.6 Q 0 4.8 2.9 3.6"
+        stroke={seamStroke}
+        strokeWidth="0.6"
+        fill="none"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        opacity={seamOpacity}
+      />
+
+      <circle cx="-2.25" cy="0" r="1" fill={seamStroke} opacity="0.5" />
+      <circle cx="2.25" cy="0" r="1" fill={seamStroke} opacity="0.5" />
+      <circle cx="0" cy="3" r="0.85" fill={seamStroke} opacity="0.45" />
     </g>
   );
 };

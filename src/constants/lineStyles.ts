@@ -63,4 +63,4 @@ export const newToLegacyStyle = (config: LineStyleConfig): string => {
   return style;
 };
 
-export const DEFAULT_LINE_STYLE: LineStyle = 'straight';
+export const DEFAULT_LINE_STYLE: LineStyle = 'solidStraight';

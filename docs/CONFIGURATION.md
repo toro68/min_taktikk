@@ -40,6 +40,7 @@ Konfigurasjonssystemet leser innstillinger fra `.aigenrc` filen og anvender dem 
     "traces": { /* Bevegelseslinjer */ },
     "pitchTypes": [ /* Tilgjengelige banetyper */ ],
     "guidelines": { /* Retningslinjer */ },
+    "exportPresets": { /* PNG/GIF/MP4 presets */ },
     "ui": { /* UI-tema og animasjoner */ }
   }
 }
@@ -60,14 +61,19 @@ Konfigurasjonssystemet leser innstillinger fra `.aigenrc` filen og anvender dem 
 | `lineStyles.colors` | `Svart`, `Rød`, `Blå`, `Grønn`, `Gul`, `Oransje` |
 | `lineStyles.markers` | `none`, `arrow`, `endline`, `plus`, `xmark`, `target`, `circle` |
 | `lineStyles.curveRange` | min `-400`, max `400`, step `10` |
-| `traces.features.playerTraces` | `enabled`, opacity `0.7`, style `dashedStraightArrow` |
+| `traces.features.playerTraces` | `enabled`, opacity `0.7`, style `dashedStraight` *(legacy alias: `dashedStraightArrow`)* |
+| `traces.features.opponentTraces` | `enabled`, opacity `0.7`, style `dashedStraight` *(fallback til `playerTraces.style` hvis mangler)* |
 | `traces.features.ballTraces` | `enabled`, opacity `0.8`, style `solidStraight` |
 | `pitchTypes` | `offensive`, `defensive`, `handball`, `full`, `fullLandscape`, `blankPortrait`, `blankLandscape` |
 | `guidelines.modes` | `lines`, `colors`, `full` |
+| `exportPresets.png` | `scale`, `background` |
+| `exportPresets.gif` | `frameDuration`, `quality` |
+| `exportPresets.mp4` | `frameDuration`, `fps`, `crf`, `preset`, `audioBitrate` |
 | `ui.theme` | primary `#3b82f6`, secondary `#64748b`, success `#10b981`, warning `#f59e0b`, error `#ef4444` |
 
 ### Toolbar-konfigurasjon
 
+```json
 "toolbar": {
   "position": "below",
   "layout": "single-line",
@@ -84,6 +90,7 @@ Konfigurasjonssystemet leser innstillinger fra `.aigenrc` filen og anvender dem 
 ```
 
 **Tilgjengelige ikoner**:
+
 - `MousePointer`, `User`, `Users`, `Volleyball`, `Cone`, `PenTool`, `Type`, `Square`
 - `SquareDashedBottom`, `Trash2`, `Play`, `Pause`, `SkipBack`, `Copy`, `Plus`
 - `Film`, `Download`, `FileImage`, `Upload`, `BookOpen`
@@ -110,9 +117,16 @@ Konfigurasjonssystemet leser innstillinger fra `.aigenrc` filen og anvender dem 
 
 ### Traces (bevegelseslinjer)
 
+Terminologi: «trace» i kode/UI betyr en bevegelseslinje mellom posisjoner i keyframes.
+
 ```json
 "traces": {
   "enabled": true,
+  "features": {
+    "playerTraces": { "enabled": true, "opacity": 0.7, "style": "dashedStraight" },
+    "opponentTraces": { "enabled": true, "opacity": 0.7, "style": "dashedStraight" },
+    "ballTraces": { "enabled": true, "opacity": 0.8, "style": "solidStraight" }
+  },
   "curveRange": {
     "min": -300,
     "max": 300,
@@ -135,6 +149,28 @@ Konfigurasjonssystemet leser innstillinger fra `.aigenrc` filen og anvender dem 
   "animations": {
     "enabled": true,
     "duration": 200
+  }
+}
+```
+
+### Eksport-presets
+
+```json
+"exportPresets": {
+  "png": {
+    "scale": 2,
+    "background": "#ffffff"
+  },
+  "gif": {
+    "frameDuration": 600,
+    "quality": 10
+  },
+  "mp4": {
+    "frameDuration": 600,
+    "fps": 30,
+    "crf": 23,
+    "preset": "veryfast",
+    "audioBitrate": "128k"
   }
 }
 ```
@@ -219,6 +255,7 @@ For å justere kurve-sliders:
 ### Fallback-mekanisme
 
 Hvis konfigurasjonen ikke kan lastes:
+
 1. Appen viser en loading-screen
 2. Fallback til hardkodede standardverdier
 3. Logger en advarsel i konsollen
@@ -227,6 +264,7 @@ Hvis konfigurasjonen ikke kan lastes:
 ## Eksempler på tilpasninger
 
 ### Eksempel 1: Norsk konfigurasjon
+
 ```json
 {
   "settings": {
@@ -242,6 +280,7 @@ Hvis konfigurasjonen ikke kan lastes:
 ```
 
 ### Eksempel 2: Utvidet kurve-område
+
 ```json
 {
   "settings": {
@@ -256,6 +295,7 @@ Hvis konfigurasjonen ikke kan lastes:
 ```
 
 ### Eksempel 3: Eget fargetema
+
 ```json
 {
   "settings": {
@@ -275,17 +315,20 @@ Hvis konfigurasjonen ikke kan lastes:
 ## Feilsøking
 
 ### Konfigurasjon lastes ikke
+
 1. Sjekk at `public/.aigenrc` eksisterer
 2. Valider JSON-syntaks med en validator
 3. Sjekk nettverksfanen i DevTools for 404-feil
 4. Se `useAppConfig` warnings i konsollen — faller tilbake til innebygd standard dersom fila ikke finnes
 
 ### TypeScript-feil
+
 1. Sjekk at alle påkrevde felter er med
 2. Valider at ikon-navn finnes i `iconMap.ts`
 3. Sjekk at alle verdier har riktig type
 
 ### Endringer vises ikke
+
 1. Refresh siden (Ctrl+R / Cmd+R)
 2. Sjekk at `public/.aigenrc` er oppdatert
 3. Tøm browser-cache hvis nødvendig
@@ -293,6 +336,7 @@ Hvis konfigurasjonen ikke kan lastes:
 ## Fremtidige utvidelser
 
 Dette systemet kan enkelt utvides med:
+
 - Tema-filer (mørk/lys modus)
 - Bruker-spesifikke innstillinger
 - Import/eksport av konfigurasjoner

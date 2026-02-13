@@ -1,5 +1,5 @@
 import { useCallback, useRef, useEffect, useState } from 'react';
-import { TraceElement, FootballElement, LineElement } from '../@types/elements';
+import { TraceElement, FootballElement, LineElement, TraceCurveType, Frame } from '../@types/elements';
 import { createLinePathMemoized } from '../lib/line-utils';
 import { getTracesConfig, TracesConfig } from '../lib/config';
 
@@ -7,6 +7,40 @@ interface UseTraceManagerProps {
   showTraces: boolean;
   curveOffset: number;
 }
+
+/**
+ * Map TraceCurveType preset til faktisk curveOffset-verdi.
+ * Disse verdiene gir visuelt distinkte kurver uten å være for ekstreme.
+ */
+const CURVE_TYPE_OFFSETS: Record<TraceCurveType, number> = {
+  'straight': 0,
+  // Merk: SVG-koordinater har Y nedover. For en bevegelse "fremover" betyr negativ offset
+  // at kurven bøyer mot venstre (mot klokka) relativt til retningen start→slutt.
+  'arc-left': -35,
+  'arc-right': 35,
+  's-curve': 25  // S-curve bruker positiv offset, men rendres annerledes
+};
+
+/**
+ * Beregn effektivt curveOffset basert på trace-innstillinger.
+ * Prioritet: curveType preset > individuelt curveOffset > globalt curveOffset
+ */
+export const getEffectiveCurveOffset = (
+  curveType: TraceCurveType | undefined,
+  individualOffset: number | undefined,
+  globalOffset: number
+): number => {
+  if (curveType) {
+    if (curveType === 'straight') {
+      return 0;
+    }
+    return CURVE_TYPE_OFFSETS[curveType];
+  }
+  if (typeof individualOffset === 'number' && individualOffset !== 0) {
+    return individualOffset;
+  }
+  return globalOffset;
+};
 
 export const useTraceManager = (props: UseTraceManagerProps) => {
   const traceHistory = useRef<Map<string, TraceElement[]>>(new Map());
@@ -64,7 +98,10 @@ export const useTraceManager = (props: UseTraceManagerProps) => {
     element: FootballElement,
     currentFrame: number
   ): TraceElement | null => {
-    if (!props.showTraces || !element.x || !element.y) return null;
+    if (!props.showTraces) return null;
+    const currentX = typeof element.x === 'number' ? element.x : null;
+    const currentY = typeof element.y === 'number' ? element.y : null;
+    if (currentX === null || currentY === null) return null;
     if (!['player', 'opponent', 'ball'].includes(element.type)) return null;
 
     const elementId = element.id;
@@ -77,9 +114,11 @@ export const useTraceManager = (props: UseTraceManagerProps) => {
 
     // Check if element moved enough to create new trace
     if (lastPos) {
+      const currentX = element.x ?? lastPos.x;
+      const currentY = element.y ?? lastPos.y;
       const distance = Math.sqrt(
-        Math.pow(element.x - lastPos.x, 2) + 
-        Math.pow(element.y - lastPos.y, 2)
+        Math.pow(currentX - lastPos.x, 2) + 
+        Math.pow(currentY - lastPos.y, 2)
       );
       
       // Minimum distance to create trace
@@ -87,15 +126,20 @@ export const useTraceManager = (props: UseTraceManagerProps) => {
 
       const renderHints = inferLineRendering(styleConfig?.style);
 
+      // Beregn effektivt curve offset basert på globale innstillinger
+      // (per-trace curveType kan settes senere ved redigering)
+      const effectiveOffset = props.curveOffset;
+      const pathStyle = effectiveOffset !== 0 ? 'curved' : 'straight';
+
       // Create trace element
       const trace: TraceElement = {
         id: `trace-${elementId}-${Date.now()}`,
         type: 'trace',
         path: createLinePathMemoized(
           { x: lastPos.x, y: lastPos.y },
-          { x: element.x, y: element.y },
-          props.curveOffset !== 0 ? 'curved' : 'straight',
-          props.curveOffset
+          { x: currentX, y: currentY },
+          pathStyle,
+          effectiveOffset
         ),
         elementId,
         elementType: element.type as 'player' | 'opponent' | 'ball',
@@ -107,17 +151,18 @@ export const useTraceManager = (props: UseTraceManagerProps) => {
         thickness: element.type === 'ball' ? 1.5 : 1,
         dashed: renderHints.dashed,
         marker: renderHints.marker,
-        x: element.x,
-        y: element.y,
+        x: currentX,
+        y: currentY,
         visible: true,
-        curveOffset: props.curveOffset,
+        curveOffset: effectiveOffset,
+        curveType: effectiveOffset === 0 ? 'straight' : undefined,  // Sett default basert på offset
         style: styleConfig?.style as TraceElement['style']
       };
 
       // Update position tracking
       lastPositions.current.set(elementId, {
-        x: element.x,
-        y: element.y,
+        x: currentX,
+        y: currentY,
         frame: currentFrame
       });
 
@@ -131,8 +176,8 @@ export const useTraceManager = (props: UseTraceManagerProps) => {
     } else {
       // First position for this element
       lastPositions.current.set(elementId, {
-        x: element.x,
-        y: element.y,
+        x: currentX,
+        y: currentY,
         frame: currentFrame
       });
       return null;
@@ -154,6 +199,65 @@ export const useTraceManager = (props: UseTraceManagerProps) => {
     lastPositions.current.clear();
     lastFrameRef.current = null;
     setTraces([]);
+  }, []);
+
+  const rebuildTracesFromFrames = useCallback((frames: Frame[], globalCurveOffset?: number): TraceElement[] => {
+    if (!props.showTraces) {
+      clearTraces();
+      return [];
+    }
+
+    // Reset internal state before rebuilding
+    clearTraces();
+
+    frames.forEach((frame, frameIndex) => {
+      (frame?.elements || []).forEach((element) => {
+        createTrace(
+          element,
+          frameIndex
+        );
+      });
+    });
+
+    // Override curve offsets globally if provided
+    if (typeof globalCurveOffset === 'number') {
+      traceHistory.current.forEach((traceList, elementId) => {
+        const updatedList = traceList.map((trace) => ({
+          ...trace,
+          curveOffset: trace.curveOffset ?? globalCurveOffset,
+          curveType: trace.curveType ?? (globalCurveOffset === 0 ? 'straight' : trace.curveType)
+        }));
+        traceHistory.current.set(elementId, updatedList);
+      });
+    }
+
+    const updated = getTraces();
+    setTraces(updated);
+    return updated;
+  }, [clearTraces, createTrace, getTraces, props.showTraces]);
+
+  const updateTrace = useCallback((traceId: string, updates: Partial<TraceElement>): TraceElement | null => {
+    let updatedTrace: TraceElement | null = null;
+
+    traceHistory.current.forEach((traceList, elementId) => {
+      let changed = false;
+      const nextList = traceList.map((trace) => {
+        if (trace.id !== traceId) return trace;
+        changed = true;
+        updatedTrace = { ...trace, ...updates } as TraceElement;
+        return updatedTrace;
+      });
+
+      if (changed) {
+        traceHistory.current.set(elementId, nextList);
+      }
+    });
+
+    if (updatedTrace) {
+      setTraces((prev) => prev.map((trace) => (trace.id === traceId ? updatedTrace as TraceElement : trace)));
+    }
+
+    return updatedTrace;
   }, []);
 
   const updateTraces = useCallback((
@@ -181,6 +285,8 @@ export const useTraceManager = (props: UseTraceManagerProps) => {
     updateTraces,
     getTraces,
     clearTraces,
-    createTrace
+    createTrace,
+    updateTrace,
+    rebuildTracesFromFrames
   };
 };

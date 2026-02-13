@@ -1,6 +1,6 @@
 import React from 'react';
 import { SVG_ATTRIBUTES } from '../../constants/svg';
-import { PlayerElement } from '../../@types/elements';
+import { PlayerElement, PLAYER_RADIUS } from '../../@types/elements';
 
 interface PlayerProps {
   element: PlayerElement;
@@ -20,6 +20,7 @@ const Player: React.FC<PlayerProps> = ({
   onDoubleClick 
 }) => {
   const { x = 0, y = 0, number = '1', color = '#0066cc', visible = true } = element;
+  const selectionStroke = SVG_ATTRIBUTES.stroke.blue;
   
   if (!visible) return null;
 
@@ -36,9 +37,9 @@ const Player: React.FC<PlayerProps> = ({
       {/* Selection indicator (behind) */}
       {isSelected && (
         <circle
-          r="20"
+          r={PLAYER_RADIUS + 5}
           fill={SVG_ATTRIBUTES.fill.none}
-          stroke="#0066ff"
+          stroke={selectionStroke}
           strokeWidth="3"
           strokeDasharray="5,5"
           opacity="0.8"
@@ -47,7 +48,8 @@ const Player: React.FC<PlayerProps> = ({
       
       {/* Player circle */}
       <circle
-        r="15"
+        data-testid="player-main-circle"
+        r={PLAYER_RADIUS}
         fill={color}
         stroke={isSelected ? SVG_ATTRIBUTES.stroke.white : SVG_ATTRIBUTES.stroke.black}
         strokeWidth={isSelected ? SVG_ATTRIBUTES.strokeWidth.thick : SVG_ATTRIBUTES.strokeWidth.normal}
@@ -55,7 +57,7 @@ const Player: React.FC<PlayerProps> = ({
       {/* Inner circle if needed */}
       {isSelected && (
         <circle
-          r="8"
+          r={PLAYER_RADIUS - 6}
           fill={SVG_ATTRIBUTES.fill.none}
           stroke={SVG_ATTRIBUTES.stroke.white}
           strokeWidth={SVG_ATTRIBUTES.strokeWidth.thin}
@@ -67,7 +69,11 @@ const Player: React.FC<PlayerProps> = ({
         textAnchor="middle"
         dominantBaseline="central"
         fill="white"
-        fontSize="12"
+        stroke={SVG_ATTRIBUTES.stroke.black}
+        strokeOpacity="0.35"
+        strokeWidth="0.5"
+        paintOrder="stroke"
+        fontSize="11"
         fontWeight="bold"
         pointerEvents="none"
       >

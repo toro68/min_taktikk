@@ -46,7 +46,7 @@ export const useFrameActions = (
       duration: 1
     };
     
-    console.log('➕ Adding keyframe:', {
+    debugLog('➕ Adding keyframe:', {
       fromFrame: currentFrame,
       newFrameIndex: frames.length,
       elementsCopied: currentFrameElements.length,
@@ -77,9 +77,9 @@ export const useFrameActions = (
         setCurrentFrame(0);
         setProgress(0);
       }
-      console.log('🎬 ANIMATION START - Frame data:');
+      debugLog('🎬 ANIMATION START - Frame data:');
       frames.forEach((frame, idx) => {
-        console.log(`  Frame ${idx}:`, frame.elements.slice(0, 3).map(el => ({
+        debugLog(`  Frame ${idx}:`, frame.elements.slice(0, 3).map(el => ({
           id: el.id?.slice(0, 8),
           type: el.type,
           x: el.x?.toFixed(1),

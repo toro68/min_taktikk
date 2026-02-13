@@ -9,12 +9,15 @@ import ConfigurableBottomToolbar from './components/toolbar/ConfigurableBottomTo
 import AnimationSection from './components/layout/AnimationSection';
 import AreaProperties from './components/properties/AreaProperties';
 import LineProperties from './components/properties/LineProperties';
+import TraceProperties from './components/properties/TraceProperties';
 import { AreaElement, GuidelineMode, Frame, FootballElement, LineElement, TraceElement } from './@types/elements';
 import { Button } from './components/ui/button';
 import SVGMarkers from './components/core/SVGMarkers';
 import ErrorBoundary from './components/core/ErrorBoundary';
 import { extractPathEndpoints, updateLineEndpoints, getLineProperties } from './lib/line-utils';
 import { useTraceManager } from './hooks/useTraceManager';
+import { useInterpolation } from './hooks/useInterpolation';
+import { getLineStylesConfig } from './lib/config';
 import { X } from 'lucide-react';
 
 const FootballAnimator: React.FC = () => {
@@ -30,27 +33,81 @@ const FootballAnimator: React.FC = () => {
     layoutLogic
   } = useFootballAnimatorLogic();
 
+  const traceSystemEnabled = animationLogic.showTraces || animationLogic.enablePathFollowing;
+
   // Trace manager for spilleranimering
-  const traceManager = useTraceManager({
-    showTraces: animationLogic.showTraces,
+  const {
+    traces,
+    rebuildTracesFromFrames,
+    clearTraces,
+    updateTrace
+  } = useTraceManager({
+    // Hold trace-geometri tilgjengelig for path-following selv om traces er skjult
+    showTraces: traceSystemEnabled,
     curveOffset: animationLogic.traceCurveOffset
   });
 
-  // Update traces when frame changes - use original keyframe elements, NOT interpolated ones
+  // Rebuild traces whenever frames or trace settings change so path following uses full timeline
   useEffect(() => {
-    if (animationLogic.showTraces) {
-      // Get original keyframe elements (not interpolated ones) for trace calculation
-      const originalElements = animationLogic.frames[animationLogic.currentFrame]?.elements || [];
-      traceManager.updateTraces(originalElements, animationLogic.currentFrame);
+    if (traceSystemEnabled) {
+      rebuildTracesFromFrames(animationLogic.frames, animationLogic.traceCurveOffset);
+    } else {
+      clearTraces();
     }
-  }, [animationLogic.currentFrame, animationLogic.frames, animationLogic.showTraces, traceManager]);
+  }, [animationLogic.frames, traceSystemEnabled, animationLogic.traceCurveOffset, rebuildTracesFromFrames, clearTraces]);
 
-  // Clear traces when showTraces is disabled
-  useEffect(() => {
-    if (!animationLogic.showTraces) {
-      traceManager.clearTraces();
+  // Interpolate elements with optional path following using trace geometry
+  useInterpolation({
+    currentFrame: animationLogic.currentFrame,
+    progress: animationLogic.progress,
+    frames: animationLogic.frames,
+    setInterpolatedElements: animationLogic.setInterpolatedElements,
+    showTraces: animationLogic.showTraces,
+    traceCurveOffset: animationLogic.traceCurveOffset,
+    interpolationType: animationLogic.interpolationType,
+    enablePathFollowing: animationLogic.enablePathFollowing,
+    traces
+  });
+
+  const svgTemplateFileInputRef = React.useRef<HTMLInputElement | null>(null);
+
+  const handleLoadSvgTemplate = React.useCallback(() => {
+    svgTemplateFileInputRef.current?.click();
+  }, []);
+
+  const handleSvgTemplateFileSelected = React.useCallback(
+    async (event: React.ChangeEvent<HTMLInputElement>) => {
+      const file = event.target.files?.[0];
+      if (!file) return;
+
+      try {
+        const svgText = await file.text();
+        if (process.env.NODE_ENV === 'development') {
+          console.log('🖼️ SVG template loaded:', { name: file.name, size: file.size });
+        }
+        toolLogic.setPitchTemplateSvg(svgText);
+      } catch (error) {
+        console.error('Failed to load SVG template', error);
+      } finally {
+        // Allow selecting the same file again
+        event.target.value = '';
+      }
+    },
+    [toolLogic]
+  );
+
+  const handleLoadExampleAnimation = React.useCallback(async (): Promise<void> => {
+    try {
+      const frames = await exportImport.handleLoadExampleAnimation();
+      if (frames && Array.isArray(frames)) {
+        animationLogic.setFrames(frames);
+        animationLogic.setCurrentFrame(0);
+        animationLogic.setProgress(0);
+      }
+    } catch (error) {
+      // Error handling for loading example animation
     }
-  }, [animationLogic.showTraces, traceManager]);
+  }, [exportImport, animationLogic]);
 
   // Toolbar props are now handled directly in the components
 
@@ -59,6 +116,7 @@ const FootballAnimator: React.FC = () => {
     pitch: toolLogic.pitch,
     zoomLevel: toolLogic.zoomLevel,
     showGuidelines: toolLogic.showGuidelines,
+    pitchTemplateSvg: toolLogic.pitchTemplateSvg,
     // 🎬 KRITISK FIX: Bruk interpolated elements for smooth animasjon!
     elements: animationLogic.interpolatedElements.length > 0 
       ? animationLogic.interpolatedElements 
@@ -103,8 +161,12 @@ const FootballAnimator: React.FC = () => {
       
       elementActions.updateFrameElement(animationLogic.currentFrame, lineId, { path: newPath });
     },
-    traces: traceManager.traces
+    traces: animationLogic.showTraces ? traces : [],
+    onTraceClick: (_event: React.MouseEvent, trace: TraceElement) => {
+      toolLogic.setSelectedElement(trace);
+    }
   };
+
 
   // Logikk for å håndtere standard linjeegenskaper når verktøyet er valgt
   const lineProperties = getLineProperties(toolLogic.selectedLineStyle, toolLogic.lineColor, toolLogic.curveOffset);
@@ -141,6 +203,24 @@ const FootballAnimator: React.FC = () => {
     }
   };
 
+  const updateSelectedLine = React.useCallback((updates: Partial<LineElement>) => {
+    if (toolLogic.selectedElement?.type !== 'line') {
+      return;
+    }
+
+    const selectedLine = toolLogic.selectedElement as LineElement;
+    elementActions.updateFrameElement(
+      animationLogic.currentFrame,
+      selectedLine.id,
+      updates
+    );
+
+    toolLogic.setSelectedElement({
+      ...selectedLine,
+      ...updates
+    });
+  }, [toolLogic.selectedElement, toolLogic.setSelectedElement, elementActions, animationLogic.currentFrame]);
+
   // Keyboard shortcuts
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
@@ -160,6 +240,69 @@ const FootballAnimator: React.FC = () => {
           animationLogic.setCurrentFrame(0);
           animationLogic.setProgress(0);
           break;
+        case 'ArrowLeft':
+        case 'ArrowRight': {
+          if (toolLogic.selectedElement?.type !== 'line') {
+            break;
+          }
+
+          event.preventDefault();
+          const selectedLine = toolLogic.selectedElement as LineElement;
+          const curveRange = getLineStylesConfig().curveRange;
+          const step = (curveRange.step || 1) * (event.shiftKey ? 5 : 1);
+          const direction = event.code === 'ArrowRight' ? 1 : -1;
+          const nextCurveOffset = Math.max(
+            curveRange.min,
+            Math.min(curveRange.max, (selectedLine.curveOffset || 0) + step * direction)
+          );
+
+          const endpoints = selectedLine.path ? extractPathEndpoints(selectedLine.path) : null;
+          if (!endpoints) {
+            updateSelectedLine({ curveOffset: nextCurveOffset });
+            break;
+          }
+
+          const nextPath = updateLineEndpoints(
+            selectedLine.path,
+            selectedLine.style,
+            endpoints.start,
+            endpoints.end,
+            nextCurveOffset
+          );
+
+          updateSelectedLine({
+            curveOffset: nextCurveOffset,
+            path: nextPath
+          });
+          break;
+        }
+        case 'Digit0': {
+          if (toolLogic.selectedElement?.type !== 'line') {
+            break;
+          }
+
+          event.preventDefault();
+          const selectedLine = toolLogic.selectedElement as LineElement;
+          const endpoints = selectedLine.path ? extractPathEndpoints(selectedLine.path) : null;
+          if (!endpoints) {
+            updateSelectedLine({ curveOffset: 0 });
+            break;
+          }
+
+          const nextPath = updateLineEndpoints(
+            selectedLine.path,
+            selectedLine.style,
+            endpoints.start,
+            endpoints.end,
+            0
+          );
+
+          updateSelectedLine({
+            curveOffset: 0,
+            path: nextPath
+          });
+          break;
+        }
         default:
           break;
       }
@@ -169,11 +312,18 @@ const FootballAnimator: React.FC = () => {
     return () => {
       document.removeEventListener('keydown', handleKeyDown);
     };
-  }, [frameActions, animationLogic]);
+  }, [frameActions, animationLogic, toolLogic.selectedElement, updateSelectedLine]);
 
   return (
     <ErrorBoundary>
       <MainLayout>
+        <input
+          ref={svgTemplateFileInputRef}
+          type="file"
+          accept="image/svg+xml,.svg"
+          onChange={handleSvgTemplateFileSelected}
+          className="hidden"
+        />
         <ConfigurableTopToolbar 
           playbackSpeed={animationLogic.playbackSpeed}
           setPlaybackSpeed={animationLogic.setPlaybackSpeed}
@@ -182,20 +332,29 @@ const FootballAnimator: React.FC = () => {
           onAddKeyframe={frameActions.handleAddKeyframe}
           onDownloadAnimation={() => exportImport.handleDownloadAnimation(animationLogic.frames)}
           onLoadAnimation={exportImport.handleLoadAnimation}
-          onLoadExampleAnimation={async (): Promise<void> => {
-            try {
-              const frames = await exportImport.handleLoadExampleAnimation();
-              if (frames && Array.isArray(frames)) {
-                animationLogic.setFrames(frames);
-                animationLogic.setCurrentFrame(0);
-                animationLogic.setProgress(0);
+          onLoadExampleAnimation={handleLoadExampleAnimation}
+          onDownloadFilm={() => {
+            const originalFrame = animationLogic.currentFrame;
+            const originalProgress = animationLogic.progress;
+
+            exportImport.handleDownloadFilm(
+              animationLogic.frames,
+              interactionLogic.recordedSVGRef.current || undefined,
+              {
+                seekFrame: async (frameIndex: number, frameProgress: number) => {
+                  animationLogic.setCurrentFrame(frameIndex);
+                  animationLogic.setProgress(frameProgress);
+                  await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
+                },
+                restoreFrame: () => {
+                  animationLogic.setCurrentFrame(originalFrame);
+                  animationLogic.setProgress(originalProgress);
+                }
               }
-            } catch (error) {
-              // Error handling for loading example animation
-            }
+            );
           }}
-          onDownloadFilm={() => exportImport.handleDownloadFilm(animationLogic.frames, interactionLogic.recordedSVGRef.current || undefined)}
           onDownloadPng={() => exportImport.handleDownloadPng(interactionLogic.recordedSVGRef.current || undefined)}
+          onDownloadSvg={() => exportImport.handleDownloadSvg(interactionLogic.recordedSVGRef.current || undefined)}
           onDownloadGif={() => exportImport.handleDownloadGif(animationLogic.frames, interactionLogic.recordedSVGRef.current || undefined)}
           isPlaying={animationLogic.isPlaying}
           onPlayPause={frameActions.handlePlayPause}
@@ -212,6 +371,7 @@ const FootballAnimator: React.FC = () => {
           setShowTraces={animationLogic.setShowTraces}
           traceCurveOffset={animationLogic.traceCurveOffset}
           onTraceCurveChange={animationLogic.setTraceCurveOffset}
+          onLoadSvgTemplate={handleLoadSvgTemplate}
         />
         
         <div className="flex flex-1 overflow-hidden min-h-0">
@@ -234,13 +394,7 @@ const FootballAnimator: React.FC = () => {
               {toolLogic.selectedElement.type === 'line' && (
                 <LineProperties
                   line={toolLogic.selectedElement as LineElement}
-                  updateElement={(updates) =>
-                    elementActions.updateFrameElement(
-                      animationLogic.currentFrame,
-                      toolLogic.selectedElement!.id,
-                      updates
-                    )
-                  }
+                  updateElement={updateSelectedLine}
                 />
               )}
               {toolLogic.selectedElement.type === 'area' && (
@@ -253,6 +407,19 @@ const FootballAnimator: React.FC = () => {
                       updates
                     )
                   }
+                />
+              )}
+              {toolLogic.selectedElement.type === 'trace' && (
+                <TraceProperties
+                  trace={toolLogic.selectedElement as TraceElement}
+                  globalCurveOffset={animationLogic.traceCurveOffset}
+                  updateElement={(updates) => {
+                    const traceId = toolLogic.selectedElement!.id;
+                    const updated = updateTrace(traceId, updates);
+                    if (updated) {
+                      toolLogic.setSelectedElement(updated);
+                    }
+                  }}
                 />
               )}
             </div>
@@ -309,13 +476,7 @@ const FootballAnimator: React.FC = () => {
         {toolLogic.selectedElement?.type === 'line' && (
           <ContextualLineToolbar
             line={toolLogic.selectedElement as LineElement}
-            updateElement={(updates) =>
-              elementActions.updateFrameElement(
-                animationLogic.currentFrame,
-                toolLogic.selectedElement!.id,
-                updates
-              )
-            }
+            updateElement={updateSelectedLine}
             isVisible={true}
           />
         )}

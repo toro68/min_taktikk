@@ -107,6 +107,12 @@
                 "tooltip": "Last ned som PNG"
               },
               {
+                "key": "downloadSvg",
+                "icon": "Download",
+                "label": "SVG",
+                "tooltip": "Last ned som SVG"
+              },
+              {
                 "key": "downloadFilm",
                 "icon": "Film",
                 "label": "Video",
@@ -129,6 +135,12 @@
                 "icon": "BookOpen",
                 "label": "Eksempel",
                 "tooltip": "Last inn eksempel-animasjon"
+              },
+              {
+                "key": "loadSvgTemplate",
+                "icon": "Upload",
+                "label": "SVG",
+                "tooltip": "Last inn SVG-mal"
               }
             ]
           }
@@ -337,6 +349,23 @@
         "full"
       ]
     },
+      "exportPresets": {
+        "png": {
+          "scale": 2,
+          "background": "#ffffff"
+        },
+        "gif": {
+          "frameDuration": 600,
+          "quality": 10
+        },
+        "mp4": {
+          "frameDuration": 600,
+          "fps": 30,
+          "crf": 23,
+          "preset": "veryfast",
+          "audioBitrate": "128k"
+        }
+      },
     "ui": {
       "theme": {
         "primaryColor": "#3b82f6",

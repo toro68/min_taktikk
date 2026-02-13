@@ -122,6 +122,24 @@ export interface UIConfig {
   animations: UIAnimationsConfig;
 }
 
+export interface ExportPresetsConfig {
+  png?: {
+    scale?: number;
+    background?: string;
+  };
+  gif?: {
+    frameDuration?: number;
+    quality?: number;
+  };
+  mp4?: {
+    frameDuration?: number;
+    fps?: number;
+    crf?: number;
+    preset?: 'ultrafast' | 'superfast' | 'veryfast' | 'faster' | 'fast' | 'medium';
+    audioBitrate?: string;
+  };
+}
+
 export interface ToolbarGroupConfig {
   label?: string;
   collapsed?: boolean;
@@ -164,6 +182,7 @@ export interface AppConfig {
     traces: TracesConfig;
     pitchTypes: string[];
     guidelines: GuidelinesConfig;
+    exportPresets?: ExportPresetsConfig;
     ui?: UIConfig; // Optional for backward compatibility
   };
 }
@@ -273,6 +292,12 @@ const defaultConfig: AppConfig = {
                 icon: "Image",
                 label: "PNG",
                 tooltip: "Last ned som PNG"
+              },
+              {
+                key: "downloadSvg",
+                icon: "Download",
+                label: "SVG",
+                tooltip: "Last ned som SVG"
               },
               {
                 key: "downloadFilm",
@@ -576,6 +601,23 @@ const defaultConfig: AppConfig = {
     guidelines: {
       modes: ["lines", "colors", "full"]
     },
+    exportPresets: {
+      png: {
+        scale: 2,
+        background: "#ffffff"
+      },
+      gif: {
+        frameDuration: 600,
+        quality: 10
+      },
+      mp4: {
+        frameDuration: 600,
+        fps: 30,
+        crf: 23,
+        preset: 'veryfast',
+        audioBitrate: '128k'
+      }
+    },
     ui: {
       theme: {
         primaryColor: "#3b82f6",
@@ -690,6 +732,12 @@ const aigenrcConfig: AppConfig = {
                 "tooltip": "Last ned som PNG"
               },
               {
+                "key": "downloadSvg",
+                "icon": "Download",
+                "label": "SVG",
+                "tooltip": "Last ned som SVG"
+              },
+              {
                 "key": "downloadFilm",
                 "icon": "Film",
                 "label": "Video",
@@ -712,6 +760,12 @@ const aigenrcConfig: AppConfig = {
                 "icon": "BookOpen",
                 "label": "Eksempel",
                 "tooltip": "Last inn eksempel-animasjon"
+              },
+              {
+                "key": "loadSvgTemplate",
+                "icon": "Upload",
+                "label": "SVG",
+                "tooltip": "Last inn SVG-mal"
               }
             ]
           }
@@ -870,6 +924,23 @@ const aigenrcConfig: AppConfig = {
     "guidelines": {
       "modes": ["lines", "colors", "full"]
     },
+    "exportPresets": {
+      "png": {
+        "scale": 2,
+        "background": "#ffffff"
+      },
+      "gif": {
+        "frameDuration": 600,
+        "quality": 10
+      },
+      "mp4": {
+        "frameDuration": 600,
+        "fps": 30,
+        "crf": 23,
+        "preset": "veryfast",
+        "audioBitrate": "128k"
+      }
+    },
     "ui": {
       "theme": {
         "primaryColor": "#3b82f6",
@@ -933,6 +1004,10 @@ export const getPitchTypes = (): string[] => {
 
 export const getGuidelinesConfig = (): GuidelinesConfig => {
   return getConfig().settings.guidelines;
+};
+
+export const getExportPresets = (): ExportPresetsConfig | null => {
+  return getConfig().settings.exportPresets || null;
 };
 
 export const getUIConfig = (): UIConfig | null => {

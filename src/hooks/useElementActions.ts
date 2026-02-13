@@ -2,6 +2,30 @@ import { useState, useRef, useCallback } from 'react';
 import { FootballElement, PlayerElement, OpponentElement, TextElement, LineElement, Tool, Frame } from '../@types/elements';
 import { createLinePath, createLinePathMemoized, getLineProperties, isPointNearLine } from '../lib/line-utils';
 import { LineStyle } from '../types';
+import { debugLog } from '../lib/debug';
+
+const snapPointToAngle = (
+  start: { x: number; y: number },
+  end: { x: number; y: number },
+  angleIncrementDegrees = 45
+) => {
+  const dx = end.x - start.x;
+  const dy = end.y - start.y;
+  const distance = Math.sqrt(dx * dx + dy * dy);
+
+  if (distance === 0) {
+    return end;
+  }
+
+  const angle = Math.atan2(dy, dx);
+  const incrementRadians = (angleIncrementDegrees * Math.PI) / 180;
+  const snappedAngle = Math.round(angle / incrementRadians) * incrementRadians;
+
+  return {
+    x: start.x + Math.cos(snappedAngle) * distance,
+    y: start.y + Math.sin(snappedAngle) * distance,
+  };
+};
 
 // Updated interface to match the simple usage pattern
 export const useElementActions = (
@@ -21,6 +45,8 @@ export const useElementActions = (
   const [lineStart, setLineStart] = useState<{x: number, y: number} | null>(null);
   const [previewLine, setPreviewLine] = useState<LineElement | null>(null);
   const [draggedElement, setDraggedElement] = useState<FootballElement | null>(null);
+  const rafIdRef = useRef<number | null>(null);
+  const pendingMoveRef = useRef<{ x: number; y: number; shiftKey: boolean; target: SVGSVGElement | null } | null>(null);
 
   // Use the standardized coordinate function from svg-utils
   const getElementCoordinates = useCallback((event: React.MouseEvent<SVGSVGElement> | { clientX: number, clientY: number }, svgElement: SVGSVGElement | null) => {
@@ -31,6 +57,15 @@ export const useElementActions = (
     // Import and use the standardized function
     const { getSVGCoordinates } = require('../lib/svg-utils');
     return getSVGCoordinates(event.clientX, event.clientY, svgElement);
+  }, []);
+
+  const getElementCoordinatesFromPoint = useCallback((clientX: number, clientY: number, svgElement: SVGSVGElement | null) => {
+    if (!svgElement) {
+      console.warn('SVG element is not available');
+      return { x: 0, y: 0 };
+    }
+    const { getSVGCoordinates } = require('../lib/svg-utils');
+    return getSVGCoordinates(clientX, clientY, svgElement);
   }, []);
 
   // Helper function to translate path
@@ -110,57 +145,93 @@ export const useElementActions = (
   }, [frames, currentFrame, getElementCoordinates]);
 
   // Mouse move handler - fix to use standardized coordinates
-  const handleMouseMove = useCallback((event: React.MouseEvent<SVGSVGElement>, pitch: string) => {
-    const coords = getElementCoordinates(event, event.currentTarget);
+  const handleMouseMove = useCallback((event: React.MouseEvent<SVGSVGElement> | React.TouchEvent<SVGSVGElement>, pitch: string) => {
+    const target = event.currentTarget as SVGSVGElement | null;
+    let clientX: number;
+    let clientY: number;
+    let shiftKey = false;
+    if ('touches' in event && event.touches.length > 0) {
+      clientX = event.touches[0].clientX;
+      clientY = event.touches[0].clientY;
+    } else {
+      const mouseEvent = event as React.MouseEvent;
+      clientX = mouseEvent.clientX;
+      clientY = mouseEvent.clientY;
+      shiftKey = mouseEvent.shiftKey;
+    }
+    pendingMoveRef.current = { x: clientX, y: clientY, shiftKey, target };
 
-    if (isDragging && startPoint && draggedElement) {
-      // Calculate new position based on mouse movement
-      const dx = coords.x - startPoint.x;
-      const dy = coords.y - startPoint.y;
+    if (rafIdRef.current !== null) return;
 
-      // Only update position for elements that have x,y coordinates
-      if (draggedElement.x !== undefined && draggedElement.y !== undefined) {
-        const newX = draggedElement.x + dx;
-        const newY = draggedElement.y + dy;
-        
-        // Update the element's position in the current frame
-        updateFrameElement(currentFrame, draggedElement.id, { x: newX, y: newY });
-        
-        // Update the dragged element reference
-        setDraggedElement({ ...draggedElement, x: newX, y: newY });
-        
-        // Update the start point for smooth dragging
-        setStartPoint(coords);
+    rafIdRef.current = requestAnimationFrame(() => {
+      const pending = pendingMoveRef.current;
+      if (!pending) {
+        rafIdRef.current = null;
+        return;
       }
-    }
 
-    if (isDrawing && lineStart) {
-      const selectedLineStyle = lineStyleParams?.selectedLineStyle || 'straight';
-      
-      const lineProperties = getLineProperties(selectedLineStyle, lineStyleParams?.lineColor || '#000000', lineStyleParams?.curveOffset || 0);
-      
-      const { curved, dashed, marker, strokeColor } = lineProperties;
-      const path = createLinePathMemoized(lineStart, coords, selectedLineStyle, lineStyleParams?.curveOffset);
-      
-      setPreviewLine({
-        id: 'preview-line',
-        type: 'line',
-        path,
-        style: selectedLineStyle,
-        modifiers: {}, // Add empty modifiers
-        dashed,
-        marker,
-        color: strokeColor
-      });
-    }
-  }, [isDragging, startPoint, draggedElement, isDrawing, lineStart, getElementCoordinates, lineStyleParams, currentFrame, updateFrameElement]);
+      const coords = getElementCoordinatesFromPoint(pending.x, pending.y, pending.target);
+
+      if (isDragging && startPoint && draggedElement) {
+        // Calculate new position based on mouse movement
+        const dx = coords.x - startPoint.x;
+        const dy = coords.y - startPoint.y;
+
+        // Only update position for elements that have x,y coordinates
+        if (draggedElement.x !== undefined && draggedElement.y !== undefined) {
+          const newX = draggedElement.x + dx;
+          const newY = draggedElement.y + dy;
+          
+          // Update the element's position in the current frame
+          updateFrameElement(currentFrame, draggedElement.id, { x: newX, y: newY });
+          
+          // Update the dragged element reference
+          setDraggedElement({ ...draggedElement, x: newX, y: newY });
+          
+          // Update the start point for smooth dragging
+          setStartPoint(coords);
+        } else if (draggedElement.type === 'line') {
+          const lineElement = draggedElement as LineElement;
+          const translatedPath = translatePath(lineElement.path, dx, dy);
+
+          updateFrameElement(currentFrame, lineElement.id, { path: translatedPath });
+          setDraggedElement({ ...lineElement, path: translatedPath });
+          setStartPoint(coords);
+        }
+      }
+
+      if (isDrawing && lineStart) {
+        const selectedLineStyle = lineStyleParams?.selectedLineStyle || 'solidStraight';
+        const lineEnd = pending.shiftKey ? snapPointToAngle(lineStart, coords) : coords;
+        
+        const lineProperties = getLineProperties(selectedLineStyle, lineStyleParams?.lineColor || '#000000', lineStyleParams?.curveOffset || 0);
+        
+        const { dashed, marker, strokeColor } = lineProperties;
+        const path = createLinePathMemoized(lineStart, lineEnd, selectedLineStyle, lineStyleParams?.curveOffset);
+        
+        setPreviewLine({
+          id: 'preview-line',
+          type: 'line',
+          path,
+          style: selectedLineStyle,
+          modifiers: {}, // Add empty modifiers
+          dashed,
+          marker,
+          color: strokeColor
+        });
+      }
+
+      pendingMoveRef.current = null;
+      rafIdRef.current = null;
+    });
+  }, [isDragging, startPoint, draggedElement, isDrawing, lineStart, getElementCoordinatesFromPoint, lineStyleParams, currentFrame, translatePath, updateFrameElement]);
 
   // Mouse up handler - fix to use standardized coordinates
   const handleMouseUp = useCallback((event: React.MouseEvent<SVGSVGElement>, pitch: string) => {
     const coords = getElementCoordinates(event, event.currentTarget);
     
     if (isDrawing && lineStart && lineStyleParams) {
-      console.log('🏁 Creating line with params:', {
+      debugLog('🏁 Creating line with params:', {
         lineStyleParams,
         selectedLineStyle: lineStyleParams.selectedLineStyle,
         lineColor: lineStyleParams.lineColor,
@@ -168,12 +239,13 @@ export const useElementActions = (
       });
       
       const { selectedLineStyle, lineColor, curveOffset } = lineStyleParams;
+      const lineEnd = event.shiftKey ? snapPointToAngle(lineStart, coords) : coords;
       
       const { dashed, marker, strokeColor } = getLineProperties(selectedLineStyle, lineColor, curveOffset);
-      const finalizedPath = createLinePathMemoized(lineStart, coords, selectedLineStyle, curveOffset);
+      const finalizedPath = createLinePathMemoized(lineStart, lineEnd, selectedLineStyle, curveOffset);
       
-      const dx = coords.x - lineStart.x;
-      const dy = coords.y - lineStart.y;
+      const dx = lineEnd.x - lineStart.x;
+      const dy = lineEnd.y - lineStart.y;
       const distance = Math.sqrt(dx * dx + dy * dy);
       
       if (distance > 5) {
@@ -206,13 +278,18 @@ export const useElementActions = (
     setStartPoint(null);
     setPreviewLine(null);
     setDraggedElement(null);
+    if (rafIdRef.current !== null) {
+      cancelAnimationFrame(rafIdRef.current);
+      rafIdRef.current = null;
+    }
+    pendingMoveRef.current = null;
   }, [isDrawing, lineStart, getElementCoordinates, lineStyleParams, setFrames, currentFrame]);
 
   // Click handler - fix to accept pitch parameter and ensure frame exists
   const handleClick = useCallback((event: React.MouseEvent<SVGSVGElement>, tool: Tool, currentNumber: number, incrementCurrentNumber: () => void, setSelectedElement: (el: FootballElement | null) => void, pitch: string = 'offensive') => {
     // Ensure frame exists before proceeding
     if (!frames[currentFrame]) {
-      console.log('Creating new frame at index:', currentFrame);
+      debugLog('Creating new frame at index:', currentFrame);
       setFrames(prevFrames => {
         const newFrames = [...prevFrames];
         newFrames[currentFrame] = { elements: [], duration: 1 };

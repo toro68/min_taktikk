@@ -1,6 +1,5 @@
 import { LineStyle, BaseLineStyle, LineStyleConfig, LineStyleModifiers, Coordinates } from '../types';
 import { getLineStylesConfig, getTracesConfig } from './config';
-import { legacyToNewStyle } from '../constants/lineStyles';
 import { getLinePropertiesFromStyle } from './lineStyleUtils';
 
 // Simple memoization cache for createLinePath
@@ -236,6 +235,29 @@ const createCurvedPath = (start: Coordinates, end: Coordinates, offset: number):
   const controlY = midY + perpY * actualOffset;
 
   return `M ${start.x} ${start.y} Q ${controlX} ${controlY} ${end.x} ${end.y}`;
+};
+
+/**
+ * Oppretter S-kurve (cubic Bezier) mellom start og slutt.
+ * Bruker to kontrollpunkter med motsatt fortegn for å gi en "S" i stedet for en bue.
+ */
+export const createSCurvePath = (start: Coordinates, end: Coordinates, offset: number): string => {
+  const dx = end.x - start.x;
+  const dy = end.y - start.y;
+  const length = Math.sqrt(dx * dx + dy * dy);
+
+  if (length === 0) return `M ${start.x} ${start.y}`;
+
+  const actualOffset = offset || 50;
+  const perpX = -dy / length;
+  const perpY = dx / length;
+
+  const cp1x = start.x + dx * 0.33 + perpX * actualOffset;
+  const cp1y = start.y + dy * 0.33 + perpY * actualOffset;
+  const cp2x = start.x + dx * 0.66 - perpX * actualOffset;
+  const cp2y = start.y + dy * 0.66 - perpY * actualOffset;
+
+  return `M ${start.x} ${start.y} C ${cp1x} ${cp1y} ${cp2x} ${cp2y} ${end.x} ${end.y}`;
 };
 
 /**

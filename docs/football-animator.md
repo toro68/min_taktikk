@@ -135,7 +135,7 @@ const FootballAnimator = () => {
       )
     },
     {
-      value: 'dashedCurvedArrow',
+      value: 'dashedCurved',
       label: 'Stiplet pil',
       preview: (
         <svg viewBox="0 0 80 20" className="w-16 h-5">
@@ -149,7 +149,7 @@ const FootballAnimator = () => {
       )
     },
     {
-      value: 'endMark',
+      value: 'straightArrow',
       label: 'Endestrek',
       preview: (
         <svg viewBox="0 0 80 20" className="w-16 h-5">
@@ -163,7 +163,7 @@ const FootballAnimator = () => {
       )
     },
     {
-      value: 'plusEnd',
+      value: 'straightArrow',
       label: 'Pluss',
       preview: (
         <svg viewBox="0 0 80 20" className="w-16 h-5">
@@ -177,7 +177,7 @@ const FootballAnimator = () => {
       )
     },
     {
-      value: 'xEnd',
+      value: 'straightArrow',
       label: 'Kryss',
       preview: (
         <svg viewBox="0 0 80 20" className="w-16 h-5">
@@ -617,12 +617,6 @@ const FootballAnimator = () => {
     
     if (lowerStyle.includes("arrow")) {
       marker = 'arrow';
-    } else if (lowerStyle === 'endmark') {
-      marker = 'endline';
-    } else if (lowerStyle === 'plusend') {
-      marker = 'plus';
-    } else if (lowerStyle === 'xend') {
-      marker = 'xmark';
     }
     
     return { curved, dashed, marker, strokeColor: color };
@@ -1396,7 +1390,7 @@ const FootballAnimator = () => {
     };
   }, [isPlaying]);
 
-  // Endrer renderTrace-funksjonen
+  // Endrer renderTrace-funksjonen (bevegelseslinjer / traces)
   const renderTrace = () => {
     if (frames.length < 2) return null;
     const nextIndex = currentFrame < frames.length - 1 ? currentFrame + 1 : (currentFrame - 1 >= 0 ? currentFrame - 1 : currentFrame);
@@ -1484,9 +1478,7 @@ const FootballAnimator = () => {
     if (element.type === 'line') {
       // Sett riktig linjestil basert på elementets egenskaper
       const style = element.dashed
-        ? element.marker === 'arrow'
-          ? 'dashedCurvedArrow'
-          : 'dashedCurved'
+        ? 'dashedCurved'
         : element.marker === 'arrow'
           ? 'curvedArrow'
           : 'solidCurved';
@@ -1788,7 +1780,7 @@ const FootballAnimator = () => {
                   )}
                   {(el.type === 'player' || el.type === 'ball') && (
                     <div className="flex flex-wrap items-center gap-2 mt-1">
-                      <span className="text-sm whitespace-nowrap">Trace offset:</span>
+                      <span className="text-sm whitespace-nowrap">Bevegelseslinje-offset (trace):</span>
                       <Tooltip>
                         <TooltipTrigger asChild>
                           <div className="flex-1 min-w-[100px]">
@@ -1804,7 +1796,7 @@ const FootballAnimator = () => {
                         </TooltipTrigger>
                         <TooltipContent side="top" sideOffset={2} className="py-0.5 px-1.5 bg-black/90 text-white border-0">
                           <div className="flex flex-col">
-                            <p className="text-[10px] font-medium">Juster bevegelseskurve: {el.traceOffset ?? 0}px</p>
+                            <p className="text-[10px] font-medium">Juster bevegelseslinje-kurve (trace): {el.traceOffset ?? 0}px</p>
                             <p className="text-[9px] text-gray-300">Dra for å endre (-300 til 300)</p>
                           </div>
                         </TooltipContent>

@@ -5,6 +5,7 @@ import { LineStyle } from '../types';
 export const useToolLogic = () => {
   const [tool, setTool] = useState<Tool>('select');
   const [pitch, setPitch] = useState<PitchType>('offensive');
+  const [pitchTemplateSvg, setPitchTemplateSvg] = useState<string | null>(null);
   const [selectedElement, setSelectedElement] = useState<FootballElement | null>(null);
   const [showGuidelines, setShowGuidelines] = useState<false | 'lines' | 'colors' | 'full'>(false);
   const [zoomLevel, setZoomLevel] = useState(1);
@@ -60,6 +61,8 @@ export const useToolLogic = () => {
     setTool,
     pitch,
     setPitch,
+    pitchTemplateSvg,
+    setPitchTemplateSvg,
     selectedElement,
     setSelectedElement,
     showGuidelines,

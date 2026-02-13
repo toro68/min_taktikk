@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { memo } from 'react';
 import { FootballElement, AreaElement, LineElement, TraceElement, BallElement } from '../../@types/elements';
 import { BaseLineStyle } from '../../types';
 import Player from '../elements/Player';
@@ -128,6 +128,7 @@ const ElementRenderer: React.FC<ElementRendererProps> = ({
             fill="none"
             strokeDasharray={(element as LineElement).dashed ? '5,5' : 'none'}
             markerEnd={(element as LineElement).marker ? `url(#${(element as LineElement).marker})` : 'none'}
+            data-testid="line-element"
             onClick={(e: React.MouseEvent) => onElementClick(e, element)}
             onMouseDown={(e: React.MouseEvent) => onElementDragStart(e, element)}
             style={{ cursor: 'pointer' }}
@@ -217,4 +218,4 @@ const ElementRenderer: React.FC<ElementRendererProps> = ({
   }
 };
 
-export default ElementRenderer;
+export default memo(ElementRenderer);

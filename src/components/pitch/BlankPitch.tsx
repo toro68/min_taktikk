@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { memo } from 'react';
 import { SVG_ATTRIBUTES } from '../../constants/svg';
 
 interface BlankPitchProps {
@@ -77,4 +77,4 @@ const BlankPitch: React.FC<BlankPitchProps> = ({ width, height, isPortrait = fal
   );
 };
 
-export default BlankPitch;
+export default memo(BlankPitch);

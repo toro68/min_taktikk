@@ -44,18 +44,18 @@ describe('Ball component', () => {
         );
         
         // Main ball circle
-        const mainCircle = container.querySelector('circle[r="8"]');
+        const mainCircle = container.querySelector('[data-testid="ball-main-circle"]');
         expect(mainCircle).toBeInTheDocument();
         expect(mainCircle).toHaveAttribute('fill', '#ffffff');
-        expect(mainCircle).toHaveAttribute('stroke', '#333333');
+        expect(mainCircle).toHaveAttribute('stroke', '#000000');
         
         // Decorative path (pentagon pattern)
-        const path = container.querySelector('path');
+        const path = container.querySelector('[data-testid="ball-center-panel"]');
         expect(path).toBeInTheDocument();
         expect(path).toHaveAttribute('fill', '#000000');
         
         // Decorative dots
-        const dots = container.querySelectorAll('circle[r="1.5"], circle[r="1.2"]');
+        const dots = container.querySelectorAll('circle[r="1"], circle[r="0.85"]');
         expect(dots.length).toBeGreaterThan(0);
     });
 
@@ -66,7 +66,7 @@ describe('Ball component', () => {
             </svg>
         );
         
-        const mainCircle = container.querySelector('circle[r="8"]');
+        const mainCircle = container.querySelector('circle[r="6"]');
         expect(mainCircle).toHaveAttribute('stroke', '#0000ff');
         expect(mainCircle).toHaveAttribute('stroke-width', '3');
     });
@@ -78,8 +78,8 @@ describe('Ball component', () => {
             </svg>
         );
         
-        const mainCircle = container.querySelector('circle[r="8"]');
-        expect(mainCircle).toHaveAttribute('stroke', '#333333');
+        const mainCircle = container.querySelector('[data-testid="ball-main-circle"]');
+        expect(mainCircle).toHaveAttribute('stroke', '#000000');
         expect(mainCircle).toHaveAttribute('stroke-width', '1.5');
     });
 

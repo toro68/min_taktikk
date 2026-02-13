@@ -117,8 +117,9 @@ Appens design og funksjonalitet bruker `.aigenrc` som referanse for:
 ### 3.3.1 Trace-funksjonalitet (Spilleranimering)
 **Status:** ✅ Implementert og viktig for spilleranimering
 
-Traces viser bevegelseslinjer for spillere under animasjon:
-- **Spillertraces:** Stiplete piler som viser spillerbevegelser mellom keyframes
+Traces (bevegelseslinjer) viser bevegelse mellom keyframes:
+- **Spillertraces:** Stiplete linjer som viser spillerbevegelser
+- **Motstandertraces:** Stiplete linjer som viser motstanderbevegelser
 - **Balltraces:** Solide linjer som viser ballbevegelser
 - **Konfigurerbar:** Opacity, kurvatur og stil kan justeres
 - **Automatisk:** Aktiveres automatisk under animasjonsavspilling
@@ -131,7 +132,12 @@ Traces viser bevegelseslinjer for spillere under animasjon:
     "playerTraces": {
       "enabled": true,
       "opacity": 0.7,
-      "style": "dashedStraightArrow"
+      "style": "dashedStraight"
+    },
+    "opponentTraces": {
+      "enabled": true,
+      "opacity": 0.7,
+      "style": "dashedStraight"
     },
     "ballTraces": {
       "enabled": true,  
@@ -172,8 +178,8 @@ Traces viser bevegelseslinjer for spillere under animasjon:
 ### 4.1 Base styles (fra .aigenrc)
 ```json
 "baseStyles": [
-  {"key": "straight", "label": "Rett linje", "icon": "Minus"},
-  {"key": "curved", "label": "Kurvet linje", "icon": "Smile"},
+  {"key": "solidStraight", "label": "Rett linje", "icon": "Minus"},
+  {"key": "solidCurved", "label": "Kurvet linje", "icon": "Smile"},
   {"key": "straightArrow", "label": "Rett pil", "icon": "ArrowRight"},
   {"key": "curvedArrow", "label": "Kurvet pil", "icon": "CornerDownRight"}
 ]
