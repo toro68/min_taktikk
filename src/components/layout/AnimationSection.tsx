@@ -89,6 +89,14 @@ const AnimationSection: React.FC<AnimationSectionProps> = ({
             >
               +
             </button>
+            <button
+              type="button"
+              aria-label="Nullstill keyframe-varighet"
+              className="h-5 rounded border border-gray-200 px-1 text-[10px] text-gray-600 hover:bg-gray-50"
+              onClick={() => updateCurrentFrameDuration(1)}
+            >
+              1.0
+            </button>
           </div>
           {isExpanded ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
         </div>
