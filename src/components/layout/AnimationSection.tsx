@@ -27,6 +27,13 @@ const AnimationSection: React.FC<AnimationSectionProps> = ({
 }) => {
   const [isExpanded, setIsExpanded] = useState(true);
   const progressPct = Math.round(Math.max(0, Math.min(1, progress)) * 100);
+  const currentFrameDuration = frames[currentFrame]?.duration ?? 1;
+
+  const clampDuration = (duration: number) => Math.min(10, Math.max(0.2, Math.round(duration * 10) / 10));
+
+  const updateCurrentFrameDuration = (duration: number) => {
+    onFrameDurationChange?.(currentFrame, clampDuration(duration));
+  };
 
   return (
     <div className="bg-white border-t">
@@ -50,6 +57,39 @@ const AnimationSection: React.FC<AnimationSectionProps> = ({
         </div>
         
         <div className="flex items-center gap-2">
+          <div
+            className="flex items-center gap-1 rounded border border-gray-200 bg-white px-1 py-0.5"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <span className="text-[10px] text-gray-500">Varighet</span>
+            <button
+              type="button"
+              aria-label="Reduser keyframe-varighet"
+              className="h-5 w-5 rounded border border-gray-200 text-xs text-gray-600 hover:bg-gray-50"
+              onClick={() => updateCurrentFrameDuration(currentFrameDuration - 0.1)}
+            >
+              −
+            </button>
+            <input
+              type="number"
+              min={0.2}
+              max={10}
+              step={0.1}
+              value={currentFrameDuration}
+              aria-label="Varighet for valgt keyframe"
+              onChange={(event) => updateCurrentFrameDuration(Number(event.target.value || currentFrameDuration))}
+              className="w-14 rounded border border-gray-200 px-1 py-0.5 text-[10px] text-gray-700"
+            />
+            <span className="text-[10px] text-gray-500">s</span>
+            <button
+              type="button"
+              aria-label="Øk keyframe-varighet"
+              className="h-5 w-5 rounded border border-gray-200 text-xs text-gray-600 hover:bg-gray-50"
+              onClick={() => updateCurrentFrameDuration(currentFrameDuration + 0.1)}
+            >
+              +
+            </button>
+          </div>
           {isExpanded ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
         </div>
       </button>
