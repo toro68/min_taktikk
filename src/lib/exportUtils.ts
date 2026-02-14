@@ -307,6 +307,7 @@ export class FootballAnimatorExporter {
         const frameCount = Math.max(1, frames.length);
         const framesPerKeyframe = Math.max(1, Math.round((frameDuration / 1000) * fps));
         const totalOutputFrames = Math.max(1, frameCount * framesPerKeyframe);
+        const h264EvenScaleFilter = 'scale=trunc(iw/2)*2:trunc(ih/2)*2';
 
         debugLog('MP4 export diagnostics:', {
           width,
@@ -318,6 +319,7 @@ export class FootballAnimatorExporter {
           frameCount,
           framesPerKeyframe,
           totalOutputFrames,
+          h264EvenScaleFilter,
           hasTemplateSvg: Boolean(templateSvg),
           templateViewBox: templateSvg?.getAttribute('viewBox') || null
         });
@@ -405,6 +407,7 @@ export class FootballAnimatorExporter {
           '-f', 'lavfi',
           '-i', 'anullsrc=channel_layout=stereo:sample_rate=44100',
           '-shortest',
+          '-vf', h264EvenScaleFilter,
           '-c:v', 'libx264',
           '-pix_fmt', 'yuv420p',
           '-preset', options?.preset ?? 'veryfast',

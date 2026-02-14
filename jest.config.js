@@ -1,5 +1,7 @@
 module.exports = {
   testEnvironment: 'jsdom',
+  maxWorkers: '50%',
+  workerIdleMemoryLimit: '512MB',
   setupFilesAfterEnv: ['<rootDir>/tests/setupTests.ts'],
   moduleNameMapper: {
     '\\.(css|less|scss|sass)$': 'identity-obj-proxy',

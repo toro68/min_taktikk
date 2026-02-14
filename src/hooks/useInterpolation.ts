@@ -1,7 +1,7 @@
 import { useEffect } from 'react';
 import { FootballElement, Frame, TraceElement } from '../@types/elements';
 import { lerp, lerpOpacity, lerpRotation, smoothStep, InterpolationType } from '../lib/interpolation';
-import { extractPathEndpoints } from '../lib/line-utils';
+import { createLinePathMemoized, extractPathEndpoints } from '../lib/line-utils';
 import { getEffectiveCurveOffset } from './useTraceManager';
 import { debugLog } from '../lib/debug';
 
@@ -52,6 +52,37 @@ export const useInterpolation = (props: UseInterpolationProps) => {
 
           // Use smooth interpolation for more natural movement
           const interpolationFunc = interpolationType === 'smooth' ? smoothStep : lerp;
+
+          if (currentElement.type === 'line' && nextElement.type === 'line') {
+            const currentEndpoints = extractPathEndpoints(currentElement.path);
+            const nextEndpoints = extractPathEndpoints(nextElement.path);
+
+            if (currentEndpoints && nextEndpoints) {
+              const interpolatedStart = {
+                x: interpolationFunc(currentEndpoints.start.x, nextEndpoints.start.x, progress),
+                y: interpolationFunc(currentEndpoints.start.y, nextEndpoints.start.y, progress),
+              };
+              const interpolatedEnd = {
+                x: interpolationFunc(currentEndpoints.end.x, nextEndpoints.end.x, progress),
+                y: interpolationFunc(currentEndpoints.end.y, nextEndpoints.end.y, progress),
+              };
+
+              const currentCurveOffset = typeof currentElement.curveOffset === 'number' ? currentElement.curveOffset : 0;
+              const nextCurveOffset = typeof nextElement.curveOffset === 'number' ? nextElement.curveOffset : currentCurveOffset;
+              const interpolatedCurveOffset = interpolationFunc(currentCurveOffset, nextCurveOffset, progress);
+              const activeStyle = progress < 0.5 ? currentElement.style : nextElement.style;
+
+              return {
+                ...currentElement,
+                style: activeStyle,
+                curveOffset: interpolatedCurveOffset,
+                path: createLinePathMemoized(interpolatedStart, interpolatedEnd, activeStyle, interpolatedCurveOffset),
+                color: progress < 0.5 ? currentElement.color : nextElement.color,
+                dashed: progress < 0.5 ? currentElement.dashed : nextElement.dashed,
+                marker: progress < 0.5 ? currentElement.marker : nextElement.marker,
+              };
+            }
+          }
           
           // Interpolate position (with safe defaults; preserve 0)
           const currentX = typeof currentElement.x === 'number' ? currentElement.x : 0;
