@@ -411,7 +411,7 @@ const FootballAnimator: React.FC = () => {
           </div>
 
           {/* Properties Sidebar */}
-          {toolLogic.selectedElement && (
+          {toolLogic.selectedElement && toolLogic.selectedElement.type !== 'line' && (
             <>
               <button
                 type="button"
@@ -427,12 +427,6 @@ const FootballAnimator: React.FC = () => {
                   </Button>
                 </div>
 
-                {toolLogic.selectedElement.type === 'line' && (
-                  <LineProperties
-                    line={toolLogic.selectedElement as LineElement}
-                    updateElement={updateSelectedLine}
-                  />
-                )}
                 {toolLogic.selectedElement.type === 'area' && (
                   <AreaProperties
                     area={toolLogic.selectedElement as AreaElement}

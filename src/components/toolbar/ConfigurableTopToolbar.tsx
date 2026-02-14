@@ -478,6 +478,7 @@ const ConfigurableTopToolbar: React.FC<ConfigurableTopToolbarProps> = React.memo
                     <span className="text-xs text-gray-600 whitespace-nowrap">Bevegelseskurve:</span>
                     <Slider
                       value={[traceCurveOffset]}
+                      disabled={!showTraces}
                       onValueChange={([value]) => {
                         if (!showTraces) return;
                         onTraceCurveChange?.(value);

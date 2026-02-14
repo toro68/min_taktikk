@@ -7,6 +7,7 @@ interface SliderProps {
   step: number;
   onValueChange: (value: number[]) => void;
   className?: string;
+  disabled?: boolean;
 }
 
 export const Slider: React.FC<SliderProps> = ({
@@ -15,9 +16,13 @@ export const Slider: React.FC<SliderProps> = ({
   max,
   step,
   onValueChange,
-  className = ''
+  className = '',
+  disabled = false
 }) => {
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (disabled) {
+      return;
+    }
     onValueChange([parseFloat(e.target.value)]);
   };
 
@@ -28,6 +33,7 @@ export const Slider: React.FC<SliderProps> = ({
       max={max}
       step={step}
       value={value[0]}
+      disabled={disabled}
       onChange={handleChange}
       className={`w-full ${className}`}
     />
