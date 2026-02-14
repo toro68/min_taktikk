@@ -47,8 +47,8 @@ export const useTraceManager = (props: UseTraceManagerProps) => {
   const lastPositions = useRef<Map<string, { x: number; y: number; frame: number }>>(new Map());
   const lastFrameRef = useRef<number | null>(null);
   const [configuredStyles, setConfiguredStyles] = useState({
-    player: { enabled: true, style: 'dashedStraightArrow', opacity: 0.7 },
-    opponent: { enabled: true, style: 'dashedStraightArrow', opacity: 0.7 },
+    player: { enabled: true, style: 'dashedStraight', opacity: 0.7 },
+    opponent: { enabled: true, style: 'dashedStraight', opacity: 0.7 },
     ball: { enabled: true, style: 'solidStraight', opacity: 0.8 }
   });
   const [traces, setTraces] = useState<TraceElement[]>([]);
@@ -65,12 +65,12 @@ export const useTraceManager = (props: UseTraceManagerProps) => {
       setConfiguredStyles({
         player: {
           enabled: playerCfg.enabled !== false,
-          style: playerCfg.style || 'dashedStraightArrow',
+          style: playerCfg.style || 'dashedStraight',
           opacity: typeof playerCfg.opacity === 'number' ? playerCfg.opacity : 0.7
         },
         opponent: {
           enabled: opponentCfg.enabled !== false,
-          style: opponentCfg.style || playerCfg.style || 'dashedStraightArrow',
+          style: opponentCfg.style || playerCfg.style || 'dashedStraight',
           opacity: typeof opponentCfg.opacity === 'number'
             ? opponentCfg.opacity
             : (typeof playerCfg.opacity === 'number' ? playerCfg.opacity : 0.7)
