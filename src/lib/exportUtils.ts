@@ -39,6 +39,28 @@ export class FootballAnimatorExporter {
     }
     return '#ffffff';
   }
+
+  private normalizeExportError(error: unknown): { message: string; details?: string } {
+    if (error instanceof Error) {
+      return {
+        message: error.message || 'Ukjent Error uten melding',
+        details: error.stack
+      };
+    }
+
+    if (typeof error === 'string') {
+      return { message: error };
+    }
+
+    try {
+      return {
+        message: 'Ukjent eksportfeil-objekt',
+        details: JSON.stringify(error)
+      };
+    } catch (_jsonError) {
+      return { message: 'Ukjent eksportfeil (kunne ikke serialisere error-objekt)' };
+    }
+  }
   
   static getInstance(): FootballAnimatorExporter {
     if (!FootballAnimatorExporter.instance) {
@@ -71,11 +93,23 @@ export class FootballAnimatorExporter {
         
         resolve();
       } catch (error) {
-        const exportError = error instanceof Error
-          ? error
-          : new Error('Ukjent feil ved MP4 eksport');
-        debugLog('MP4 export failed:', exportError);
-        reject(new Error(`MP4 eksport feilet: ${exportError.message}`));
+        const normalizedError = this.normalizeExportError(error);
+        const detailedMessage = normalizedError.details
+          ? `${normalizedError.message} | ${normalizedError.details}`
+          : normalizedError.message;
+
+        debugLog('MP4 export failed:', detailedMessage);
+        console.error('MP4 export failed (full details):', error);
+        if (typeof window !== 'undefined') {
+          (window as any).__lastMp4ExportError = {
+            timestamp: new Date().toISOString(),
+            message: normalizedError.message,
+            details: normalizedError.details,
+            rawError: error
+          };
+        }
+
+        reject(new Error(`MP4 eksport feilet: ${normalizedError.message}`));
       }
     });
   }
@@ -476,16 +510,14 @@ export class FootballAnimatorExporter {
 
   private async loadFfmpegModule() {
     if (!this.ffmpegModulePromise) {
-      const ffmpegModuleUrl = 'https://cdn.jsdelivr.net/npm/@ffmpeg/ffmpeg@0.12.15/dist/esm/index.js';
-      this.ffmpegModulePromise = import(/* webpackIgnore: true */ ffmpegModuleUrl);
+      this.ffmpegModulePromise = import('@ffmpeg/ffmpeg');
     }
     return this.ffmpegModulePromise;
   }
 
   private async loadFfmpegUtilModule() {
     if (!this.ffmpegUtilModulePromise) {
-      const ffmpegUtilModuleUrl = 'https://cdn.jsdelivr.net/npm/@ffmpeg/util@0.12.2/dist/esm/index.js';
-      this.ffmpegUtilModulePromise = import(/* webpackIgnore: true */ ffmpegUtilModuleUrl);
+      this.ffmpegUtilModulePromise = import('@ffmpeg/util');
     }
     return this.ffmpegUtilModulePromise;
   }

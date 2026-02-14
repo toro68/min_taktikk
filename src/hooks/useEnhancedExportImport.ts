@@ -221,7 +221,8 @@ export const useEnhancedExportImport = () => {
       showToast({ 
         type: 'error', 
         title: 'MP4 eksportfeil', 
-        message: errorMsg
+        message: `${errorMsg}. Sjekk window.__lastMp4ExportError i Console for detaljer.`,
+        duration: 20000
       });
     } finally {
       options?.restoreFrame?.();
