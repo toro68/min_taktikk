@@ -20,6 +20,7 @@ interface LinePropertiesProps {
 const LineProperties: React.FC<LinePropertiesProps> = ({ line, updateElement }) => {
   // Provide default values for optional properties
   const color = line.color || '#000000';
+  const dashed = line.dashed || false;
   const marker = line.marker || null;
   const curveOffset = line.curveOffset || 0;
   const style = line.style || 'solidStraight';

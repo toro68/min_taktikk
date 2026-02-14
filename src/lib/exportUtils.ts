@@ -70,7 +70,11 @@ export class FootballAnimatorExporter {
         
         resolve();
       } catch (error) {
-        reject(error);
+        const exportError = error instanceof Error
+          ? error
+          : new Error('Ukjent feil ved MP4 eksport');
+        debugLog('MP4 export failed:', exportError);
+        reject(new Error(`MP4 eksport feilet: ${exportError.message}`));
       }
     });
   }
@@ -454,7 +458,8 @@ export class FootballAnimatorExporter {
 
     await ffmpeg.load({
       coreURL: await utilModule.toBlobURL(`${baseURL}/ffmpeg-core.js`, 'text/javascript'),
-      wasmURL: await utilModule.toBlobURL(`${baseURL}/ffmpeg-core.wasm`, 'application/wasm')
+      wasmURL: await utilModule.toBlobURL(`${baseURL}/ffmpeg-core.wasm`, 'application/wasm'),
+      workerURL: await utilModule.toBlobURL(`${baseURL}/ffmpeg-core.worker.js`, 'text/javascript')
     });
 
     return ffmpeg;
@@ -462,16 +467,14 @@ export class FootballAnimatorExporter {
 
   private async loadFfmpegModule() {
     if (!this.ffmpegModulePromise) {
-      const ffmpegModuleUrl = 'https://cdn.jsdelivr.net/npm/@ffmpeg/ffmpeg@0.12.15/dist/esm/index.js';
-      this.ffmpegModulePromise = import(/* webpackIgnore: true */ ffmpegModuleUrl);
+      this.ffmpegModulePromise = import('@ffmpeg/ffmpeg');
     }
     return this.ffmpegModulePromise;
   }
 
   private async loadFfmpegUtilModule() {
     if (!this.ffmpegUtilModulePromise) {
-      const ffmpegUtilModuleUrl = 'https://cdn.jsdelivr.net/npm/@ffmpeg/util@0.12.2/dist/esm/index.js';
-      this.ffmpegUtilModulePromise = import(/* webpackIgnore: true */ ffmpegUtilModuleUrl);
+      this.ffmpegUtilModulePromise = import('@ffmpeg/util');
     }
     return this.ffmpegUtilModulePromise;
   }
