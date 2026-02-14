@@ -1,6 +1,7 @@
 import React, { useMemo, useState } from 'react';
 import { Button } from '../ui/button';
 import { Slider } from '../ui/slider';
+import { Redo2, Undo2 } from 'lucide-react';
 import {
   Tooltip,
   TooltipContent,
@@ -24,6 +25,10 @@ interface ConfigurableTopToolbarProps {
   onDownloadPng: () => void;
   onDownloadSvg: () => void;
   onDownloadGif: () => void;
+  onUndo?: () => void;
+  onRedo?: () => void;
+  canUndo?: boolean;
+  canRedo?: boolean;
   isProcessing?: boolean;
   activeOperation?: string | null;
   mp4Progress?: number | null;
@@ -55,6 +60,10 @@ const ConfigurableTopToolbar: React.FC<ConfigurableTopToolbarProps> = React.memo
   onDownloadPng,
   onDownloadSvg,
   onDownloadGif,
+  onUndo,
+  onRedo,
+  canUndo = false,
+  canRedo = false,
   isProcessing = false,
   activeOperation = null,
   mp4Progress = null,
@@ -315,6 +324,49 @@ const ConfigurableTopToolbar: React.FC<ConfigurableTopToolbarProps> = React.memo
                 )}
               </div>
             )}
+
+            {(onUndo || onRedo) && (
+              <div className="flex items-center gap-1">
+                {onUndo && (
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        aria-label="Angre"
+                        disabled={!canUndo}
+                        onClick={onUndo}
+                        className="h-8 w-8 p-0"
+                      >
+                        <Undo2 className="w-4 h-4" />
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent side="bottom" sideOffset={2} className="py-0.5 px-1.5 bg-black/90 text-white border-0">
+                      <p className="text-[10px] font-medium">Angre (Cmd/Ctrl+Z)</p>
+                    </TooltipContent>
+                  </Tooltip>
+                )}
+                {onRedo && (
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        aria-label="Gjør om"
+                        disabled={!canRedo}
+                        onClick={onRedo}
+                        className="h-8 w-8 p-0"
+                      >
+                        <Redo2 className="w-4 h-4" />
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent side="bottom" sideOffset={2} className="py-0.5 px-1.5 bg-black/90 text-white border-0">
+                      <p className="text-[10px] font-medium">Gjør om (Shift+Cmd/Ctrl+Z)</p>
+                    </TooltipContent>
+                  </Tooltip>
+                )}
+              </div>
+            )}
           </div>
 
           {/* Right side - Playback speed control and advanced animation settings */}
@@ -345,10 +397,10 @@ const ConfigurableTopToolbar: React.FC<ConfigurableTopToolbarProps> = React.memo
                     <span className="text-xs text-gray-600">Interpolering:</span>
                     <div className="flex gap-1">
                       {[
-                        { value: 'linear' as InterpolationType, label: 'Lin', tooltip: 'Linear - konstant hastighet' },
-                        { value: 'smooth' as InterpolationType, label: 'Sm', tooltip: 'Smooth - jevn start/stopp' },
-                        { value: 'easeIn' as InterpolationType, label: 'In', tooltip: 'Ease In - langsom start' },
-                        { value: 'easeOut' as InterpolationType, label: 'Out', tooltip: 'Ease Out - langsom stopp' }
+                        { value: 'linear' as InterpolationType, label: 'Lineær', tooltip: 'Lineær - konstant hastighet' },
+                        { value: 'smooth' as InterpolationType, label: 'Jevn', tooltip: 'Jevn - myk start og stopp' },
+                        { value: 'easeIn' as InterpolationType, label: 'Inn', tooltip: 'Inn - langsom start' },
+                        { value: 'easeOut' as InterpolationType, label: 'Ut', tooltip: 'Ut - langsom avslutning' }
                       ].map((option) => (
                         <Tooltip key={option.value}>
                           <TooltipTrigger asChild>
@@ -405,7 +457,7 @@ const ConfigurableTopToolbar: React.FC<ConfigurableTopToolbarProps> = React.memo
                           onChange={(e) => setShowTraces?.(e.target.checked)}
                           className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
                         />
-                        <span className="text-xs font-medium text-gray-700">Traces</span>
+                        <span className="text-xs font-medium text-gray-700">Bevegelseslinjer</span>
                       </label>
                     </TooltipTrigger>
                     <TooltipContent side="bottom" sideOffset={2} className="py-0.5 px-1.5 bg-black/90 text-white border-0">
@@ -417,7 +469,7 @@ const ConfigurableTopToolbar: React.FC<ConfigurableTopToolbarProps> = React.memo
                 {/* Trace curve slider */}
                 {onTraceCurveChange && (
                   <div className="flex items-center gap-2">
-                    <span className="text-xs text-gray-600 whitespace-nowrap">Trace-kurve:</span>
+                    <span className="text-xs text-gray-600 whitespace-nowrap">Bevegelseskurve:</span>
                     <Slider
                       value={[traceCurveOffset]}
                       onValueChange={([value]) => onTraceCurveChange?.(value)}

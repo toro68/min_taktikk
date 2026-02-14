@@ -378,6 +378,10 @@ const FootballAnimator: React.FC = () => {
           onDownloadPng={() => exportImport.handleDownloadPng(interactionLogic.recordedSVGRef.current || undefined)}
           onDownloadSvg={() => exportImport.handleDownloadSvg(interactionLogic.recordedSVGRef.current || undefined)}
           onDownloadGif={() => exportImport.handleDownloadGif(animationLogic.frames, interactionLogic.recordedSVGRef.current || undefined)}
+          onUndo={animationLogic.undo}
+          onRedo={animationLogic.redo}
+          canUndo={animationLogic.canUndo}
+          canRedo={animationLogic.canRedo}
           isProcessing={exportImport.isProcessing}
           activeOperation={exportImport.activeOperation}
           mp4Progress={exportImport.mp4Progress}
@@ -408,7 +412,7 @@ const FootballAnimator: React.FC = () => {
 
           {/* Properties Sidebar */}
           {toolLogic.selectedElement && (
-            <div className="w-80 bg-white border-l border-gray-200 p-4 overflow-y-auto">
+            <div className="fixed inset-x-0 bottom-0 z-40 max-h-[72vh] overflow-y-auto border-t border-gray-200 bg-white p-4 shadow-2xl md:static md:z-auto md:max-h-none md:w-80 md:border-t-0 md:border-l md:shadow-none">
               <div className="flex justify-between items-center mb-4">
                 <h2 className="text-lg font-semibold">Egenskaper</h2>
                 <Button variant="ghost" size="icon" onClick={() => toolLogic.setSelectedElement(null)}>

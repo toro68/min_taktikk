@@ -217,11 +217,15 @@ export const useEnhancedExportImport = () => {
       });
     } catch (error) {
       const errorMsg = (error as Error)?.message || 'Feil ved MP4 eksport';
+      const diagnosticDetails = typeof window !== 'undefined'
+        ? (window as any).__lastMp4ExportError?.details
+        : undefined;
       setError(errorMsg);
       showToast({ 
         type: 'error', 
         title: 'MP4 eksportfeil', 
         message: `${errorMsg}. Sjekk window.__lastMp4ExportError i Console for detaljer.`,
+        details: typeof diagnosticDetails === 'string' ? diagnosticDetails : undefined,
         duration: 20000
       });
     } finally {

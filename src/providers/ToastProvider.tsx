@@ -7,6 +7,7 @@ interface Toast {
   type: 'success' | 'error' | 'warning' | 'info';
   title: string;
   message?: string;
+  details?: string;
   duration?: number;
 }
 
@@ -140,6 +141,14 @@ export const ToastProvider: React.FC<ToastProviderProps> = ({ children }) => {
                   <p className="text-sm text-gray-600 mt-1">
                     {toast.message}
                   </p>
+                )}
+                {toast.details && (
+                  <details className="mt-2 rounded border border-gray-200 bg-white/70 p-2">
+                    <summary className="cursor-pointer text-xs font-medium text-gray-700">Vis detaljer</summary>
+                    <pre className="mt-2 max-h-40 overflow-auto whitespace-pre-wrap break-words text-[11px] text-gray-700">
+                      {toast.details}
+                    </pre>
+                  </details>
                 )}
               </div>
               <button
