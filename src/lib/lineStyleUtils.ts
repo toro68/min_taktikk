@@ -1,6 +1,15 @@
 import { LineStyle, LineProperties } from '../types';
 import { getConfig } from './config';
 
+const ACTIVE_CONTEXTUAL_STYLES: LineStyle[] = [
+  'solidStraight',
+  'solidCurved',
+  'straightArrow',
+  'curvedArrow',
+  'dashedStraight',
+  'dashedCurved'
+];
+
 /**
  * Convert line style to properties based on .aigenrc professional styles
  */
@@ -189,7 +198,7 @@ export const getStylesForCategory = (category: 'basic' | 'player' | 'ball' | 'ta
     }
     
     // Fallback to default basic styles
-    return ['solidStraight', 'solidCurved', 'straightArrow', 'curvedArrow', 'dashedStraight', 'dashedCurved', 'sineWave', 'fishHook', 'hook'] as LineStyle[];
+    return ACTIVE_CONTEXTUAL_STYLES;
   }
 
   // Check for professional styles
@@ -217,7 +226,7 @@ export const isValidLineStyle = (style: string): style is LineStyle => {
   }
 
   // Check basic styles
-  const basicStyles = ['straightArrow', 'curvedArrow', 'solidStraight', 'solidCurved', 'dashedStraight', 'dashedCurved', 'sineWave', 'fishHook', 'hook'];
+  const basicStyles = ACTIVE_CONTEXTUAL_STYLES as string[];
   if (basicStyles.includes(style)) return true;
 
   // Check professional styles

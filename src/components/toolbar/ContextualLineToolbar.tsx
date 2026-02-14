@@ -82,7 +82,7 @@ const ContextualLineToolbar: React.FC<ContextualLineToolbarProps> = React.memo((
   ];
 
   const availableStyles = contextualConfig?.styles || [
-    'solidStraight', 'solidCurved', 'straightArrow', 'curvedArrow', 'dashedStraight', 'dashedCurved', 'sineWave', 'fishHook', 'hook'
+    'solidStraight', 'solidCurved', 'straightArrow', 'curvedArrow', 'dashedStraight', 'dashedCurved'
   ];
   const filteredStyles = lineStyles.filter(style => availableStyles.includes(style.key));
 
