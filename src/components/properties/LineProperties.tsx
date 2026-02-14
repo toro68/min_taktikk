@@ -10,7 +10,7 @@ import {
   TooltipTrigger,
 } from "../ui/tooltip";
 import { getLineProperties, createLinePathMemoized, updateLineEndpoints, extractPathEndpoints, getCurveRangeFromConfig } from '../../lib/line-utils';
-import { getLineStylesConfig } from '../../lib/config';
+import { getLineStylesConfig, getToolbarConfig } from '../../lib/config';
 
 interface LinePropertiesProps {
   line: LineElement;
@@ -20,7 +20,6 @@ interface LinePropertiesProps {
 const LineProperties: React.FC<LinePropertiesProps> = ({ line, updateElement }) => {
   // Provide default values for optional properties
   const color = line.color || '#000000';
-  const dashed = line.dashed || false;
   const marker = line.marker || null;
   const curveOffset = line.curveOffset || 0;
   const style = line.style || 'solidStraight';
@@ -29,9 +28,8 @@ const LineProperties: React.FC<LinePropertiesProps> = ({ line, updateElement }) 
   const lineStylesConfig = getLineStylesConfig();
   const curveRange = getCurveRangeFromConfig();
 
-  // Get available line styles from config
-  const availableStyles: Array<{key: LineStyle, label: string, preview: React.ReactElement}> = [
-    {
+  const styleCatalog: Record<string, {key: LineStyle, label: string, preview: React.ReactElement}> = {
+    solidStraight: {
       key: 'solidStraight',
       label: 'Rett linje',
       preview: (
@@ -40,7 +38,7 @@ const LineProperties: React.FC<LinePropertiesProps> = ({ line, updateElement }) 
         </svg>
       )
     },
-    {
+    solidCurved: {
       key: 'solidCurved',
       label: 'Kurvet linje',
       preview: (
@@ -49,7 +47,7 @@ const LineProperties: React.FC<LinePropertiesProps> = ({ line, updateElement }) 
         </svg>
       )
     },
-    {
+    straightArrow: {
       key: 'straightArrow',
       label: 'Rett pil',
       preview: (
@@ -59,7 +57,7 @@ const LineProperties: React.FC<LinePropertiesProps> = ({ line, updateElement }) 
         </svg>
       )
     },
-    {
+    curvedArrow: {
       key: 'curvedArrow',
       label: 'Kurvet pil',
       preview: (
@@ -69,7 +67,7 @@ const LineProperties: React.FC<LinePropertiesProps> = ({ line, updateElement }) 
         </svg>
       )
     },
-    {
+    dashedStraight: {
       key: 'dashedStraight',
       label: 'Stiplet rett',
       preview: (
@@ -78,7 +76,7 @@ const LineProperties: React.FC<LinePropertiesProps> = ({ line, updateElement }) 
         </svg>
       )
     },
-    {
+    dashedCurved: {
       key: 'dashedCurved',
       label: 'Stiplet kurvet',
       preview: (
@@ -86,35 +84,15 @@ const LineProperties: React.FC<LinePropertiesProps> = ({ line, updateElement }) 
           <path d="M 5 15 Q 15 5, 25 15" stroke="black" fill="none" strokeWidth="2" strokeDasharray="3 2" />
         </svg>
       )
-    },
-    {
-      key: 'sineWave',
-      label: 'Sinusbølge',
-      preview: (
-        <svg width="30" height="20" viewBox="0 0 30 20">
-          <path d="M 5 10 Q 10 5, 15 10 Q 20 15, 25 10" stroke="black" fill="none" strokeWidth="2" />
-        </svg>
-      )
-    },
-    {
-      key: 'fishHook',
-      label: 'Fiskekrok',
-      preview: (
-        <svg width="30" height="20" viewBox="0 0 30 20">
-          <path d="M 5 10 L 20 10 Q 25 10, 25 15" stroke="black" fill="none" strokeWidth="2" />
-        </svg>
-      )
-    },
-    {
-      key: 'hook',
-      label: 'Krok',
-      preview: (
-        <svg width="30" height="20" viewBox="0 0 30 20">
-          <path d="M 5 10 L 15 10 Q 20 10, 20 15 L 20 17" stroke="black" fill="none" strokeWidth="2" />
-        </svg>
-      )
     }
-  ];
+  };
+
+  const toolbarStyles = getToolbarConfig().contextual?.line?.styles;
+  const defaultStyles = ['solidStraight', 'solidCurved', 'straightArrow', 'curvedArrow', 'dashedStraight', 'dashedCurved'];
+  const styleKeys = (toolbarStyles && toolbarStyles.length > 0 ? toolbarStyles : defaultStyles)
+    .filter((styleKey) => styleCatalog[styleKey]);
+
+  const availableStyles = styleKeys.map((styleKey) => styleCatalog[styleKey]);
 
   // Available colors from .aigenrc
   const availableColors = lineStylesConfig.colors || [
@@ -304,21 +282,6 @@ const LineProperties: React.FC<LinePropertiesProps> = ({ line, updateElement }) 
                   </TooltipContent>
                 </Tooltip>
               ))}
-            </div>
-          </div>
-
-          {/* Dashed Toggle */}
-          <div>
-            <div className="flex items-center justify-between">
-              <label className="text-sm font-medium">Stiplet linje</label>
-              <Button
-                variant={dashed ? "default" : "outline"}
-                size="sm"
-                onClick={() => updateElement({ dashed: !dashed })}
-                className="h-8"
-              >
-                {dashed ? 'På' : 'Av'}
-              </Button>
             </div>
           </div>
 

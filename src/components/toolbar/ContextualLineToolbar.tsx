@@ -74,8 +74,8 @@ const ContextualLineToolbar: React.FC<ContextualLineToolbarProps> = React.memo((
     { key: 'solidCurved', icon: Spline, label: 'Hel kurvet linje', description: 'Kurvet linje med justerbar kurvatur' },
     { key: 'straightArrow', icon: ArrowRight, label: 'Rett pil', description: 'Rett linje med pil på slutten' },
     { key: 'curvedArrow', icon: CornerDownRight, label: 'Kurvet pil', description: 'Kurvet linje med pil på slutten' },
-    { key: 'dashedStraight', icon: MoreHorizontal, label: 'Stiplet rett', description: 'Stiplet rett linje med pil', dashed: true },
-    { key: 'dashedCurved', icon: TrendingUp, label: 'Stiplet kurvet', description: 'Stiplet kurvet linje med pil', dashed: true },
+    { key: 'dashedStraight', icon: MoreHorizontal, label: 'Stiplet rett', description: 'Stiplet rett linje', dashed: true },
+    { key: 'dashedCurved', icon: TrendingUp, label: 'Stiplet kurvet', description: 'Stiplet kurvet linje', dashed: true },
     { key: 'sineWave', icon: Waves, label: 'Sinusbølge', description: 'Bølgeformet linje' },
     { key: 'fishHook', icon: RotateCcw, label: 'Fiskekrok', description: 'Linje med krok på slutten' },
     { key: 'hook', icon: ArrowUpRight, label: 'Krok', description: 'Linje med krok i start eller slutt' }

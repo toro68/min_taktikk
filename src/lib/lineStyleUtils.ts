@@ -100,8 +100,8 @@ export const getLinePropertiesFromStyle = (style: LineStyle): LineProperties => 
     solidCurved: { curved: true, dashed: false },
     straightArrow: { curved: false, dashed: false, marker: 'arrow' },
     curvedArrow: { curved: true, dashed: false, marker: 'arrow' },
-    dashedStraight: { curved: false, dashed: true, marker: 'arrow' },
-    dashedCurved: { curved: true, dashed: true, marker: 'arrow' },
+    dashedStraight: { curved: false, dashed: true },
+    dashedCurved: { curved: true, dashed: true },
     sineWave: { sineWave: true },
     sineWaveArrow: { sineWave: true, marker: 'arrow' },
     // Legacy styles
@@ -150,7 +150,10 @@ export const getStyleDescription = (style: LineStyle): string => {
     solidStraight: 'Rett, heltrukken linje',
     solidCurved: 'Kurvet, heltrukken linje',
     dashedCurved: 'Kurvet, stiplet linje',
-    dashedStraight: 'Rett, stiplet linje'
+    dashedStraight: 'Rett, stiplet linje',
+    sineWave: 'Bølgeformet linje',
+    fishHook: 'Linje med fiskekrok-avslutning',
+    hook: 'Linje med krokform'
   };
 
   return basicDescriptions[style] || style;
@@ -186,7 +189,7 @@ export const getStylesForCategory = (category: 'basic' | 'player' | 'ball' | 'ta
     }
     
     // Fallback to default basic styles
-    return ['solidStraight', 'solidCurved', 'straightArrow', 'curvedArrow', 'dashedStraight', 'dashedCurved', 'sineWave'] as LineStyle[];
+    return ['solidStraight', 'solidCurved', 'straightArrow', 'curvedArrow', 'dashedStraight', 'dashedCurved', 'sineWave', 'fishHook', 'hook'] as LineStyle[];
   }
 
   // Check for professional styles
@@ -214,7 +217,7 @@ export const isValidLineStyle = (style: string): style is LineStyle => {
   }
 
   // Check basic styles
-  const basicStyles = ['straightArrow', 'curvedArrow', 'solidStraight', 'solidCurved', 'dashedStraight', 'dashedCurved'];
+  const basicStyles = ['straightArrow', 'curvedArrow', 'solidStraight', 'solidCurved', 'dashedStraight', 'dashedCurved', 'sineWave', 'fishHook', 'hook'];
   if (basicStyles.includes(style)) return true;
 
   // Check professional styles

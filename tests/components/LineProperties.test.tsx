@@ -58,15 +58,10 @@ describe('LineProperties', () => {
     });
   });
 
-  test('handles dashed toggle', () => {
+  test('does not show separate dashed toggle', () => {
     render(<LineProperties line={mockLine} updateElement={mockUpdateElement} />);
-    
-    const dashedToggle = screen.getByText('Av');
-    fireEvent.click(dashedToggle);
-    
-    expect(mockUpdateElement).toHaveBeenCalledWith({
-      dashed: true
-    });
+
+    expect(screen.queryByText('Stiplet linje')).not.toBeInTheDocument();
   });
 
   test('shows curve offset slider for curved lines', () => {

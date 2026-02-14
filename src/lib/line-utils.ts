@@ -44,7 +44,7 @@ export const getLinePropertiesFromConfig = (config: LineStyleConfig, color: stri
   };
 
   // Set marker based on modifiers
-  if (config.modifiers.arrow) {
+  if (config.modifiers.arrow && config.modifiers.arrow !== 'none') {
     props.marker = 'arrow';
   } else if (config.modifiers.endMarker && config.modifiers.endMarker !== 'none') {
     // Map endMarker values to valid marker types
