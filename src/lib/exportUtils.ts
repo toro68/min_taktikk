@@ -467,16 +467,16 @@ export class FootballAnimatorExporter {
 
   private async loadFfmpegModule() {
     if (!this.ffmpegModulePromise) {
-      const ffmpegModuleName = '@ffmpeg/ffmpeg';
-      this.ffmpegModulePromise = import(ffmpegModuleName);
+      const ffmpegModuleUrl = 'https://cdn.jsdelivr.net/npm/@ffmpeg/ffmpeg@0.12.15/dist/esm/index.js';
+      this.ffmpegModulePromise = import(/* webpackIgnore: true */ ffmpegModuleUrl);
     }
     return this.ffmpegModulePromise;
   }
 
   private async loadFfmpegUtilModule() {
     if (!this.ffmpegUtilModulePromise) {
-      const ffmpegUtilModuleName = '@ffmpeg/util';
-      this.ffmpegUtilModulePromise = import(ffmpegUtilModuleName);
+      const ffmpegUtilModuleUrl = 'https://cdn.jsdelivr.net/npm/@ffmpeg/util@0.12.2/dist/esm/index.js';
+      this.ffmpegUtilModulePromise = import(/* webpackIgnore: true */ ffmpegUtilModuleUrl);
     }
     return this.ffmpegUtilModulePromise;
   }
