@@ -958,6 +958,220 @@ const aigenrcConfig: AppConfig = {
 };
 
 let cachedConfig: AppConfig | null = null;
+let configValidationWarnings: string[] = [];
+
+const ALLOWED_MP4_PRESETS = ['ultrafast', 'superfast', 'veryfast', 'faster', 'fast', 'medium'] as const;
+
+const isRecord = (value: unknown): value is Record<string, any> => {
+  return typeof value === 'object' && value !== null;
+};
+
+const toPositiveNumber = (value: unknown): number | null => {
+  return typeof value === 'number' && Number.isFinite(value) && value > 0 ? value : null;
+};
+
+const toBoolean = (value: unknown): boolean | null => {
+  return typeof value === 'boolean' ? value : null;
+};
+
+const cloneDefaultConfig = (): AppConfig => {
+  return JSON.parse(JSON.stringify(defaultConfig)) as AppConfig;
+};
+
+const sanitizeCurveRange = (
+  input: unknown,
+  fallback: { min: number; max: number; step: number },
+  fieldPath: string,
+  warnings: string[]
+) => {
+  if (!isRecord(input)) {
+    warnings.push(`${fieldPath} mangler eller er ugyldig, bruker standardverdier.`);
+    return fallback;
+  }
+
+  const min = typeof input.min === 'number' && Number.isFinite(input.min) ? input.min : fallback.min;
+  const max = typeof input.max === 'number' && Number.isFinite(input.max) ? input.max : fallback.max;
+  const step = typeof input.step === 'number' && Number.isFinite(input.step) && input.step > 0
+    ? input.step
+    : fallback.step;
+
+  if (min >= max) {
+    warnings.push(`${fieldPath} har ugyldig intervall (min >= max), bruker standardverdier.`);
+    return fallback;
+  }
+
+  return { min, max, step };
+};
+
+export const validateAndSanitizeConfig = (input: unknown): { config: AppConfig; warnings: string[] } => {
+  const warnings: string[] = [];
+  const sanitized = cloneDefaultConfig();
+
+  if (!isRecord(input)) {
+    warnings.push('Konfigurasjonsroten er ugyldig, bruker standardkonfigurasjon.');
+    return { config: sanitized, warnings };
+  }
+
+  if (typeof input.version === 'string') {
+    sanitized.version = input.version;
+  } else {
+    warnings.push('Feltet version er ugyldig eller mangler, bruker standardverdi.');
+  }
+
+  const rawSettings = input.settings;
+  if (!isRecord(rawSettings)) {
+    warnings.push('Feltet settings er ugyldig eller mangler, bruker standardinnstillinger.');
+    return { config: sanitized, warnings };
+  }
+
+  if (isRecord(rawSettings.toolbar)) {
+    sanitized.settings.toolbar = {
+      ...sanitized.settings.toolbar,
+      ...rawSettings.toolbar,
+    };
+  } else {
+    warnings.push('settings.toolbar er ugyldig, bruker standardverdi.');
+  }
+
+  if (isRecord(rawSettings.lineStyles)) {
+    sanitized.settings.lineStyles = {
+      ...sanitized.settings.lineStyles,
+      ...rawSettings.lineStyles,
+      curveRange: sanitizeCurveRange(
+        rawSettings.lineStyles.curveRange,
+        sanitized.settings.lineStyles.curveRange,
+        'settings.lineStyles.curveRange',
+        warnings
+      ),
+      colors: Array.isArray(rawSettings.lineStyles.colors) && rawSettings.lineStyles.colors.length > 0
+        ? rawSettings.lineStyles.colors.filter(
+            (color: any) => isRecord(color) && typeof color.value === 'string' && color.value.length > 0
+          )
+        : sanitized.settings.lineStyles.colors,
+    };
+
+    if (!Array.isArray(rawSettings.lineStyles.colors) || rawSettings.lineStyles.colors.length === 0) {
+      warnings.push('settings.lineStyles.colors er ugyldig eller tom, bruker standardfarger.');
+    }
+  } else {
+    warnings.push('settings.lineStyles er ugyldig, bruker standardverdi.');
+  }
+
+  if (isRecord(rawSettings.keyframes)) {
+    sanitized.settings.keyframes = {
+      ...sanitized.settings.keyframes,
+      ...rawSettings.keyframes,
+    };
+  } else {
+    warnings.push('settings.keyframes er ugyldig, bruker standardverdi.');
+  }
+
+  if (isRecord(rawSettings.traces)) {
+    const rawTraces = rawSettings.traces;
+    sanitized.settings.traces = {
+      ...sanitized.settings.traces,
+      ...rawTraces,
+      enabled: toBoolean(rawTraces.enabled) ?? sanitized.settings.traces.enabled,
+      curveRange: sanitizeCurveRange(
+        rawTraces.curveRange,
+        sanitized.settings.traces.curveRange,
+        'settings.traces.curveRange',
+        warnings
+      ),
+    };
+  } else {
+    warnings.push('settings.traces er ugyldig, bruker standardverdi.');
+  }
+
+  if (Array.isArray(rawSettings.pitchTypes) && rawSettings.pitchTypes.every((pitchType) => typeof pitchType === 'string')) {
+    sanitized.settings.pitchTypes = rawSettings.pitchTypes;
+  } else {
+    warnings.push('settings.pitchTypes er ugyldig, bruker standardverdi.');
+  }
+
+  if (isRecord(rawSettings.guidelines) && Array.isArray(rawSettings.guidelines.modes)) {
+    sanitized.settings.guidelines = {
+      ...sanitized.settings.guidelines,
+      ...rawSettings.guidelines,
+      modes: rawSettings.guidelines.modes.filter((mode: any) => typeof mode === 'string'),
+    };
+  } else {
+    warnings.push('settings.guidelines er ugyldig, bruker standardverdi.');
+  }
+
+  if (isRecord(rawSettings.exportPresets)) {
+    const rawExportPresets = rawSettings.exportPresets;
+    const fallbackPresets = sanitized.settings.exportPresets;
+
+    const pngScale = toPositiveNumber(rawExportPresets.png?.scale);
+    const gifDuration = toPositiveNumber(rawExportPresets.gif?.frameDuration);
+    const gifQuality = toPositiveNumber(rawExportPresets.gif?.quality);
+    const mp4Duration = toPositiveNumber(rawExportPresets.mp4?.frameDuration);
+    const mp4Fps = toPositiveNumber(rawExportPresets.mp4?.fps);
+    const mp4Crf = toPositiveNumber(rawExportPresets.mp4?.crf);
+    const mp4Preset = typeof rawExportPresets.mp4?.preset === 'string' &&
+      (ALLOWED_MP4_PRESETS as readonly string[]).includes(rawExportPresets.mp4.preset)
+      ? rawExportPresets.mp4.preset
+      : fallbackPresets?.mp4?.preset;
+
+    sanitized.settings.exportPresets = {
+      png: {
+        scale: pngScale ?? fallbackPresets?.png?.scale,
+        background: typeof rawExportPresets.png?.background === 'string'
+          ? rawExportPresets.png.background
+          : fallbackPresets?.png?.background,
+      },
+      gif: {
+        frameDuration: gifDuration ?? fallbackPresets?.gif?.frameDuration,
+        quality: gifQuality ?? fallbackPresets?.gif?.quality,
+      },
+      mp4: {
+        frameDuration: mp4Duration ?? fallbackPresets?.mp4?.frameDuration,
+        fps: mp4Fps ?? fallbackPresets?.mp4?.fps,
+        crf: mp4Crf ?? fallbackPresets?.mp4?.crf,
+        preset: mp4Preset,
+        audioBitrate: typeof rawExportPresets.mp4?.audioBitrate === 'string'
+          ? rawExportPresets.mp4.audioBitrate
+          : fallbackPresets?.mp4?.audioBitrate,
+      },
+    };
+  }
+
+  if (isRecord(rawSettings.ui)) {
+    const rawUI = rawSettings.ui;
+    sanitized.settings.ui = {
+      theme: {
+        primaryColor: typeof rawUI.theme?.primaryColor === 'string'
+          ? rawUI.theme.primaryColor
+          : sanitized.settings.ui?.theme.primaryColor || defaultConfig.settings.ui!.theme.primaryColor,
+        secondaryColor: typeof rawUI.theme?.secondaryColor === 'string'
+          ? rawUI.theme.secondaryColor
+          : sanitized.settings.ui?.theme.secondaryColor || defaultConfig.settings.ui!.theme.secondaryColor,
+        successColor: typeof rawUI.theme?.successColor === 'string'
+          ? rawUI.theme.successColor
+          : sanitized.settings.ui?.theme.successColor || defaultConfig.settings.ui!.theme.successColor,
+        warningColor: typeof rawUI.theme?.warningColor === 'string'
+          ? rawUI.theme.warningColor
+          : sanitized.settings.ui?.theme.warningColor || defaultConfig.settings.ui!.theme.warningColor,
+        errorColor: typeof rawUI.theme?.errorColor === 'string'
+          ? rawUI.theme.errorColor
+          : sanitized.settings.ui?.theme.errorColor || defaultConfig.settings.ui!.theme.errorColor,
+      },
+      animations: {
+        enabled: toBoolean(rawUI.animations?.enabled)
+          ?? sanitized.settings.ui?.animations.enabled
+          ?? defaultConfig.settings.ui!.animations.enabled,
+        duration: toPositiveNumber(rawUI.animations?.duration)
+          ?? sanitized.settings.ui?.animations.duration
+          ?? defaultConfig.settings.ui!.animations.duration,
+      }
+    };
+  } else if (rawSettings.ui !== undefined) {
+    warnings.push('settings.ui er ugyldig, bruker standardverdi.');
+  }
+
+  return { config: sanitized, warnings };
+};
 
 // Function to load configuration
 export const loadConfig = async (): Promise<AppConfig> => {
@@ -966,9 +1180,13 @@ export const loadConfig = async (): Promise<AppConfig> => {
   }
 
   // Use the built-in .aigenrc configuration
-  cachedConfig = aigenrcConfig;
-  // Config load message - only in development, controlled by DEBUG_MODE
-  return aigenrcConfig;
+  const { config, warnings } = validateAndSanitizeConfig(aigenrcConfig);
+  configValidationWarnings = warnings;
+  if (warnings.length > 0) {
+    console.warn('Konfigurasjonsvalidering fant avvik. Fallbacks ble brukt:', warnings);
+  }
+  cachedConfig = config;
+  return config;
 };
 
 // Function to get config synchronously (returns default if not loaded)
@@ -979,6 +1197,11 @@ export const getConfig = (): AppConfig => {
 // Function to clear cache (useful for testing or hot reloading)
 export const clearConfigCache = (): void => {
   cachedConfig = null;
+  configValidationWarnings = [];
+};
+
+export const getConfigValidationWarnings = (): string[] => {
+  return [...configValidationWarnings];
 };
 
 // Helper functions to get specific config sections

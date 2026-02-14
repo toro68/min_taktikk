@@ -6,7 +6,7 @@ import { ToastProvider } from './providers/ToastProvider';
 
 function App() {
   // Load app configuration
-  const { isLoading, error } = useAppConfig();
+  const { isLoading, error, validationWarnings } = useAppConfig();
 
   // Show loading state while config is loading
   if (isLoading) {
@@ -29,6 +29,12 @@ function App() {
     <ThemeProvider>
       <ToastProvider>
         <div className="min-h-screen bg-gray-100">
+          {validationWarnings.length > 0 && (
+            <div className="mx-4 mt-3 rounded border border-amber-300 bg-amber-50 px-3 py-2 text-sm text-amber-900">
+              <p className="font-medium">Konfigurasjon lastet med fallback</p>
+              <p>{validationWarnings.length} felt var ugyldige og ble erstattet med standardverdier.</p>
+            </div>
+          )}
           <FootballAnimator />
         </div>
       </ToastProvider>
