@@ -209,7 +209,7 @@ const TacticsBoard: React.FC<TacticsBoardProps> = ({
           width: 'auto'
         }}
         role="img"
-        aria-label="Football tactics board"
+        aria-label="Fotball taktikktavle"
         onMouseDown={handleSVGMouseDown}
         onMouseMove={handleSVGMouseMove}
         onMouseUp={handleSVGMouseUp}

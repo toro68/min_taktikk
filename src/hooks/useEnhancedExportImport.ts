@@ -6,6 +6,8 @@ import { getExportPresets } from '../lib/config';
 
 export const useEnhancedExportImport = () => {
   const [isProcessing, setIsProcessing] = useState<boolean>(false);
+  const [activeOperation, setActiveOperation] = useState<string | null>(null);
+  const [mp4Progress, setMp4Progress] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
   const { showToast } = useToast();
   const exportPresets = getExportPresets();
@@ -20,6 +22,7 @@ export const useEnhancedExportImport = () => {
     }
 
     setIsProcessing(true);
+    setActiveOperation('downloadAnimation');
     setError(null);
 
     try {
@@ -34,6 +37,7 @@ export const useEnhancedExportImport = () => {
       setError(errorMsg);
       showToast({ type: 'error', title: 'Eksportfeil', message: errorMsg });
     } finally {
+      setActiveOperation(null);
       setIsProcessing(false);
     }
   }, [showToast]);
@@ -53,6 +57,7 @@ export const useEnhancedExportImport = () => {
     }
 
     setIsProcessing(true);
+    setActiveOperation('downloadSvg');
     setError(null);
 
     try {
@@ -67,6 +72,7 @@ export const useEnhancedExportImport = () => {
       setError(errorMsg);
       showToast({ type: 'error', title: 'Eksportfeil', message: errorMsg });
     } finally {
+      setActiveOperation(null);
       setIsProcessing(false);
     }
   }, [showToast]);
@@ -86,6 +92,7 @@ export const useEnhancedExportImport = () => {
     }
 
     setIsProcessing(true);
+    setActiveOperation('downloadPng');
     setError(null);
 
     try {
@@ -103,6 +110,7 @@ export const useEnhancedExportImport = () => {
       setError(errorMsg);
       showToast({ type: 'error', title: 'Eksportfeil', message: errorMsg });
     } finally {
+      setActiveOperation(null);
       setIsProcessing(false);
     }
   }, [showToast]);
@@ -128,6 +136,7 @@ export const useEnhancedExportImport = () => {
     }
 
     setIsProcessing(true);
+    setActiveOperation('downloadGif');
     setError(null);
 
     try {
@@ -152,6 +161,7 @@ export const useEnhancedExportImport = () => {
       setError(errorMsg);
       showToast({ type: 'error', title: 'Eksportfeil', message: errorMsg });
     } finally {
+      setActiveOperation(null);
       setIsProcessing(false);
     }
   }, [showToast]);
@@ -177,6 +187,8 @@ export const useEnhancedExportImport = () => {
     }
 
     setIsProcessing(true);
+    setActiveOperation('downloadFilm');
+    setMp4Progress(0);
     setError(null);
     
     try {
@@ -192,7 +204,10 @@ export const useEnhancedExportImport = () => {
         crf: exportPresets?.mp4?.crf,
         preset: exportPresets?.mp4?.preset,
         audioBitrate: exportPresets?.mp4?.audioBitrate,
-        seekFrame: options?.seekFrame
+        seekFrame: options?.seekFrame,
+        onProgress: (progressPercent: number) => {
+          setMp4Progress(progressPercent);
+        }
       });
 
       showToast({
@@ -210,6 +225,8 @@ export const useEnhancedExportImport = () => {
       });
     } finally {
       options?.restoreFrame?.();
+      setActiveOperation(null);
+      setMp4Progress(null);
       setIsProcessing(false);
     }
   }, [showToast]);
@@ -228,6 +245,7 @@ export const useEnhancedExportImport = () => {
         }
 
         setIsProcessing(true);
+        setActiveOperation('loadAnimation');
         setError(null);
 
         try {
@@ -244,6 +262,7 @@ export const useEnhancedExportImport = () => {
           showToast({ type: 'error', title: 'Importfeil', message: errorMsg });
           resolve(null);
         } finally {
+          setActiveOperation(null);
           setIsProcessing(false);
         }
       };
@@ -254,6 +273,7 @@ export const useEnhancedExportImport = () => {
   // Load Example Animation
   const handleLoadExampleAnimation = useCallback(async (): Promise<Frame[] | null> => {
     setIsProcessing(true);
+    setActiveOperation('loadExampleAnimation');
     setError(null);
 
     try {
@@ -270,12 +290,15 @@ export const useEnhancedExportImport = () => {
       showToast({ type: 'warning', title: 'Eksempel', message: errorMsg });
       return null;
     } finally {
+      setActiveOperation(null);
       setIsProcessing(false);
     }
   }, [showToast]);
 
   return {
     isProcessing,
+    activeOperation,
+    mp4Progress,
     error,
     handleDownloadAnimation,
     handleDownloadPng,

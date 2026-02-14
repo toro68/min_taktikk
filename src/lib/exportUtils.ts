@@ -24,6 +24,7 @@ export interface VideoExportOptions {
   preset?: 'ultrafast' | 'superfast' | 'veryfast' | 'faster' | 'fast' | 'medium';
   audioBitrate?: string;
   seekFrame?: (frameIndex: number, frameProgress: number) => Promise<void> | void;
+  onProgress?: (progressPercent: number) => void;
 }
 
 export class FootballAnimatorExporter {
@@ -399,11 +400,16 @@ export class FootballAnimatorExporter {
           const outputName = `frame_${String(outputFrame).padStart(5, '0')}.png`;
           await ffmpeg.writeFile(outputName, pngData);
 
+          const renderProgress = Math.round(((outputFrame + 1) / totalOutputFrames) * 90);
+          options?.onProgress?.(Math.min(90, Math.max(0, renderProgress)));
+
           if (outputFrame % Math.max(1, Math.floor(totalOutputFrames / 10)) === 0) {
             const percent = Math.round((outputFrame / totalOutputFrames) * 100);
             debugLog(`MP4 render progress: ${percent}%`);
           }
         }
+
+        options?.onProgress?.(92);
 
         await ffmpeg.exec([
           '-framerate', String(fps),
@@ -422,6 +428,8 @@ export class FootballAnimatorExporter {
           'output.mp4'
         ]);
 
+        options?.onProgress?.(98);
+
         const outputData = await ffmpeg.readFile('output.mp4');
         const outputBlob = new Blob([outputData], { type: 'video/mp4' });
         const outputFilename = filename || `tactics-animation-${new Date().toISOString().split('T')[0]}.mp4`;
@@ -435,6 +443,8 @@ export class FootballAnimatorExporter {
         link.click();
         document.body.removeChild(link);
         URL.revokeObjectURL(downloadUrl);
+
+        options?.onProgress?.(100);
 
         resolve();
       } catch (error) {

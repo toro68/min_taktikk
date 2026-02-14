@@ -215,6 +215,8 @@ export const useFootballAnimatorLogic = () => {
   const exportImportState = useMemo(() => ({
     // Updated properties for enhanced hook
     isProcessing: exportImport.isProcessing,
+    activeOperation: exportImport.activeOperation,
+    mp4Progress: exportImport.mp4Progress,
     error: exportImport.error,
     // Use actual functions from enhanced hook
     handleDownloadAnimation: exportImport.handleDownloadAnimation,

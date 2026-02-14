@@ -356,6 +356,9 @@ const FootballAnimator: React.FC = () => {
           onDownloadPng={() => exportImport.handleDownloadPng(interactionLogic.recordedSVGRef.current || undefined)}
           onDownloadSvg={() => exportImport.handleDownloadSvg(interactionLogic.recordedSVGRef.current || undefined)}
           onDownloadGif={() => exportImport.handleDownloadGif(animationLogic.frames, interactionLogic.recordedSVGRef.current || undefined)}
+          isProcessing={exportImport.isProcessing}
+          activeOperation={exportImport.activeOperation}
+          mp4Progress={exportImport.mp4Progress}
           isPlaying={animationLogic.isPlaying}
           onPlayPause={frameActions.handlePlayPause}
           onRewind={() => {

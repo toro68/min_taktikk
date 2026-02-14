@@ -24,6 +24,9 @@ interface ConfigurableTopToolbarProps {
   onDownloadPng: () => void;
   onDownloadSvg: () => void;
   onDownloadGif: () => void;
+  isProcessing?: boolean;
+  activeOperation?: string | null;
+  mp4Progress?: number | null;
   isPlaying: boolean;
   onPlayPause: () => void;
   onRewind: () => void;
@@ -52,6 +55,9 @@ const ConfigurableTopToolbar: React.FC<ConfigurableTopToolbarProps> = React.memo
   onDownloadPng,
   onDownloadSvg,
   onDownloadGif,
+  isProcessing = false,
+  activeOperation = null,
+  mp4Progress = null,
   isPlaying,
   onPlayPause,
   onRewind,
@@ -66,6 +72,7 @@ const ConfigurableTopToolbar: React.FC<ConfigurableTopToolbarProps> = React.memo
   onLoadSvgTemplate,
 }) => {
   const [isMoreOpen, setIsMoreOpen] = useState(false);
+  const [showAdvancedControls, setShowAdvancedControls] = useState(false);
   const config = getConfig();
   const topToolbar = config.settings.toolbar.top;
   const traceCurveRange = config.settings.traces?.curveRange || { min: -300, max: 300, step: 1 };
@@ -74,6 +81,13 @@ const ConfigurableTopToolbar: React.FC<ConfigurableTopToolbarProps> = React.memo
     () => new Set(['downloadPng', 'downloadSvg', 'downloadFilm', 'downloadGif', 'loadExample', 'loadSvgTemplate']),
     []
   );
+
+  const exportActionKeys = useMemo(
+    () => new Set(['downloadJson', 'downloadPng', 'downloadSvg', 'downloadFilm', 'downloadGif']),
+    []
+  );
+
+  const hasAdvancedControls = Boolean(setInterpolationType || setEnablePathFollowing || setShowTraces || onTraceCurveChange);
 
   const groupedButtons = useMemo(() => {
     if (!topToolbar?.groups) return [] as Array<{ groupKey: string; group: any; buttons: any[] }>;
@@ -200,6 +214,7 @@ const ConfigurableTopToolbar: React.FC<ConfigurableTopToolbarProps> = React.memo
                           <Button
                             variant={isPrimaryAction(button.key) ? 'default' : 'outline'}
                             size="sm"
+                            disabled={isProcessing && exportActionKeys.has(button.key)}
                             aria-label={
                               isPlayButton
                                 ? (isPlaying ? 'Pause animasjonen' : 'Start animasjonen')
@@ -284,11 +299,12 @@ const ConfigurableTopToolbar: React.FC<ConfigurableTopToolbarProps> = React.memo
                         <button
                           key={button.key}
                           type="button"
+                          disabled={isProcessing && exportActionKeys.has(button.key)}
                           onClick={() => {
                             handleButtonClick(button.key);
                             setIsMoreOpen(false);
                           }}
-                          className="w-full flex items-center gap-2 px-2 py-1.5 text-xs text-left rounded hover:bg-gray-100"
+                          className="w-full flex items-center gap-2 px-2 py-1.5 text-xs text-left rounded hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed"
                         >
                           <IconComponent className="w-3.5 h-3.5" />
                           <span>{button.label || button.tooltip || button.key}</span>
@@ -303,8 +319,25 @@ const ConfigurableTopToolbar: React.FC<ConfigurableTopToolbarProps> = React.memo
 
           {/* Right side - Playback speed control and advanced animation settings */}
           <div className="flex items-center gap-4">
+            {hasAdvancedControls && (
+              <Button
+                variant={showAdvancedControls ? 'default' : 'outline'}
+                size="sm"
+                onClick={() => setShowAdvancedControls((prev) => !prev)}
+                className="h-8"
+              >
+                Avansert
+              </Button>
+            )}
+
+            {activeOperation === 'downloadFilm' && isProcessing && (
+              <span className="text-[10px] px-2 py-1 rounded border bg-blue-50 text-blue-700 border-blue-200 tabular-nums">
+                Eksporterer MP4{typeof mp4Progress === 'number' ? ` ${Math.round(mp4Progress)}%` : '...'}
+              </span>
+            )}
+
             {/* Advanced Animation Controls */}
-            {(setInterpolationType || setEnablePathFollowing || setShowTraces || onTraceCurveChange) && (
+            {hasAdvancedControls && showAdvancedControls && (
               <div className="flex items-center gap-3">
                 {/* Interpolation Type */}
                 {setInterpolationType && (

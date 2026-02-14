@@ -3,12 +3,16 @@ import { test, expect } from '@playwright/test';
 test('top toolbar actions toggle and download controls', async ({ page }) => {
   await page.goto('/');
 
-  await expect(page.getByText('Tidslinje')).toBeVisible();
+  await expect(page.getByRole('button', { name: /Vis eller skjul tidslinje/i })).toBeVisible();
 
   const playPause = page.getByRole('button', { name: /Start animasjonen|Pause animasjonen/i });
   await expect(playPause).toBeVisible();
   await playPause.click();
   await playPause.click();
+
+  const advancedToggle = page.getByRole('button', { name: 'Avansert' });
+  await expect(advancedToggle).toBeVisible();
+  await advancedToggle.click();
 
   const traceToggle = page.getByLabel('Traces');
   await expect(traceToggle).toBeVisible();

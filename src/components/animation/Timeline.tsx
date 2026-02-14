@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useCallback, useEffect, useRef } from 'react';
 import { Frame } from '../../@types/elements';
 
 interface TimelineProps {
@@ -15,10 +15,12 @@ const Timeline: React.FC<TimelineProps> = ({
   progress,
   onSeek
 }) => {
-  const handleTimelineClick = (event: React.MouseEvent<HTMLDivElement>) => {
-    const rect = event.currentTarget.getBoundingClientRect();
-    const clickX = event.clientX - rect.left;
-    const timelineWidth = rect.width;
+  const timelineRef = useRef<HTMLDivElement | null>(null);
+  const isDraggingRef = useRef(false);
+
+  const seekFromClientX = useCallback((clientX: number, rect: DOMRect) => {
+    const clickX = Math.max(0, Math.min(rect.width, clientX - rect.left));
+    const timelineWidth = Math.max(1, rect.width);
     
     // Calculate total duration
     const totalDuration = frames.reduce((sum, frame) => sum + (frame.duration || 1), 0);
@@ -41,7 +43,49 @@ const Timeline: React.FC<TimelineProps> = ({
       
       accumulatedDuration += frameDuration;
     }
+  }, [frames, onSeek]);
+
+  const handleTimelineClick = (event: React.MouseEvent<HTMLDivElement>) => {
+    const rect = event.currentTarget.getBoundingClientRect();
+    seekFromClientX(event.clientX, rect);
   };
+
+  const handleMouseDown = (event: React.MouseEvent<HTMLDivElement>) => {
+    isDraggingRef.current = true;
+    const rect = event.currentTarget.getBoundingClientRect();
+    seekFromClientX(event.clientX, rect);
+  };
+
+  const handleMouseMove = (event: React.MouseEvent<HTMLDivElement>) => {
+    if (!isDraggingRef.current) return;
+    const rect = event.currentTarget.getBoundingClientRect();
+    seekFromClientX(event.clientX, rect);
+  };
+
+  const handleTouchStart = (event: React.TouchEvent<HTMLDivElement>) => {
+    const touch = event.touches[0];
+    if (!touch) return;
+    const rect = event.currentTarget.getBoundingClientRect();
+    seekFromClientX(touch.clientX, rect);
+  };
+
+  const handleTouchMove = (event: React.TouchEvent<HTMLDivElement>) => {
+    const touch = event.touches[0];
+    if (!touch) return;
+    const rect = event.currentTarget.getBoundingClientRect();
+    seekFromClientX(touch.clientX, rect);
+  };
+
+  useEffect(() => {
+    const stopDragging = () => {
+      isDraggingRef.current = false;
+    };
+
+    window.addEventListener('mouseup', stopDragging);
+    return () => {
+      window.removeEventListener('mouseup', stopDragging);
+    };
+  }, []);
 
   const renderTimelineBlocks = () => {
     const totalDuration = frames.reduce((sum, frame) => sum + (frame.duration || 1), 0);
@@ -55,7 +99,7 @@ const Timeline: React.FC<TimelineProps> = ({
       const blockElement = (
         <div
           key={index}
-          className={`h-8 border-r border-gray-300 flex items-center justify-center text-xs relative ${
+          className={`h-10 border-r border-gray-300 flex items-center justify-center text-xs relative ${
             isCurrentFrame ? 'bg-blue-200' : 'bg-gray-100 hover:bg-gray-200'
           }`}
           style={{ width: `${widthPercentage}%` }}
@@ -83,15 +127,21 @@ const Timeline: React.FC<TimelineProps> = ({
   return (
     <div className="border-b bg-white">
       <div className="p-2">
-        <div className="text-xs text-gray-600 mb-1">Timeline</div>
+        <div className="text-xs text-gray-600 mb-1">Tidslinje</div>
         <div
+          ref={timelineRef}
           className="flex border border-gray-300 rounded cursor-pointer overflow-hidden"
           onClick={handleTimelineClick}
+          onMouseDown={handleMouseDown}
+          onMouseMove={handleMouseMove}
+          onTouchStart={handleTouchStart}
+          onTouchMove={handleTouchMove}
+          style={{ touchAction: 'none' }}
         >
           {renderTimelineBlocks()}
         </div>
         <div className="text-xs text-gray-500 mt-1">
-          Click to seek • Total: {frames.reduce((sum, frame) => sum + (frame.duration || 1), 0)}s
+          Klikk eller dra for å søke • Totalt: {frames.reduce((sum, frame) => sum + (frame.duration || 1), 0)}s
         </div>
       </div>
     </div>
