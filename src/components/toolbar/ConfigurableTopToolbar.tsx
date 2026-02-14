@@ -487,6 +487,11 @@ const ConfigurableTopToolbar: React.FC<ConfigurableTopToolbarProps> = React.memo
                       step={traceCurveRange.step || 0.5}
                       className={`w-40 ${showTraces ? '' : 'opacity-50'}`}
                     />
+                    {!showTraces && (
+                      <span className="text-[10px] px-1.5 py-0.5 rounded border bg-amber-50 text-amber-700 border-amber-200 whitespace-nowrap">
+                        Spor av
+                      </span>
+                    )}
                     <span className="text-[10px] tabular-nums w-28 text-gray-600">{curveStatusLabel}</span>
                   </div>
                 )}
