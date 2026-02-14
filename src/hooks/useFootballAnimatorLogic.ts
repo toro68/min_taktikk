@@ -163,7 +163,11 @@ export const useFootballAnimatorLogic = () => {
     interpolationType: animationLogic.interpolationType,
     setInterpolationType: animationLogic.setInterpolationType,
     enablePathFollowing: animationLogic.enablePathFollowing,
-    setEnablePathFollowing: animationLogic.setEnablePathFollowing
+    setEnablePathFollowing: animationLogic.setEnablePathFollowing,
+    undo: animationLogic.undo,
+    redo: animationLogic.redo,
+    canUndo: animationLogic.canUndo,
+    canRedo: animationLogic.canRedo
   }), [animationLogic]);
 
   const toolState = useMemo(() => ({

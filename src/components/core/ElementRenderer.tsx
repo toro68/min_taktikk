@@ -123,14 +123,23 @@ const ElementRenderer: React.FC<ElementRendererProps> = ({
         <g>
           <path
             d={(element as LineElement).path}
+            stroke="transparent"
+            strokeWidth={12}
+            fill="none"
+            data-testid="line-hit-target"
+            onClick={(e: React.MouseEvent) => onElementClick(e, element)}
+            onMouseDown={(e: React.MouseEvent) => onElementDragStart(e, element)}
+            style={{ cursor: 'pointer' }}
+          />
+          <path
+            d={(element as LineElement).path}
             stroke={(element as LineElement).color || '#000000'}
             strokeWidth={1.5}
             fill="none"
             strokeDasharray={(element as LineElement).dashed ? '5,5' : 'none'}
             markerEnd={(element as LineElement).marker ? `url(#${(element as LineElement).marker})` : 'none'}
             data-testid="line-element"
-            onClick={(e: React.MouseEvent) => onElementClick(e, element)}
-            onMouseDown={(e: React.MouseEvent) => onElementDragStart(e, element)}
+            pointerEvents="none"
             style={{ cursor: 'pointer' }}
           />
           <LineEndpoints

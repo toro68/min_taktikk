@@ -4,7 +4,7 @@ import { InterpolationType } from '../lib/interpolation';
 import { debugLog } from '../lib/debug';
 
 export const useAnimationLogic = () => {
-  const [frames, setFrames] = useState<Frame[]>([{ elements: [], duration: 3 }]);
+  const [frames, setFramesState] = useState<Frame[]>([{ elements: [], duration: 3 }]);
   const [currentFrame, setCurrentFrame] = useState(0);
   const [progress, setProgress] = useState(0);
   const [isPlaying, setIsPlaying] = useState(false);
@@ -18,6 +18,83 @@ export const useAnimationLogic = () => {
   // Advanced animation settings
   const [interpolationType, setInterpolationType] = useState<InterpolationType>('smooth'); // Use smooth interpolation by default
   const [enablePathFollowing, setEnablePathFollowing] = useState(false);
+
+  const undoStackRef = useRef<Frame[][]>([]);
+  const redoStackRef = useRef<Frame[][]>([]);
+  const [historyVersion, setHistoryVersion] = useState(0);
+
+  const cloneFrames = useCallback((inputFrames: Frame[]): Frame[] => {
+    return inputFrames.map((frame) => ({
+      ...frame,
+      elements: frame.elements.map((element) => ({ ...element }))
+    }));
+  }, []);
+
+  const setFrames: React.Dispatch<React.SetStateAction<Frame[]>> = useCallback((updater) => {
+    setFramesState((prevFrames) => {
+      const nextFrames = typeof updater === 'function'
+        ? (updater as (prevState: Frame[]) => Frame[])(prevFrames)
+        : updater;
+
+      if (nextFrames === prevFrames) {
+        return prevFrames;
+      }
+
+      undoStackRef.current.push(cloneFrames(prevFrames));
+      if (undoStackRef.current.length > 100) {
+        undoStackRef.current.shift();
+      }
+      redoStackRef.current = [];
+      setHistoryVersion((prev) => prev + 1);
+
+      return nextFrames;
+    });
+  }, [cloneFrames]);
+
+  const undo = useCallback(() => {
+    setFramesState((currentFrames) => {
+      const previousFrames = undoStackRef.current.pop();
+      if (!previousFrames) {
+        return currentFrames;
+      }
+
+      redoStackRef.current.push(cloneFrames(currentFrames));
+      if (redoStackRef.current.length > 100) {
+        redoStackRef.current.shift();
+      }
+
+      const maxFrameIndex = Math.max(0, previousFrames.length - 1);
+      setCurrentFrame((prevFrame) => Math.min(prevFrame, maxFrameIndex));
+      setProgress(0);
+      setHistoryVersion((prev) => prev + 1);
+
+      return cloneFrames(previousFrames);
+    });
+  }, [cloneFrames]);
+
+  const redo = useCallback(() => {
+    setFramesState((currentFrames) => {
+      const nextFrames = redoStackRef.current.pop();
+      if (!nextFrames) {
+        return currentFrames;
+      }
+
+      undoStackRef.current.push(cloneFrames(currentFrames));
+      if (undoStackRef.current.length > 100) {
+        undoStackRef.current.shift();
+      }
+
+      const maxFrameIndex = Math.max(0, nextFrames.length - 1);
+      setCurrentFrame((prevFrame) => Math.min(prevFrame, maxFrameIndex));
+      setProgress(0);
+      setHistoryVersion((prev) => prev + 1);
+
+      return cloneFrames(nextFrames);
+    });
+  }, [cloneFrames]);
+
+  const canUndo = undoStackRef.current.length > 0;
+  const canRedo = redoStackRef.current.length > 0;
 
   // Refs for animation
   const animationRef = useRef<number | null>(null);
@@ -175,6 +252,11 @@ export const useAnimationLogic = () => {
     setInterpolationType,
     enablePathFollowing,
     setEnablePathFollowing,
+    undo,
+    redo,
+    canUndo,
+    canRedo,
+    historyVersion,
   };
 };
 

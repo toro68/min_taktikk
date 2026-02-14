@@ -3,7 +3,7 @@ import { test, expect } from '@playwright/test';
 test('draw a line, adjust curve and endpoints', async ({ page }) => {
   await page.goto('/');
 
-  const board = page.getByLabel('Football tactics board');
+  const board = page.getByLabel('Fotball taktikktavle');
   await expect(board).toBeVisible();
 
   await page.getByRole('button', { name: /Tegn linje/i }).click();
@@ -18,8 +18,9 @@ test('draw a line, adjust curve and endpoints', async ({ page }) => {
   await page.mouse.up();
 
   const lineElement = page.getByTestId('line-element');
+  const lineHitTarget = page.getByTestId('line-hit-target');
   await expect(lineElement).toHaveCount(1, { timeout: 15000 });
-  await lineElement.click();
+  await lineHitTarget.first().click();
 
   await expect(page.getByLabel('Hel rett linje')).toBeVisible();
   await page.getByLabel('Hel rett linje').click();
@@ -40,7 +41,7 @@ test('draw a line, adjust curve and endpoints', async ({ page }) => {
 test('shift while drawing snaps line to fixed angles', async ({ page }) => {
   await page.goto('/');
 
-  const board = page.getByLabel('Football tactics board');
+  const board = page.getByLabel('Fotball taktikktavle');
   await expect(board).toBeVisible();
 
   await page.getByRole('button', { name: /Tegn linje/i }).click();
@@ -72,7 +73,7 @@ test('shift while drawing snaps line to fixed angles', async ({ page }) => {
 test('drag copied horizontal dashed line to new Y in next keyframe', async ({ page }) => {
   await page.goto('/');
 
-  const board = page.getByLabel('Football tactics board');
+  const board = page.getByLabel('Fotball taktikktavle');
   await expect(board).toBeVisible();
 
   await page.getByRole('button', { name: /Tegn linje/i }).click();
@@ -109,7 +110,7 @@ test('drag copied horizontal dashed line to new Y in next keyframe', async ({ pa
   await expect(page.getByText(/Frame 2\/2/)).toBeVisible();
 
   await page.getByRole('button', { name: /Velg og flytt/i }).click();
-  const line = board.locator('[data-testid="line-element"]').first();
+  const line = board.locator('[data-testid="line-hit-target"]').first();
   const dragX = bounds.x + (beforeStartX + beforeEndX) / 2;
   const dragY = bounds.y + beforeY;
   await line.dispatchEvent('mousedown', {

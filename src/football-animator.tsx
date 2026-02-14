@@ -303,6 +303,28 @@ const FootballAnimator: React.FC = () => {
           });
           break;
         }
+        case 'KeyZ': {
+          if (!(event.ctrlKey || event.metaKey)) {
+            break;
+          }
+
+          event.preventDefault();
+          if (event.shiftKey) {
+            animationLogic.redo();
+          } else {
+            animationLogic.undo();
+          }
+          break;
+        }
+        case 'KeyY': {
+          if (!event.ctrlKey || event.metaKey) {
+            break;
+          }
+
+          event.preventDefault();
+          animationLogic.redo();
+          break;
+        }
         default:
           break;
       }
