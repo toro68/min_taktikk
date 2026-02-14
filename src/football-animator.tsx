@@ -412,46 +412,54 @@ const FootballAnimator: React.FC = () => {
 
           {/* Properties Sidebar */}
           {toolLogic.selectedElement && (
-            <div className="fixed inset-x-0 bottom-0 z-40 max-h-[72vh] overflow-y-auto border-t border-gray-200 bg-white p-4 shadow-2xl md:static md:z-auto md:max-h-none md:w-80 md:border-t-0 md:border-l md:shadow-none">
-              <div className="flex justify-between items-center mb-4">
-                <h2 className="text-lg font-semibold">Egenskaper</h2>
-                <Button variant="ghost" size="icon" onClick={() => toolLogic.setSelectedElement(null)}>
-                  <X className="h-4 w-4" />
-                </Button>
-              </div>
+            <>
+              <button
+                type="button"
+                aria-label="Lukk egenskapspanel"
+                onClick={() => toolLogic.setSelectedElement(null)}
+                className="fixed inset-0 z-30 bg-black/30 md:hidden"
+              />
+              <div className="fixed inset-x-0 bottom-0 z-40 max-h-[72vh] overflow-y-auto border-t border-gray-200 bg-white p-4 shadow-2xl md:static md:z-auto md:max-h-none md:w-80 md:border-t-0 md:border-l md:shadow-none">
+                <div className="flex justify-between items-center mb-4">
+                  <h2 className="text-lg font-semibold">Egenskaper</h2>
+                  <Button variant="ghost" size="icon" onClick={() => toolLogic.setSelectedElement(null)}>
+                    <X className="h-4 w-4" />
+                  </Button>
+                </div>
 
-              {toolLogic.selectedElement.type === 'line' && (
-                <LineProperties
-                  line={toolLogic.selectedElement as LineElement}
-                  updateElement={updateSelectedLine}
-                />
-              )}
-              {toolLogic.selectedElement.type === 'area' && (
-                <AreaProperties
-                  area={toolLogic.selectedElement as AreaElement}
-                  updateElement={(updates) =>
-                    elementActions.updateFrameElement(
-                      animationLogic.currentFrame,
-                      toolLogic.selectedElement!.id,
-                      updates
-                    )
-                  }
-                />
-              )}
-              {toolLogic.selectedElement.type === 'trace' && (
-                <TraceProperties
-                  trace={toolLogic.selectedElement as TraceElement}
-                  globalCurveOffset={animationLogic.traceCurveOffset}
-                  updateElement={(updates) => {
-                    const traceId = toolLogic.selectedElement!.id;
-                    const updated = updateTrace(traceId, updates);
-                    if (updated) {
-                      toolLogic.setSelectedElement(updated);
+                {toolLogic.selectedElement.type === 'line' && (
+                  <LineProperties
+                    line={toolLogic.selectedElement as LineElement}
+                    updateElement={updateSelectedLine}
+                  />
+                )}
+                {toolLogic.selectedElement.type === 'area' && (
+                  <AreaProperties
+                    area={toolLogic.selectedElement as AreaElement}
+                    updateElement={(updates) =>
+                      elementActions.updateFrameElement(
+                        animationLogic.currentFrame,
+                        toolLogic.selectedElement!.id,
+                        updates
+                      )
                     }
-                  }}
-                />
-              )}
-            </div>
+                  />
+                )}
+                {toolLogic.selectedElement.type === 'trace' && (
+                  <TraceProperties
+                    trace={toolLogic.selectedElement as TraceElement}
+                    globalCurveOffset={animationLogic.traceCurveOffset}
+                    updateElement={(updates) => {
+                      const traceId = toolLogic.selectedElement!.id;
+                      const updated = updateTrace(traceId, updates);
+                      if (updated) {
+                        toolLogic.setSelectedElement(updated);
+                      }
+                    }}
+                  />
+                )}
+              </div>
+            </>
           )}
         </div>
 
@@ -482,6 +490,11 @@ const FootballAnimator: React.FC = () => {
           onSeek={(frame, frameProgress) => {
             animationLogic.setCurrentFrame(frame);
             animationLogic.setProgress(frameProgress);
+          }}
+          onFrameDurationChange={(frameIndex, duration) => {
+            animationLogic.setFrames((prevFrames) => prevFrames.map((frame, index) => (
+              index === frameIndex ? { ...frame, duration } : frame
+            )));
           }}
         />
 

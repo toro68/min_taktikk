@@ -84,7 +84,7 @@ const ConfigurableBottomToolbar: React.FC<ConfigurableBottomToolbarProps> = Reac
   const activeButtonStyle = "bg-blue-600 text-white font-semibold border-blue-700 ring-2 ring-blue-200";
 
   return (
-    <div className="flex items-center justify-between gap-2 p-2 border-t bg-white sticky bottom-0 z-10 w-full">
+    <div className="flex items-center justify-start gap-2 p-2 border-t bg-white sticky bottom-0 z-10 w-full">
       <TooltipProvider delayDuration={0}>
         <div className="hidden md:flex items-center">
           <span className="text-xs text-gray-500">Modus:</span>

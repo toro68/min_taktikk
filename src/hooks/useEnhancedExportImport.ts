@@ -40,7 +40,7 @@ export const useEnhancedExportImport = () => {
       setActiveOperation(null);
       setIsProcessing(false);
     }
-  }, [showToast]);
+  }, [showToast, exportPresets]);
 
   // SVG Export
   const handleDownloadSvg = useCallback(async (svgElement?: SVGSVGElement) => {
@@ -221,13 +221,47 @@ export const useEnhancedExportImport = () => {
         ? (window as any).__lastMp4ExportError?.details
         : undefined;
       setError(errorMsg);
-      showToast({ 
-        type: 'error', 
-        title: 'MP4 eksportfeil', 
-        message: `${errorMsg}. Sjekk window.__lastMp4ExportError i Console for detaljer.`,
-        details: typeof diagnosticDetails === 'string' ? diagnosticDetails : undefined,
-        duration: 20000
-      });
+
+      let fallbackSucceeded = false;
+      if (frames && frames.length >= 2 && svgElement) {
+        try {
+          showToast({
+            type: 'warning',
+            title: 'MP4 feilet - prøver GIF',
+            message: 'Bytter til GIF-eksport automatisk...'
+          });
+
+          await exporter.exportAsGIF(frames, svgElement, undefined, {
+            frameDuration: exportPresets?.gif?.frameDuration,
+            quality: exportPresets?.gif?.quality
+          });
+
+          fallbackSucceeded = true;
+          showToast({
+            type: 'success',
+            title: 'GIF eksportert',
+            message: 'MP4 feilet, men GIF ble eksportert.'
+          });
+        } catch (gifFallbackError) {
+          const gifFallbackMessage = (gifFallbackError as Error)?.message || 'Ukjent feil ved GIF fallback';
+          showToast({
+            type: 'error',
+            title: 'GIF fallback feilet',
+            message: gifFallbackMessage,
+            duration: 12000
+          });
+        }
+      }
+
+      if (!fallbackSucceeded) {
+        showToast({ 
+          type: 'error', 
+          title: 'MP4 eksportfeil', 
+          message: `${errorMsg}. Sjekk window.__lastMp4ExportError i Console for detaljer.`,
+          details: typeof diagnosticDetails === 'string' ? diagnosticDetails : undefined,
+          duration: 20000
+        });
+      }
     } finally {
       options?.restoreFrame?.();
       setActiveOperation(null);

@@ -14,6 +14,7 @@ interface AnimationSectionProps {
   frames: Frame[];
   onProgressChange: (progress: number) => void;
   onSeek: (frame: number, frameProgress: number) => void;
+  onFrameDurationChange?: (frame: number, duration: number) => void;
 }
 
 const AnimationSection: React.FC<AnimationSectionProps> = ({
@@ -21,7 +22,8 @@ const AnimationSection: React.FC<AnimationSectionProps> = ({
   currentFrame,
   frames,
   progress,
-  onSeek
+  onSeek,
+  onFrameDurationChange
 }) => {
   const [isExpanded, setIsExpanded] = useState(true);
   const progressPct = Math.round(Math.max(0, Math.min(1, progress)) * 100);
@@ -61,6 +63,7 @@ const AnimationSection: React.FC<AnimationSectionProps> = ({
             progress={progress}
             isPlaying={isPlaying}
             onSeek={onSeek}
+            onFrameDurationChange={onFrameDurationChange}
           />
         </div>
       )}

@@ -7,16 +7,19 @@ interface TimelineProps {
   progress: number;
   isPlaying: boolean;
   onSeek: (frame: number, frameProgress: number) => void;
+  onFrameDurationChange?: (frameIndex: number, duration: number) => void;
 }
 
 const Timeline: React.FC<TimelineProps> = ({
   frames,
   currentFrame,
   progress,
-  onSeek
+  onSeek,
+  onFrameDurationChange
 }) => {
   const timelineRef = useRef<HTMLDivElement | null>(null);
   const isDraggingRef = useRef(false);
+  const resizeStateRef = useRef<{ frameIndex: number; startX: number; startDuration: number } | null>(null);
 
   const seekFromClientX = useCallback((clientX: number, rect: DOMRect) => {
     const clickX = Math.max(0, Math.min(rect.width, clientX - rect.left));
@@ -81,11 +84,41 @@ const Timeline: React.FC<TimelineProps> = ({
       isDraggingRef.current = false;
     };
 
+    const stopResizing = () => {
+      resizeStateRef.current = null;
+    };
+
+    const handleResizeMove = (event: MouseEvent) => {
+      const resizeState = resizeStateRef.current;
+      if (!resizeState || !onFrameDurationChange) {
+        return;
+      }
+
+      const deltaX = event.clientX - resizeState.startX;
+      const nextDuration = Math.min(10, Math.max(0.2, resizeState.startDuration + deltaX / 60));
+      const roundedDuration = Math.round(nextDuration * 10) / 10;
+      onFrameDurationChange(resizeState.frameIndex, roundedDuration);
+    };
+
     window.addEventListener('mouseup', stopDragging);
+    window.addEventListener('mouseup', stopResizing);
+    window.addEventListener('mousemove', handleResizeMove);
     return () => {
       window.removeEventListener('mouseup', stopDragging);
+      window.removeEventListener('mouseup', stopResizing);
+      window.removeEventListener('mousemove', handleResizeMove);
     };
-  }, []);
+  }, [onFrameDurationChange]);
+
+  const handleResizeStart = (event: React.MouseEvent, frameIndex: number, frameDuration: number) => {
+    event.stopPropagation();
+    event.preventDefault();
+    resizeStateRef.current = {
+      frameIndex,
+      startX: event.clientX,
+      startDuration: frameDuration
+    };
+  };
 
   const renderTimelineBlocks = () => {
     const totalDuration = frames.reduce((sum, frame) => sum + (frame.duration || 1), 0);
@@ -116,6 +149,16 @@ const Timeline: React.FC<TimelineProps> = ({
               style={{ width: `${progress * 100}%` }}
             />
           )}
+
+          {onFrameDurationChange && (
+            <button
+              type="button"
+              aria-label={`Juster varighet for frame ${index + 1}`}
+              onMouseDown={(event) => handleResizeStart(event, index, frameDuration)}
+              onClick={(event) => event.stopPropagation()}
+              className="absolute right-0 top-0 h-full w-2 cursor-ew-resize bg-transparent hover:bg-blue-300/50"
+            />
+          )}
         </div>
       );
       
@@ -141,7 +184,7 @@ const Timeline: React.FC<TimelineProps> = ({
           {renderTimelineBlocks()}
         </div>
         <div className="text-xs text-gray-500 mt-1">
-          Klikk eller dra for å søke • Totalt: {frames.reduce((sum, frame) => sum + (frame.duration || 1), 0)}s
+          Klikk eller dra for å søke • Dra høyrekant på frame for varighet • Totalt: {frames.reduce((sum, frame) => sum + (frame.duration || 1), 0)}s
         </div>
       </div>
     </div>
