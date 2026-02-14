@@ -97,6 +97,9 @@ const ConfigurableTopToolbar: React.FC<ConfigurableTopToolbarProps> = React.memo
   );
 
   const hasAdvancedControls = Boolean(setInterpolationType || setEnablePathFollowing || setShowTraces || onTraceCurveChange);
+  const curveStatusLabel = traceCurveOffset === 0
+    ? '0px (Rett)'
+    : `${traceCurveOffset > 0 ? '+' : ''}${traceCurveOffset}px (${traceCurveOffset > 0 ? 'Høyre bue' : 'Venstre bue'})`;
 
   const groupedButtons = useMemo(() => {
     if (!topToolbar?.groups) return [] as Array<{ groupKey: string; group: any; buttons: any[] }>;
@@ -394,7 +397,10 @@ const ConfigurableTopToolbar: React.FC<ConfigurableTopToolbarProps> = React.memo
                 {/* Interpolation Type */}
                 {setInterpolationType && (
                   <div className="flex items-center gap-2">
-                    <span className="text-xs text-gray-600">Interpolering:</span>
+                    <div className="flex flex-col leading-tight">
+                      <span className="text-xs text-gray-600">Bevegelsestype</span>
+                      <span className="text-[10px] text-gray-500">Anbefalt: Jevn</span>
+                    </div>
                     <div className="flex gap-1">
                       {[
                         { value: 'linear' as InterpolationType, label: 'Lineær', tooltip: 'Lineær - konstant hastighet' },
@@ -461,7 +467,7 @@ const ConfigurableTopToolbar: React.FC<ConfigurableTopToolbarProps> = React.memo
                       </label>
                     </TooltipTrigger>
                     <TooltipContent side="bottom" sideOffset={2} className="py-0.5 px-1.5 bg-black/90 text-white border-0">
-                      <p className="text-[10px] font-medium">Vis eller skjul bevegelseslinjer</p>
+                      <p className="text-[10px] font-medium">Vis eller skjul sporlinjer på banen</p>
                     </TooltipContent>
                   </Tooltip>
                 )}
@@ -472,13 +478,16 @@ const ConfigurableTopToolbar: React.FC<ConfigurableTopToolbarProps> = React.memo
                     <span className="text-xs text-gray-600 whitespace-nowrap">Bevegelseskurve:</span>
                     <Slider
                       value={[traceCurveOffset]}
-                      onValueChange={([value]) => onTraceCurveChange?.(value)}
+                      onValueChange={([value]) => {
+                        if (!showTraces) return;
+                        onTraceCurveChange?.(value);
+                      }}
                       min={traceCurveRange.min}
                       max={traceCurveRange.max}
                       step={traceCurveRange.step || 0.5}
-                      className="w-40"
+                      className={`w-40 ${showTraces ? '' : 'opacity-50'}`}
                     />
-                    <span className="text-[10px] tabular-nums w-10 text-gray-600">{traceCurveOffset}px</span>
+                    <span className="text-[10px] tabular-nums w-28 text-gray-600">{curveStatusLabel}</span>
                   </div>
                 )}
 

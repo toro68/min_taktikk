@@ -24,11 +24,11 @@ test('top toolbar actions toggle and download controls', async ({ page }) => {
   await expect(traceToggle).toHaveJSProperty('checked', !traceChecked);
   await traceToggle.click();
 
-  await expect(page.getByText(/Interpolering:/)).toBeVisible();
+  await expect(page.getByText(/Bevegelsestype/)).toBeVisible();
   await page.getByRole('button', { name: 'Lineær', exact: true }).click();
   await page.getByRole('button', { name: 'Jevn', exact: true }).click();
 
   await expect(page.getByText(/Bevegelseskurve/)).toBeVisible();
-  await expect(page.getByText(/px$/)).toBeVisible();
+  await expect(page.getByText(/px/)).toBeVisible();
   await expect(page.getByTestId('playback-speed-value')).toBeVisible();
 });
