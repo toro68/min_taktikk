@@ -143,14 +143,11 @@
           "controls": ["style", "curve", "color", "marker"],
           "styles": [
             "solidStraight",
-            "solidCurved", 
+            "solidCurved",
             "straightArrow",
             "curvedArrow",
             "dashedStraight",
-            "dashedCurved",
-            "sineWave",
-            "fishHook",
-            "hook"
+            "dashedCurved"
           ]
         }
       }
@@ -180,64 +177,59 @@
       ],
       "professionalStyles": {
         "player": {
-          "label": "Spillerbevegelse",
-          "options": [
-            {
-              "key": "solid",
-              "label": "Heltrukken",
-              "icon": "Line"
-            },
-            {
-              "key": "dashed",
-              "label": "Stiplet",
-              "icon": "LineDotted"
-            },
-            {
-              "key": "dotted",
-              "label": "Prikket",
-              "icon": "Dot"
-            }
-          ]
-        },
-        "opponent": {
-          "label": "Motstanderbevegelse",
-          "options": [
-            {
-              "key": "solid",
-              "label": "Heltrukken",
-              "icon": "Line"
-            },
-            {
-              "key": "dashed",
-              "label": "Stiplet",
-              "icon": "LineDotted"
-            },
-            {
-              "key": "dotted",
-              "label": "Prikket",
-              "icon": "Dot"
-            }
-          ]
+          "playerRun": {
+            "label": "Spillerløp",
+            "description": "Heltrukken pil for tydelig løpsretning",
+            "icon": "ArrowRight",
+            "curved": false,
+            "marker": "arrow",
+            "strokeWidth": 2
+          },
+          "playerSupportRun": {
+            "label": "Støtteløp",
+            "description": "Stiplet pil for sekundære løp",
+            "icon": "ArrowRight",
+            "dashed": true,
+            "dashArray": "6,4",
+            "marker": "arrow",
+            "strokeWidth": 2
+          }
         },
         "ball": {
-          "label": "Ballbevegelse",
-          "options": [
-            {
-              "key": "solid",
-              "label": "Heltrukken",
-              "icon": "Line"
-            },
-            {
-              "key": "dashed",
-              "label": "Stiplet",
-              "icon": "LineDotted"
-            },
-            {
-              "key": "dotted",
-              "label": "Prikket",
-              "icon": "Dot"
-            }
-          ]
+          "ballPass": {
+            "label": "Pasning",
+            "description": "Heltrukken pil for pasningsretning",
+            "icon": "ArrowRight",
+            "marker": "arrow",
+            "strokeWidth": 2
+          },
+          "ballLob": {
+            "label": "Lobbet pasning",
+            "description": "Kurvet, stiplet pasningsbane",
+            "icon": "Waves",
+            "curved": true,
+            "dashed": true,
+            "dashArray": "5,4",
+            "marker": "arrow",
+            "strokeWidth": 2
+          }
+        },
+        "tactical": {
+          "pressingLine": {
+            "label": "Presslinje",
+            "description": "Stiplet linje for kollektiv pressretning",
+            "icon": "ArrowRight",
+            "dashed": true,
+            "dashArray": "8,5",
+            "strokeWidth": 2
+          },
+          "blockLine": {
+            "label": "Blokklinje",
+            "description": "Heltrukken kurve for lagstruktur",
+            "icon": "Move",
+            "curved": true,
+            "strokeWidth": 2
+          }
         }
       }
     },
@@ -256,7 +248,7 @@
         "playerTraces": {
           "enabled": true,
           "opacity": 0.7,
-          "style": "dashedStraightArrow"
+          "style": "dashedStraight"
         },
         "ballTraces": {
           "enabled": true,
